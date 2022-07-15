@@ -1,7 +1,7 @@
 #ifndef VIDEO_SOURCE_H
 #define VIDEO_SOURCE_H
 #include <gst/gst.h>
-#include "utils.h"
+#include "common.h"
 #include <gst/gstelement.h>
 #include <gst/gstpad.h>
 #include <iostream>
@@ -13,18 +13,19 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-class VideoSource
+class GstVideoSrc
 {
 public:
-    VideoSource(){};
+    GstVideoSrc(std::string name_) : name(name_) {}
 
     GstElement *source = NULL;
     GstElement *demux = NULL;
     GstElement *parser = NULL;
     GstElement *decoder = NULL;
-
-    static void newPadCB(GstElement * element, GstPad *pad, gpointer data);
-    void add_source(std::string video_path, int source_id, GstElement * pipeline, GstElement * muxer);
+    std::string name;
+    void linkbasic(std::string video_path, int source_id, GstElement *pipeline);
+    void add_source_to_muxer(std::string video_path, int source_id, GstElement *pipeline, GstElement *muxer);
+    void add_source_to_sink(std::string video_path, int source_id, GstElement *pipeline);
 };
 
 #endif

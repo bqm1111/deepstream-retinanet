@@ -1,8 +1,10 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef COMMON_H
+#define COMMON_H
+
 #include <gst/gst.h>
 #include <cassert>
 #include <stdio.h>
+
 #ifndef GST_ASSERT
 #define GST_ASSERT(ans) assert_98dae521c1e67e8b70f66d14866fe14e((ans), __FILE__, __LINE__);
 inline void assert_98dae521c1e67e8b70f66d14866fe14e(void* element, const char *file, int line)
@@ -54,4 +56,29 @@ inline gboolean bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _uDa
     return TRUE;
 }
 
+static void newPadCB(GstElement *element, GstPad *pad, gpointer data)
+{
+    gchar *name;
+    name = gst_pad_get_name(pad);
+
+    GstCaps *p_caps = gst_pad_get_pad_template_caps(pad);
+    GstElement *sink = GST_ELEMENT(data);
+    if (gst_element_link_pads(element, name, sink, "sink") == false)
+    {
+        gst_print("newPadCB : failed to link elements\n");
+        // throw std::runtime_error("");
+    }
+    g_free(name);
+}
+
+struct GstAppParam
+{
+    GstAppParam(int width = 1920, int height = 1080)
+    {
+        muxer_output_height = height;
+        muxer_output_width = width;
+    }
+    int muxer_output_width;
+    int muxer_output_height;
+};
 #endif

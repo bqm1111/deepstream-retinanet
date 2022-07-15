@@ -375,7 +375,7 @@ int test_mp4(int argc, char **argv)
 	{
 		transform = gst_element_factory_make("nvegltransform", "nvegl-transform");
 	}
-
+	
 	sink = gst_element_factory_make("nveglglessink", "nvvideo-renderer");
 	if (!source || !h264parser || !decoder || !pgie || !nvvidconv || !nvosd || !sink)
 	{

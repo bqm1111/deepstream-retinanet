@@ -7,11 +7,14 @@ project(experiment LANGUAGES CXX CUDA)
 
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
-                    ${PROJECT_SOURCE_DIR}/samples/*.cpp)
+                    ${PROJECT_SOURCE_DIR}/samples/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/gstutils/*.cpp)
 
 include_directories(${PROJECT_SOURCE_DIR}/include
                     ${PROJECT_SOURCE_DIR}/samples
-                    ${PROJECT_SOURCE_DIR}/utils)
+                    ${PROJECT_SOURCE_DIR}/utils
+                    ${PROJECT_SOURCE_DIR}/common
+                    ${PROJECT_SOURCE_DIR}/src/gstutils)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # cuda

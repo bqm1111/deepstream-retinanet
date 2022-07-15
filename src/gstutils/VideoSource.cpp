@@ -1,26 +1,14 @@
 #include "VideoSource.h"
 #include <c++/7/experimental/bits/fs_path.h>
 #include <gst/gstcaps.h>
+#include <gst/gstelement.h>
 #include <gst/gstelementfactory.h>
+#include <gst/gstinfo.h>
 #include <gst/gstpad.h>
+#include <gst/gstutils.h>
 #include <string>
 
-static void VideoSource::newPadCB(GstElement *element, GstPad *pad, gpointer data)
-{
-    gchar *name;
-    name = gst_pad_get_name(pad);
-
-    GstCaps *p_caps = gst_pad_get_pad_template_caps(pad);
-    GstElement *sink = GST_ELEMENT(data);
-    if (gst_element_link_pads(element, name, sink, "sink") == false)
-    {
-        gst_print("newPadCB : failed to link elements\n");
-        // throw std::runtime_error("");
-    }
-    g_free(name);
-}
-
-void VideoSource::add_source(std::string video_path, int source_id, GstElement *pipeline, GstElement *muxer)
+void GstVideoSrc::linkbasic(std::string video_path, int source_id, GstElement *pipeline)
 {
     source = gst_element_factory_make("filesrc", ("file-source-" + std::to_string(source_id)).c_str());
     GST_ASSERT(source);
@@ -57,9 +45,14 @@ void VideoSource::add_source(std::string video_path, int source_id, GstElement *
         throw std::runtime_error("");
     }
     // link tsdemux to h265parser
-    g_signal_connect(demux, "pad-added", G_CALLBACK(newPadCB),
-                     parser);
+    
+        g_signal_connect(demux, "pad-added", G_CALLBACK(newPadCB),
+                         parser);
+}
 
+void GstVideoSrc::add_source_to_muxer(std::string video_path, int source_id, GstElement *pipeline, GstElement *muxer)
+{
+    linkbasic(video_path, source_id, pipeline);
     // link camera source to MOT bin
     GstPad *decoder_srcpad = gst_element_get_static_pad(decoder, "src");
     GST_ASSERT(decoder_srcpad);
@@ -75,5 +68,17 @@ void VideoSource::add_source(std::string video_path, int source_id, GstElement *
     }
     gst_object_unref(decoder_srcpad);
     gst_object_unref(muxer_sinkpad);
+}
 
+void GstVideoSrc::add_source_to_sink(std::string video_path, int source_id, GstElement *pipeline)
+{
+    linkbasic(video_path, source_id, pipeline);
+    GstElement *sink = NULL;
+    sink = gst_element_factory_make("nveglglessink", ("sink_" + std::to_string(source_id)).c_str());
+    gst_bin_add_many(GST_BIN(pipeline), sink, NULL);
+
+    if (!gst_element_link_many(decoder, sink, NULL))
+    {
+        gst_printerr("Could not link decoder and sink\n");
+    }
 }
