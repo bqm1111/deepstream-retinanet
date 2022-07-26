@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef COMMON_H_bbbd8c21af5d0e37138de6c4
+#define COMMON_H_bbbd8c21af5d0e37138de6c4
 
 #include <gst/gst.h>
 #include <cassert>
@@ -73,12 +73,20 @@ static void newPadCB(GstElement *element, GstPad *pad, gpointer data)
 
 struct GstAppParam
 {
-    GstAppParam(int width = 1920, int height = 1080)
+    GstAppParam()
     {
-        muxer_output_height = height;
-        muxer_output_width = width;
+        muxer_output_height = 1920;
+        muxer_output_width = 1080;
+        tiler_rows = 1;
+        tiler_cols = 2;
+        tiler_width = 1280;
+        tiler_height = 480;
     }
     int muxer_output_width;
     int muxer_output_height;
+    int tiler_rows;
+    int tiler_cols;
+    int tiler_width;
+    int tiler_height;
 };
 #endif

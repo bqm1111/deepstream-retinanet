@@ -8,5 +8,10 @@
 #include <gst/gstpoll.h>
 #include <gst/gstvalue.h>
 #include <iostream>
-static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
+#include <nvdsmeta.h>
+#ifndef MAX_DISPLAY_LEN
+#define MAX_DISPLAY_LEN 64
+#endif
+
+static GstPadProbeReturn osd_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 #endif

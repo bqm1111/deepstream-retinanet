@@ -5,6 +5,7 @@
 
 #include "calibrator.h"
 #include <fstream>
+#include <ios>
 #include <iterator>
 
 namespace nvinfer1
@@ -22,7 +23,7 @@ namespace nvinfer1
         batchData = new float[inputCount];
         CUDA_CHECK(cudaMalloc(&deviceInput, inputCount * sizeof(float)));
     }
-
+    
     Int8EntropyCalibrator2::~Int8EntropyCalibrator2()
     {
         CUDA_CHECK(cudaFree(deviceInput));
@@ -48,7 +49,7 @@ namespace nvinfer1
 
             int len = (int)(inputData.size());
             memcpy(ptr, inputData.data(), len * sizeof(float));
-
+            
             ptr += inputData.size();
             std::cout << "Load image: " << imgPaths[j] << std::endl;
             std::cout << "Progress: " << (j + 1)*100. / imgPaths.size() << "%" << std::endl;

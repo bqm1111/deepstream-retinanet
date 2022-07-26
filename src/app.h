@@ -4,23 +4,19 @@
 #include <gst/gstelement.h>
 #include <string>
 #include "common.h"
-
+#include "custom_sink.hpp"
 
 class FaceApp
 {
 public:
-    FaceApp();
+    FaceApp(std::string name);
     ~FaceApp();
 
     std::vector<std::string> m_video_source_path;
-    std::vector<GstVideoSrc> m_gst_vidsrc;
     GstAppParam m_gstparam;
-    GstElement * m_pipeline;
-    GstElement * m_muxer;
-    void add_video_source(std::string video_path, std::string name);
-    void linkMultipleSrcToMuxer();
-    void linkToShowVideo();
-    int getNumVideoSource();
-    void executePipeline();
+    AppPipeline m_app;
+    std::string m_app_name;
+    void add_video(std::string video_path, std::string video_name);
+    void showVideo();
 };
 #endif
