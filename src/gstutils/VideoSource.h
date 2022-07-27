@@ -22,10 +22,10 @@ public:
     AppPipeline(std::string pipeline_name, GstAppParam params);
     ~AppPipeline();
     GstElement *m_pipeline = NULL;
-    std::vector<GstElement *> m_source = {NULL};
-    std::vector<GstElement *> m_demux = {NULL};
-    std::vector<GstElement *> m_parser = {NULL};
-    std::vector<GstElement *> m_decoder = {NULL};
+    std::vector<GstElement *> m_source;
+    std::vector<GstElement *> m_demux ;
+    std::vector<GstElement *> m_parser;
+    std::vector<GstElement *> m_decoder;
 
     GstElement *m_muxer = NULL;
     GstElement *m_tiler = NULL;
@@ -37,6 +37,7 @@ public:
     void create(std::string pipeline_name, GstAppParam params);
     GstElement *add_video_source(std::string video_path, std::string video_name);
     void linkMuxer();
+    static void wrapperAddNewPad(GstElement *element, GstPad *pad, gpointer data);
     GstElement *createGeneralSinkBin();
     void link(GstElement *in_elem, GstElement *out_elem);
 
@@ -44,6 +45,8 @@ public:
     int numVideoSrc();
 
 private:
+    void addnewPad(GstElement *element, GstPad *pad, gpointer data);
+
     void resize();
 };
 

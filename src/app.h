@@ -2,6 +2,7 @@
 #define APP_H
 #include "gstutils/VideoSource.h"
 #include <gst/gstelement.h>
+#include <gst/gstpipeline.h>
 #include <string>
 #include "common.h"
 #include "custom_sink.hpp"
@@ -17,6 +18,8 @@ public:
     AppPipeline m_app;
     std::string m_app_name;
     void add_video(std::string video_path, std::string video_name);
+    void linkMuxer();
     void showVideo();
+    GstElement * getPipeline();
 };
 #endif
