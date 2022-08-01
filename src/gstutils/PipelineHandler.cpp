@@ -1,4 +1,4 @@
-#include "VideoSource.h"
+#include "PipelineHandler.h"
 #include "common.h"
 #include <c++/7/experimental/bits/fs_path.h>
 #include <gst/gstcaps.h>
@@ -33,15 +33,6 @@ int AppPipeline::numVideoSrc()
     return m_video_source.size();
 }
 
-void AppPipeline::resize()
-{
-    int new_size = numVideoSrc();
-    m_source.resize(new_size);
-    m_demux.resize(new_size);
-    m_parser.resize(new_size);
-    m_decoder.resize(new_size);
-}
-
 GstElement *AppPipeline::add_video_source(std::string video_path, std::string video_name)
 {
     m_video_source[video_name] = numVideoSrc() + 1;
@@ -58,11 +49,12 @@ GstElement *AppPipeline::add_video_source(std::string video_path, std::string vi
     {
         m_demux.push_back(gst_element_factory_make("qtdemux", ("qtdemux-" + std::to_string(source_id)).c_str()));
     }
+    
     m_parser.push_back(gst_element_factory_make("h265parse", ("h265-parser-" + std::to_string(source_id)).c_str()));
     GST_ASSERT(m_parser[source_id]);
     m_decoder.push_back(gst_element_factory_make("nvv4l2decoder", ("decoder-" + std::to_string(source_id)).c_str()));
     GST_ASSERT(m_decoder[source_id]);
-
+    
     std::cout << "Input video path: " << video_path << std::endl;
     g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
 
@@ -82,7 +74,7 @@ GstElement *AppPipeline::add_video_source(std::string video_path, std::string vi
         throw std::runtime_error("");
     }
     // link tsdemux to h265parser
-    g_signal_connect(m_demux[source_id], "pad-added", G_CALLBACK(wrapperAddNewPad),
+    g_signal_connect(m_demux[source_id], "pad-added", G_CALLBACK(addnewPad),
                      m_parser[source_id]);
 
     return m_decoder[source_id];
@@ -133,15 +125,14 @@ GstElement *AppPipeline::createGeneralSinkBin()
     g_object_set(G_OBJECT(m_tiler), "columns", m_gstparams.tiler_cols, NULL);
     g_object_set(G_OBJECT(m_tiler), "width", m_gstparams.tiler_width, NULL);
     g_object_set(G_OBJECT(m_tiler), "height", m_gstparams.tiler_height, NULL);
-
-    m_osd = gst_element_factory_make("nvdsosd", "sink-nvdsosd");
-    GST_ASSERT(m_osd);
+    // m_osd = gst_element_factory_make("nvdsosd", "sink-nvdsosd");
+    // GST_ASSERT(m_osd);
 
     m_sink = gst_element_factory_make("nveglglessink", "nv-sink");
     GST_ASSERT(m_sink);
-    gst_bin_add_many(GST_BIN(m_pipeline), m_tiler, m_osd, m_sink, NULL);
+    gst_bin_add_many(GST_BIN(m_pipeline), m_tiler, m_sink, NULL);
 
-    if (!gst_element_link_many(m_tiler, m_osd, m_sink, NULL))
+    if (!gst_element_link_many(m_tiler,  m_sink, NULL))
     {
         gst_printerr("Could not link tiler, osd and sink\n");
     }
@@ -153,29 +144,5 @@ GstElement *AppPipeline::createGeneralSinkBin()
     //                       reinterpret_cast<gpointer>(m_tiler), NULL);
     //     gst_object_unref(osd_sink_pad);
     // }
-    return m_tiler;
-}
-
-void AppPipeline::addnewPad(GstElement *element, GstPad *pad, gpointer data)
-{
-    gchar *name;
-    name = gst_pad_get_name(pad);
-    // g_print("A new pad %s was created\n", name);
-    GstCaps *p_caps = gst_pad_get_pad_template_caps(pad);
-    gchar *description = gst_caps_to_string(p_caps);
-    // std::cout << p_caps << ", " << description;
-    g_free(description);
-    GstElement *sink = GST_ELEMENT(data);
-    if (gst_element_link_pads(element, name, sink, "sink") == false)
-    {
-        gst_print("newPadCB : failed to link elements%s:%d\n", __FILE__, __LINE__);
-        // throw std::runtime_error("");
-    }
-    g_free(name);
-}
-
-void AppPipeline::wrapperAddNewPad(GstElement *element, GstPad *pad, gpointer data)
-{
-    AppPipeline *itseft = reinterpret_cast<AppPipeline *>(data);
-    return itseft->addnewPad(element, pad, data);
+    return m_sink;
 }

@@ -1,6 +1,6 @@
 #ifndef APP_H
 #define APP_H
-#include "gstutils/VideoSource.h"
+#include "gstutils/PipelineHandler.h"
 #include <gst/gstelement.h>
 #include <gst/gstpipeline.h>
 #include <string>

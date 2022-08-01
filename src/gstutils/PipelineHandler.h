@@ -1,5 +1,5 @@
-#ifndef VIDEO_SOURCE_H
-#define VIDEO_SOURCE_H
+#ifndef PIPELINE_HANDLER_H
+#define PIPELINE_HANDLER_H
 #include <gst/gst.h>
 #include "common.h"
 #include <gst/gstelement.h>
@@ -40,14 +40,8 @@ public:
     static void wrapperAddNewPad(GstElement *element, GstPad *pad, gpointer data);
     GstElement *createGeneralSinkBin();
     void link(GstElement *in_elem, GstElement *out_elem);
-
     std::map<std::string, int> m_video_source;
     int numVideoSrc();
-
-private:
-    void addnewPad(GstElement *element, GstPad *pad, gpointer data);
-
-    void resize();
 };
 
 #endif

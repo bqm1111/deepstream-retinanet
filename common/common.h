@@ -55,6 +55,24 @@ inline gboolean bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _uDa
     }
     return TRUE;
 }
+static void addnewPad(GstElement *element, GstPad *pad, gpointer data)
+{
+    gchar *name;
+    name = gst_pad_get_name(pad);
+    // g_print("A new pad %s was created\n", name);
+    GstCaps *p_caps = gst_pad_get_pad_template_caps(pad);
+    gchar *description = gst_caps_to_string(p_caps);
+    // std::cout << p_caps << ", " << description;
+    gst_print("Name = %s\n", name);
+    g_free(description);
+    GstElement *sink = GST_ELEMENT(data);
+    if (gst_element_link_pads(element, name, sink, "sink") == false)
+    {
+        gst_print("newPadCB : failed to link elements%s:%d\n", __FILE__, __LINE__);
+        // throw std::runtime_error("");
+    }
+    g_free(name);
+}
 
 struct GstAppParam
 {
@@ -67,6 +85,7 @@ struct GstAppParam
         tiler_width = 1280;
         tiler_height = 480;
     }
+    
     int muxer_output_width;
     int muxer_output_height;
     int tiler_rows;
