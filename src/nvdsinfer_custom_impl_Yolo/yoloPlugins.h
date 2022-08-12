@@ -73,7 +73,7 @@ public:
     nvinfer1::Dims getOutputDimensions (
         int index, const nvinfer1::Dims* inputs,
         int nbInputDims) noexcept override;
-
+    
     bool supportsFormat (
         nvinfer1::DataType type, nvinfer1::PluginFormat format) const noexcept override;
 
@@ -88,7 +88,7 @@ public:
     size_t getWorkspaceSize (int maxBatchSize) const noexcept override {
         return maxBatchSize * sizeof(int);
     }
-
+    
     int32_t enqueue (
         int batchSize, void const* const* inputs, void* const* outputs, void* workspace, cudaStream_t stream)
         noexcept override;
@@ -100,7 +100,7 @@ public:
     void destroy () noexcept override { delete this; }
 
     nvinfer1::IPluginV2* clone() const noexcept override;
-
+    
     void setPluginNamespace (const char* pluginNamespace) noexcept override {
         m_Namespace = pluginNamespace;
     }

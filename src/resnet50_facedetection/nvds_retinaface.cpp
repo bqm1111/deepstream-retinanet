@@ -5,6 +5,7 @@
 #include "decode_plugin.h"
 #include "trt_utils.h"
 
+#include <NvInfer.h>
 #include <map>
 #include <cmath>
 
@@ -171,7 +172,7 @@ NvDsInferStatus RetinafaceDS::parseModel(nvinfer1::INetworkDefinition &network)
     fields[1].type = PluginFieldType::kINT32;
     fields[1].length = 1;
     pfc.fields = (const PluginField *)fields;
-
+    
     IPluginV2 *pluginObj = creator->createPlugin("decode", &pfc);
     ITensor *inputTensors[] = {cat1->getOutput(0), cat2->getOutput(0), cat3->getOutput(0)};
     auto decodelayer = network.addPluginV2(inputTensors, 3, *pluginObj);
@@ -199,7 +200,7 @@ extern "C" bool NvDsInferRetinafaceCudaEngineGet(nvinfer1::IBuilder *const build
     {
         throw std::runtime_error("NvDsInferRetinafaceCudaEngineGet not supported netInputOrder\n");
     }
-
+    
     // FIXME: pass weight from config file
     int net_H = initParams->inferInputDims.h;
     int net_W = initParams->inferInputDims.w;
@@ -306,7 +307,7 @@ namespace trt
         assert(relu3);
         return relu3;
     }
-
+    
     nvinfer1::ILayer *conv_bn_relu(
         nvinfer1::INetworkDefinition &network,
         const std::map<std::string, nvinfer1::Weights> &weightMap,

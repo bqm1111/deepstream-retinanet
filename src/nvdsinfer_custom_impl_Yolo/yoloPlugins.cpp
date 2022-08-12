@@ -87,7 +87,7 @@ YoloLayer::YoloLayer (const void* data, size_t length)
     read(d, m_Type);
     read(d, m_TopK);
     read(d, m_ScoreThreshold);
-
+    
     uint yoloTensorsSize;
     read(d, yoloTensorsSize);
     for (uint i = 0; i < yoloTensorsSize; ++i)

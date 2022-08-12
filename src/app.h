@@ -1,10 +1,9 @@
 #ifndef APP_H
 #define APP_H
-#include "gstutils/PipelineHandler.h"
+#include "PipelineHandler.h"
 #include <gst/gstelement.h>
 #include <gst/gstpipeline.h>
 #include <string>
-#include "common.h"
 #include "custom_sink.hpp"
 
 class FaceApp
@@ -20,6 +19,8 @@ public:
     void add_video(std::string video_path, std::string video_name);
     void linkMuxer();
     void showVideo();
+    void faceDetection();
+    void detectAndSend();
     GstElement * getPipeline();
 };
 #endif

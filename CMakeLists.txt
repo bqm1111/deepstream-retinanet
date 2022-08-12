@@ -8,13 +8,14 @@ project(experiment LANGUAGES CXX CUDA)
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
                     ${PROJECT_SOURCE_DIR}/samples/*.cpp
-                    ${PROJECT_SOURCE_DIR}/src/gstutils/*.cpp)
+                    ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp)
 
-include_directories(${PROJECT_SOURCE_DIR}/include
-                    ${PROJECT_SOURCE_DIR}/samples
+include_directories(${PROJECT_SOURCE_DIR}/samples
                     ${PROJECT_SOURCE_DIR}/utils
                     ${PROJECT_SOURCE_DIR}/common
-                    ${PROJECT_SOURCE_DIR}/src/gstutils)
+                    ${PROJECT_SOURCE_DIR}/src/pipeline
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # cuda
@@ -44,5 +45,4 @@ target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 target_link_libraries(${PROJECT_NAME} -lstdc++fs)
 
 # Subdirectory
-
 add_subdirectory(src)

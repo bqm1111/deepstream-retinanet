@@ -22,7 +22,9 @@ int main(int argc, char *argv[])
 		app.add_video(argv[i], "video-" + std::to_string(i));
 	}
 
-	app.showVideo();
+	// app.showVideo();
+	// app.faceDetection();
+	app.detectAndSend();
 	bus = gst_pipeline_get_bus(GST_PIPELINE(app.getPipeline()));
 	GST_ASSERT(bus);
 	bus_watch_id = gst_bus_add_watch(bus, bus_watch_callback, nullptr);
