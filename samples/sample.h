@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <cuda_runtime_api.h>
 #include "gstnvdsmeta.h"
+#include "nvds_version.h"
 
 class Sample
 {
@@ -22,6 +23,7 @@ int test1(int argc, char **argv);
 int test2(int argc, char **argv);
 int test_mp4(int argc, char **argv);
 int test_h265(int argc, char **argv);
-
+int infer_meta(int argc, char *argv[]);
+int user_metadata(int argc, char *argv[]);
 
 #endif

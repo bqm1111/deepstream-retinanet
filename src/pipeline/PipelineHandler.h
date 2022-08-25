@@ -12,7 +12,7 @@
 #include <gst/gstutils.h>
 #include <gst/gstelement.h>
 #include <opencv2/videostab/log.hpp>
-#include "BufferProbe.h"
+#include "probe.h"
 #include "helper_function.h"
 #include "params.h"
 #if __has_include(<filesystem>)
@@ -24,8 +24,8 @@ namespace fs = std::experimental::filesystem;
 #endif
 
 #ifndef FACEID_PGIE_CONFIG_PATH
-// #define FACEID_PGIE_CONFIG_PATH "../configs/faceid/faceid_primary.txt"
-#define FACEID_PGIE_CONFIG_PATH "../configs/config_infer_primary_yoloV5.txt"
+#define FACEID_PGIE_CONFIG_PATH "../configs/faceid/faceid_primary.txt"
+// #define FACEID_PGIE_CONFIG_PATH "../configs/config_infer_primary_yoloV5.txt"
 #endif
 #ifndef FACEID_ALIGN_CONFIG_PATH
 #define FACEID_ALIGN_CONFIG_PATH "../configs/faceid/faceid_align_config.txt"

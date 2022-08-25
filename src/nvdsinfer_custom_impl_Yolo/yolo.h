@@ -72,7 +72,7 @@ public:
     const char* getModelName() const override {
         return m_ConfigFilePath.empty() ? m_NetworkType.c_str() : m_ConfigFilePath.c_str();
     }
-
+    
     NvDsInferStatus parseModel(nvinfer1::INetworkDefinition& network) override;
 
     nvinfer1::ICudaEngine *createEngine (nvinfer1::IBuilder* builder, nvinfer1::IBuilderConfig* config);

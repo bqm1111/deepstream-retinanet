@@ -171,7 +171,7 @@ NvDsInferStatus Yolo::buildYoloNetwork(std::vector<float>& weights, nvinfer1::IN
         eps = 1.0e-3;
     else if (m_NetworkType.find("yolor") != std::string::npos)
         eps = 1.0e-4;
-
+    
     nvinfer1::ITensor* data =
         network.addInput(m_InputBlobName.c_str(), nvinfer1::DataType::kFLOAT,
             nvinfer1::Dims3{static_cast<int>(m_InputC),
@@ -206,7 +206,7 @@ NvDsInferStatus Yolo::buildYoloNetwork(std::vector<float>& weights, nvinfer1::IN
             std::string layerType = "conv_" + m_ConfigBlocks.at(i).at("activation");
             printLayerInfo(layerIndex, layerType, inputVol, outputVol, std::to_string(weightPtr));
         }
-
+        
         else if (m_ConfigBlocks.at(i).at("type") == "implicit_add" || m_ConfigBlocks.at(i).at("type") == "implicit_mul")
         {
             std::string type;
@@ -407,7 +407,7 @@ NvDsInferStatus Yolo::buildYoloNetwork(std::vector<float>& weights, nvinfer1::IN
                       << " or less in config_nms.txt file\n" << std::endl;
             assert(0);
         }
-
+        
         std::string layerName = "yolo";
         nvinfer1::IPluginV2* yoloPlugin = new YoloLayer(
             m_InputW, m_InputH, m_NumClasses, m_NewCoords, m_YoloTensors, outputSize, modelType, m_TopK,
@@ -433,7 +433,7 @@ NvDsInferStatus Yolo::buildYoloNetwork(std::vector<float>& weights, nvinfer1::IN
         nmsParams.scoreThreshold = m_ScoreThreshold;
         nmsParams.iouThreshold = m_IouThreshold;
         nmsParams.isNormalized = false;
-
+        
         layerName = "batchedNMS";
         nvinfer1::IPluginV2* batchedNMS = createBatchedNMSPlugin(nmsParams);
         nvinfer1::IPluginV2Layer* nms = network.addPluginV2(yoloTensors, 2, *batchedNMS);

@@ -177,7 +177,7 @@ NvDsInferStatus RetinafaceDS::parseModel(nvinfer1::INetworkDefinition &network)
     ITensor *inputTensors[] = {cat1->getOutput(0), cat2->getOutput(0), cat3->getOutput(0)};
     auto decodelayer = network.addPluginV2(inputTensors, 3, *pluginObj);
     assert(decodelayer);
-
+    
     decodelayer->getOutput(0)->setName(OUTPUT_BLOB_NAME);
     network.markOutput(*decodelayer->getOutput(0));
 }
@@ -237,6 +237,7 @@ extern "C" bool NvDsInferParseCustomRetinaface(
     // the output is held in outputLayerInfo.buffer
     float *output = (float *)outputLayerInfo.buffer;
     float numBboxes = output[0];
+    
     for (int i = 0; i < numBboxes; i++)
     {
         if (output[15 * i + 1 + 4] <= detectionParams.perClassPreclusterThreshold[0])
@@ -369,7 +370,7 @@ namespace trt
             mean_weight = getWeights(weightMap, lname + "_moving_mean");
             var_weight = getWeights(weightMap, lname + "_moving_var");
         }
-
+        
         float *gamma = (float *)gamma_weight.values;
         float *beta = (float *)beta_weight.values;
         float *mean = (float *)mean_weight.values;
@@ -382,7 +383,7 @@ namespace trt
             scval[i] = gamma[i] / sqrt(var[i] + eps);
         }
         Weights scale{DataType::kFLOAT, scval, len};
-
+        
         float *shval = reinterpret_cast<float *>(malloc(sizeof(float) * len));
         for (int i = 0; i < len; i++)
         {

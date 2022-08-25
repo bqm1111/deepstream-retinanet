@@ -5,7 +5,7 @@
 #include <gst/gstelement.h>
 #include <gst/gstelementfactory.h>
 #include <gst/gstobject.h>
-#include "BufferProbe.h"
+#include "probe.h"
 #include "params.h"
 
 struct FaceBinConfigs

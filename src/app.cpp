@@ -26,6 +26,7 @@ void FaceApp::linkMuxer()
 {
     m_app.linkMuxer();
 }
+
 void FaceApp::showVideo()
 {
     m_app.linkMuxer();

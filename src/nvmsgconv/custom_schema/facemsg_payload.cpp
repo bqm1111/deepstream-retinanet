@@ -20,7 +20,7 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 	if (snprintf(tracking_id, sizeof(tracking_id), "%lu", meta->trackingId) >= (int)sizeof(tracking_id))
 		g_warning("Not enough space to copy trackingId");
 	json_object_set_string_member(objectObj, "id", tracking_id);
-
+	
 	switch (meta->objType)
 	{
 	// case NVDS_OBJECT_TYPE_PERSON:
@@ -92,7 +92,7 @@ gchar* generate_face_event_message (void *privData, NvDsEventMsgMeta *meta)
 	JsonObject *rootObj;
 	JsonObject *objectObj;
 	gchar *message;
-
+	
 	uuid_t msgId;
 	gchar msgIdStr[37];
 

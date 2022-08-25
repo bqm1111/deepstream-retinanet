@@ -92,7 +92,7 @@ void AppPipeline::linkMuxer()
 
         GstPad *muxer_sinkpad = gst_element_get_request_pad(m_muxer, ("sink_" + std::to_string(i)).c_str());
         GST_ASSERT(muxer_sinkpad);
-
+        
         GstPadLinkReturn pad_link_return = gst_pad_link(decoder_srcpad, muxer_sinkpad);
         if (GST_PAD_LINK_FAILED(pad_link_return))
         {
@@ -111,7 +111,7 @@ void AppPipeline::link(GstElement *in_elem, GstElement *out_elem)
         gst_printerr("Could not link elements: %s%d\n", __FILE__, __LINE__);
     }
 }
-
+// 
 GstElement *AppPipeline::createGeneralSinkBin()
 {
     m_tiler = gst_element_factory_make("nvmultistreamtiler", "sink-nvmultistreamtiler");
@@ -142,6 +142,7 @@ GstElement *AppPipeline::createGeneralSinkBin()
     {
         gst_printerr("Could not link tiler, osd and sink\n");
     }
+
     GstPad *sink_pad = gst_element_get_static_pad(m_queue_display, "sink");
     m_tee_display_pad = gst_element_get_request_pad(m_tee, "src_%u");
     if (!m_tee_display_pad)
@@ -160,7 +161,7 @@ GstElement *AppPipeline::createGeneralSinkBin()
     {
         GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
         GST_ASSERT(osd_sink_pad);
-        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_yolo_sink_pad_buffer_probe,
+        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_face_sink_pad_callback,
                           reinterpret_cast<gpointer>(m_tiler), NULL);
         gst_object_unref(osd_sink_pad);
     }
