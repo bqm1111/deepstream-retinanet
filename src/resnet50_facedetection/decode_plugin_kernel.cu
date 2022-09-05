@@ -319,6 +319,4 @@ const char *DecodePluginCreator::getPluginNamespace() const TRT_NOEXCEPT
 {
     return mNamespace.c_str();
 }
-
-
 }

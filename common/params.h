@@ -25,8 +25,8 @@ struct GstAppParam
 {
     GstAppParam()
     {
-        muxer_output_height = 1920;
-        muxer_output_width = 1080;
+        muxer_output_width = 1920;
+        muxer_output_height = 1080;
         tiler_rows = 1;
         tiler_cols = 2;
         tiler_width = 1280;
