@@ -44,7 +44,7 @@ GstElement *AppPipeline::add_video_source(std::string video_path, std::string vi
     {
         m_demux.push_back(gst_element_factory_make("qtdemux", ("qtdemux-" + std::to_string(source_id)).c_str()));
     }
-
+    // 
     m_parser.push_back(gst_element_factory_make("h265parse", ("h265-parser-" + std::to_string(source_id)).c_str()));
     GST_ASSERT(m_parser[source_id]);
     m_decoder.push_back(gst_element_factory_make("nvv4l2decoder", ("decoder-" + std::to_string(source_id)).c_str()));

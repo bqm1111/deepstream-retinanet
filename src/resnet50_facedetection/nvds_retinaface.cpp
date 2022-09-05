@@ -122,7 +122,7 @@ NvDsInferStatus RetinafaceDS::parseModel(nvinfer1::INetworkDefinition &network)
     up3->setStrideNd(DimsHW{2, 2});
     up3->setNbGroups(256);
     weightMap["up3"] = deconvwts;
-
+    
     output2 = network.addElementWise(*output2->getOutput(0), *up3->getOutput(0), ElementWiseOperation::kSUM);
     output2 = conv_bn_relu(network, weightMap, *output2->getOutput(0), 256, 3, 1, 1, true, "fpn.merge2");
 
@@ -172,7 +172,7 @@ NvDsInferStatus RetinafaceDS::parseModel(nvinfer1::INetworkDefinition &network)
     fields[1].type = PluginFieldType::kINT32;
     fields[1].length = 1;
     pfc.fields = (const PluginField *)fields;
-    
+
     IPluginV2 *pluginObj = creator->createPlugin("decode", &pfc);
     ITensor *inputTensors[] = {cat1->getOutput(0), cat2->getOutput(0), cat3->getOutput(0)};
     auto decodelayer = network.addPluginV2(inputTensors, 3, *pluginObj);
@@ -180,6 +180,7 @@ NvDsInferStatus RetinafaceDS::parseModel(nvinfer1::INetworkDefinition &network)
     
     decodelayer->getOutput(0)->setName(OUTPUT_BLOB_NAME);
     network.markOutput(*decodelayer->getOutput(0));
+    return NVDSINFER_SUCCESS;
 }
 
 extern "C" bool NvDsInferRetinafaceCudaEngineGet(nvinfer1::IBuilder *const builder,
@@ -204,6 +205,7 @@ extern "C" bool NvDsInferRetinafaceCudaEngineGet(nvinfer1::IBuilder *const build
     // FIXME: pass weight from config file
     int net_H = initParams->inferInputDims.h;
     int net_W = initParams->inferInputDims.w;
+    std::cout << "======================> WIDTH - HEIGHT = " << net_W << " - " << net_H << std::endl;
     std::string weightFile = RETINAFACE_WEIGHT_PATH;
     RetinafaceDS retinafaceDS(net_H, net_W, builder->getMaxBatchSize(), nvinfer1::DataType::kFLOAT, weightFile);
     nvinfer1::INetworkDefinition *network = builder->createNetworkV2(0U);
@@ -233,6 +235,7 @@ extern "C" bool NvDsInferParseCustomRetinaface(
     if (outputLayersInfo.size() != 0) {
         throw std::runtime_error("outputLayersInfo has more than one layer");
     }
+    
     NvDsInferLayerInfo outputLayerInfo = outputLayersInfo.at(0);
     // the output is held in outputLayerInfo.buffer
     float *output = (float *)outputLayerInfo.buffer;
@@ -308,7 +311,7 @@ namespace trt
         assert(relu3);
         return relu3;
     }
-    
+
     nvinfer1::ILayer *conv_bn_relu(
         nvinfer1::INetworkDefinition &network,
         const std::map<std::string, nvinfer1::Weights> &weightMap,
@@ -407,3 +410,4 @@ namespace trt
         return scale_1;
     }
 }
+

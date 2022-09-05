@@ -79,7 +79,7 @@ private:
 	int mInputH;
 	int mInputW;
 };
-
+// 
 class DecodePluginCreator : public IPluginCreator
 {
 public:

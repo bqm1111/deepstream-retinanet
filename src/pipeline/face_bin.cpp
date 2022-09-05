@@ -39,7 +39,7 @@ void FaceBin::createBin()
 
     gst_element_add_pad(m_masterBin, sink_ghost_pad);
     gst_element_add_pad(m_masterBin, src_ghost_pad);
-
+    // 
     gst_object_unref(pgie_src_pad);
 }
 

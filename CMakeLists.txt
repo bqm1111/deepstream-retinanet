@@ -9,7 +9,11 @@ file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
                     ${PROJECT_SOURCE_DIR}/samples/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
-                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp)
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cu
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_Yolo/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_Yolo/layers/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_Yolo/*.cu)
 
 include_directories(${PROJECT_SOURCE_DIR}/samples
                     ${PROJECT_SOURCE_DIR}/utils
@@ -36,7 +40,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC ${GST_PKG_CFLAGS_OTHER})
 # deepstream
 target_include_directories(${PROJECT_NAME} PUBLIC /opt/nvidia/deepstream/deepstream/sources/includes)
 target_link_directories(${PROJECT_NAME} PUBLIC /opt/nvidia/deepstream/deepstream/lib)
-target_link_libraries(${PROJECT_NAME} -lnvds_inferutils -lnvds_utils -lm -lnvdsgst_meta -lnvds_meta -lnvinfer -lnvds_infercustomparser)
+target_link_libraries(${PROJECT_NAME} -lnvinfer_plugin -lnvds_inferutils -lnvds_utils -lm -lnvdsgst_meta -lnvds_meta -lnvinfer -lnvds_infercustomparser)
 
 # OpenCV
 find_package(OpenCV REQUIRED)
