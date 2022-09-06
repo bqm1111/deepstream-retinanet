@@ -63,7 +63,7 @@ public:
         const uint& netWidth, const uint& netHeight, const uint& numClasses, const uint& newCoords,
         const std::vector<TensorInfo>& yoloTensors, const uint64_t& outputSize, const uint& modelType, const uint& topK,
         const float& scoreThreshold);
-
+    
     const char* getPluginType () const noexcept override { return YOLOLAYER_PLUGIN_NAME; }
 
     const char* getPluginVersion () const noexcept override { return YOLOLAYER_PLUGIN_VERSION; }

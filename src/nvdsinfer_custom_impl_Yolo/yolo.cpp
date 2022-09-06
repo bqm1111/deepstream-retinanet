@@ -407,7 +407,7 @@ NvDsInferStatus Yolo::buildYoloNetwork(std::vector<float>& weights, nvinfer1::IN
                       << " or less in config_nms.txt file\n" << std::endl;
             assert(0);
         }
-        
+
         std::string layerName = "yolo";
         nvinfer1::IPluginV2* yoloPlugin = new YoloLayer(
             m_InputW, m_InputH, m_NumClasses, m_NewCoords, m_YoloTensors, outputSize, modelType, m_TopK,
@@ -454,7 +454,7 @@ NvDsInferStatus Yolo::buildYoloNetwork(std::vector<float>& weights, nvinfer1::IN
         network.markOutput(*nmsed_boxes);
         network.markOutput(*nmsed_scores);
         network.markOutput(*nmsed_classes);
-
+        
         printLayerInfo("", "batched_nms", "        -", outputVol, "    -");
     }
     else {

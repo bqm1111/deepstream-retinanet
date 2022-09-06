@@ -47,7 +47,7 @@ NvDsInferStatus RetinaFace::parseModel(nvinfer1::INetworkDefinition &network)
     assert(pool1);
     pool1->setStrideNd(DimsHW{2, 2});
     pool1->setPaddingNd(DimsHW{1, 1});
-
+    
     IActivationLayer *x = bottleneck(&network, weightMap, *pool1->getOutput(0), 64, 64, 1, "body.layer1.0.");
     x = bottleneck(&network, weightMap, *x->getOutput(0), 256, 64, 1, "body.layer1.1.");
     x = bottleneck(&network, weightMap, *x->getOutput(0), 256, 64, 1, "body.layer1.2.");
