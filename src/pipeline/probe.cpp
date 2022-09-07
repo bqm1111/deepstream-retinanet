@@ -92,7 +92,7 @@ GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info
     NvDsMetaList *l_frame = NULL;
     NvDsMetaList *l_obj = NULL;
     NvDsMetaList *l_user = NULL;
-
+    
     for (l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
@@ -131,7 +131,7 @@ GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info
     }
     return GST_PAD_PROBE_OK;
 }
-
+//
 GstPadProbeReturn osd_face_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
@@ -174,7 +174,7 @@ GstPadProbeReturn osd_face_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info,
                         continue;
                     }
                     NvDsFaceMetaData *faceMeta = static_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
-
+                    // 
                     NvDsDisplayMeta *display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
                     display_meta->num_circles = NUM_FACEMARK;
                     for (int j = 0; j < NUM_FACEMARK; j++)
@@ -282,12 +282,11 @@ GstPadProbeReturn pgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
             std::vector<NvDsInferLayerInfo> outputLayersInfo(meta->output_layers_info, meta->output_layers_info + meta->num_output_layers);
             NvDsInferLayerInfo outputLayerInfo = outputLayersInfo.at(0);
             // std::vector < NvDsInferObjectDetectionInfo > objectList;
-
+            
             float *output = (float *)outputLayerInfo.buffer;
 
             std::vector<Detection> res;
             nms(res, output, detectionParams.perClassPostclusterThreshold[0]);
-
             /* Iterate final rectangules and attach result into frame's obj_meta_list */
             for (const auto &obj : res)
             {
@@ -314,7 +313,7 @@ GstPadProbeReturn pgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
                 obj_meta->detector_bbox_info.org_bbox_coords.top *= scale_y;
                 obj_meta->detector_bbox_info.org_bbox_coords.width *= scale_x;
                 obj_meta->detector_bbox_info.org_bbox_coords.height *= scale_y;
-                
+
                 /* for nvdosd */
                 NvOSD_RectParams &rect_params = obj_meta->rect_params;
                 NvOSD_TextParams &text_params = obj_meta->text_params;
@@ -325,7 +324,7 @@ GstPadProbeReturn pgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
                 rect_params.border_width = 3;
                 rect_params.has_bg_color = 0;
                 rect_params.border_color = (NvOSD_ColorParams){1, 0, 0, 1};
-                
+
                 // store landmark in obj_user_meta_list
                 NvDsFaceMetaData *face_meta_ptr = new NvDsFaceMetaData();
                 for (int j = 0; j < 2 * NUM_FACEMARK; j += 2)
@@ -336,7 +335,7 @@ GstPadProbeReturn pgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
                     face_meta_ptr->faceMark[j] *= scale_x;
                     face_meta_ptr->faceMark[j + 1] *= scale_y;
                 }
-                
+
                 NvDsUserMeta *user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
                 user_meta->user_meta_data = static_cast<void *>(face_meta_ptr);
                 NvDsMetaType user_meta_type = (NvDsMetaType)NVDS_OBJ_USER_META_FACE;
@@ -348,7 +347,7 @@ GstPadProbeReturn pgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
             }
         }
     }
-    
+
     if (nvds_enable_latency_measurement)
     {
         NvDsFrameLatencyInfo LATENCY_INFO[2];
@@ -584,7 +583,6 @@ generate_event_msg_meta(gpointer data, gint class_id, NvDsObjectMeta *obj_params
     }
 }
 
-
 GstPadProbeReturn
 osd_yolo_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
@@ -598,7 +596,7 @@ osd_yolo_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_da
     NvDsDisplayMeta *display_meta = NULL;
 
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
-    
+
     for (l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
@@ -654,9 +652,9 @@ osd_yolo_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_da
             txt_params->text_bg_clr.alpha = 1.0;
 
             nvds_add_display_meta_to_frame(frame_meta, display_meta);
-            
+
             // ================== EVENT MESSAGE DATA ========================
-            
+
             NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
             msg_meta->bbox.top = obj_meta->rect_params.top;
             msg_meta->bbox.left = obj_meta->rect_params.left;
@@ -686,8 +684,8 @@ osd_yolo_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_da
 }
 
 extern "C" bool NvDsInferParseYolo(
-    std::vector<NvDsInferLayerInfo> const& outputLayersInfo, NvDsInferNetworkInfo const& networkInfo,
-    NvDsInferParseDetectionParams const& detectionParams, std::vector<NvDsInferParseObjectInfo>& objectList);
+    std::vector<NvDsInferLayerInfo> const &outputLayersInfo, NvDsInferNetworkInfo const &networkInfo,
+    NvDsInferParseDetectionParams const &detectionParams, std::vector<NvDsInferParseObjectInfo> &objectList);
 
 GstPadProbeReturn pgie_yolo_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data)
 {
@@ -697,31 +695,31 @@ GstPadProbeReturn pgie_yolo_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info,
     detectionParams.perClassPostclusterThreshold = {0.2, 0.2, 0.2, 0.2};
     static float groupThreshold = 1;
     static float groupEps = 0.2;
-    
+
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(GST_BUFFER(info->data));
-    
-    for(NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame !=NULL; l_frame = l_frame->next)
+
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)l_frame->data;
-        for(NvDsMetaList *l_user = frame_meta->frame_user_meta_list; l_user != NULL; l_user = l_user->next)
+        for (NvDsMetaList *l_user = frame_meta->frame_user_meta_list; l_user != NULL; l_user = l_user->next)
         {
             NvDsUserMeta *user_meta = (NvDsUserMeta *)l_user->data;
-            if(user_meta->base_meta.meta_type != NVDSINFER_TENSOR_OUTPUT_META)
+            if (user_meta->base_meta.meta_type != NVDSINFER_TENSOR_OUTPUT_META)
             {
                 continue;
             }
-            NvDsInferTensorMeta * meta = (NvDsInferTensorMeta *)user_meta->user_meta_data;
-            for(unsigned int i = 0; i < meta->num_output_layers; i++)
+            NvDsInferTensorMeta *meta = (NvDsInferTensorMeta *)user_meta->user_meta_data;
+            for (unsigned int i = 0; i < meta->num_output_layers; i++)
             {
                 NvDsInferLayerInfo *info = &meta->output_layers_info[i];
                 info->buffer = meta->out_buf_ptrs_host[i];
-                if(meta->out_buf_ptrs_dev[i])
+                if (meta->out_buf_ptrs_dev[i])
                 {
                     cudaMemcpy(meta->out_buf_ptrs_host[i], meta->out_buf_ptrs_dev[i], info->inferDims.numElements * 4, cudaMemcpyHostToDevice);
                 }
             }
             std::vector<NvDsInferLayerInfo> outputLayersInfo(meta->output_layers_info, meta->output_layers_info + meta->num_output_layers);
-            std::vector<NvDsInferObjectDetectionInfo>objectList;
+            std::vector<NvDsInferObjectDetectionInfo> objectList;
             // NvDsInferParseYolo(outputLayersInfo, networkInfo, detectionParams, objectList);
         }
     }

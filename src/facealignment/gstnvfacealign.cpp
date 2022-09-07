@@ -510,8 +510,7 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
 
         if (face_meta->stage > NvDsFaceMetaStage::ALIGNED)
           continue;
-
-
+        
         if (obj_meta->detector_bbox_info.org_bbox_coords.width >= nvfacealign->min_input_object_width &&
           obj_meta->detector_bbox_info.org_bbox_coords.width <= nvfacealign->max_input_object_width && 
           obj_meta->detector_bbox_info.org_bbox_coords.height >= nvfacealign->min_input_object_height &&

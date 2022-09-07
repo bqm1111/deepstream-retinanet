@@ -34,7 +34,6 @@ namespace fs = std::experimental::filesystem;
 #define FACEID_SGIE_CONFIG_PATH "../configs/faceid/faceid_secondary.txt"
 #endif
 
-
 class AppPipeline
 {
 public:
@@ -47,7 +46,7 @@ public:
     std::vector<GstElement *> m_parser;
     std::vector<GstElement *> m_decoder;
 
-    GstElement *m_muxer = NULL;
+    GstElement *m_stream_muxer = NULL;
     GstElement *m_tiler = NULL;
     GstElement *m_convert = NULL;
     GstElement *m_msgconv = NULL;
@@ -56,10 +55,15 @@ public:
     GstElement *m_queue_display = NULL;
     GstElement *m_queue_msg = NULL;
     GstElement *m_osd = NULL;
+    GstElement *m_file_convert = NULL;
+    GstElement *m_capsfilter = NULL;
+    GstElement *m_nvv4l2h265enc = NULL;
+    GstElement *m_h265parse = NULL;
+    GstElement *m_file_muxer = NULL;
     GstElement *m_sink = NULL;
 
-    GstPad * m_tee_msg_pad;
-    GstPad * m_tee_display_pad;
+    GstPad *m_tee_msg_pad;
+    GstPad *m_tee_display_pad;
 
     std::string m_pipeline_name;
     GstAppParam m_gstparams;
@@ -67,7 +71,8 @@ public:
     void create(std::string pipeline_name, GstAppParam params);
     GstElement *add_video_source(std::string video_path, std::string video_name);
     void linkMuxer();
-    GstElement *createGeneralSinkBin();
+    GstElement *createVideoSinkBin();
+    GstElement *createFileSinkBin(std::string location);
     void link(GstElement *in_elem, GstElement *out_elem);
     std::map<std::string, int> m_video_source;
     void linkMsgBroker();

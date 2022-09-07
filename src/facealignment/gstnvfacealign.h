@@ -19,7 +19,6 @@
 
 #ifndef _GST_NVFACEALIGN_H_
 #define _GST_NVFACEALIGN_H_
-
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
 #include "nvdsfacealign_interface.h"
@@ -27,7 +26,7 @@
 #include "nvbufsurftransform.h"
 #include "gstnvdsfacealign_allocator.h"
 #include "alignment_logic.h"
-#include "nvdsmeta.h"
+
 #ifndef FACE_CLASS_ID
 #define FACE_CLASS_ID 1000
 #endif

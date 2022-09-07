@@ -2,7 +2,7 @@
 
 add_subdirectory(nvdsinfer_custom_impl_Yolo)
 # add_subdirectory(nvdsinfer_custom_impl_retinaface)
-add_subdirectory(resnet50_facedetection)
+add_subdirectory(facedetection)
 add_subdirectory(kafka_protocol_adaptor)
 add_subdirectory(nvmsgconv)
 add_subdirectory(facealignment)

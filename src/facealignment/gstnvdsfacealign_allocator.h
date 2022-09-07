@@ -6,9 +6,6 @@
 #include <vector>
 #include "cudaEGL.h"
 #include "nvbufsurface.h"
-#include "gstnvdsmeta.h"
-#include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
-#include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 
 /**
  * This file describes the custom memory allocator for the Gstreamer TensorRT

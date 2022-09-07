@@ -8,5 +8,5 @@ output-tensor-meta=1
 cluster-mode=4 # 1: DBSCAN 2: NMS 3: DBSCAN + NMS 4: None
 batch-size=4
 
-custom-lib-path=../../build/src/face/facefeature/libnvds_parsenone.so
+custom-lib-path=../../build/src/facefeature/libnvds_parsenone.so
 parse-bbox-func-name=NvDsInferParseNone

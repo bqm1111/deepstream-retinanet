@@ -4,7 +4,6 @@
 #include <gst/gstelement.h>
 #include <gst/gstpipeline.h>
 #include <string>
-#include "custom_sink.hpp"
 
 class FaceApp
 {

@@ -33,7 +33,8 @@ private:
     GstElement * m_masterBin = NULL;
     FaceBinBackbone m_backbone;
     
-    void createBin();
+    void createDetectBin();
+    void createFullBin();
 };
 
 #endif
