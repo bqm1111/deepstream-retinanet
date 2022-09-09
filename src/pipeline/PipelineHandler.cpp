@@ -263,7 +263,7 @@ GstElement *AppPipeline::createVideoSinkBin()
     {
         GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
         GST_ASSERT(osd_sink_pad);
-        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_yolo_sink_pad_buffer_probe,
+        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_face_sink_pad_callback,
                           reinterpret_cast<gpointer>(m_tiler), NULL);
         gst_object_unref(osd_sink_pad);
     }

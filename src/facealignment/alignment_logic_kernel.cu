@@ -210,7 +210,7 @@ cudaError_t gpu_invWarpNV12ToRGBBlob( const unsigned char *d_nv12, float *d_rgbB
 		printf( "!Error: %s:%d: Invalid image dimension\n", __FUNCTION__, __LINE__ );
 		return cudaErrorInvalidValue;
 	}
-    
+
 	if( (_cropWidth < 0) || (_cropHeight < 0) || (_cropX < 0) || (_cropY < 0) )
 	{
 		printf( "!Error: %s:%d: Invalid image dimension\n", __FUNCTION__, __LINE__ );

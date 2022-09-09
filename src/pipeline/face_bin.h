@@ -6,7 +6,6 @@
 #include <gst/gstelementfactory.h>
 #include <gst/gstobject.h>
 #include "probe.h"
-#include "params.h"
 
 struct FaceBinConfigs
 { 

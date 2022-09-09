@@ -19,6 +19,7 @@
 
 #ifndef _GST_NVFACEALIGN_H_
 #define _GST_NVFACEALIGN_H_
+
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
 #include "nvdsfacealign_interface.h"
@@ -26,7 +27,7 @@
 #include "nvbufsurftransform.h"
 #include "gstnvdsfacealign_allocator.h"
 #include "alignment_logic.h"
-
+#include "params.h"
 #ifndef FACE_CLASS_ID
 #define FACE_CLASS_ID 1000
 #endif
@@ -129,6 +130,12 @@ struct _GstNvfacealign
 
   /** Parameters for tensor preparation */
   NvDsFaceAlignTensorParams tensor_params;
+
+  /** Boolean indicating if the bound buffer contents should be written to file. */
+  gboolean write_raw_buffers_to_file;
+  
+  /** Host memory to copy output tensor */
+  gpointer h_tensor;
 
   /** Internal buffer pool for memory required for tensor preparation */
   GstBufferPool *tensor_pool;

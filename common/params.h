@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <iostream>
 #include <nvdsmeta_schema.h>
+#include "gstnvdsmeta.h"
+#include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
+#include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 #ifndef NVDS_OBJ_USER_META_FACE
 #define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
 #endif
@@ -102,7 +105,7 @@ struct NvDsFaceMetaData
     /* Assigned in alignment.
      * This face will be formed into the aligned_index in aligned_tensor
      */
-    // GstNvDsPreProcessBatchMeta *aligned_tensor = nullptr;
+    GstNvDsPreProcessBatchMeta *aligned_tensor = nullptr;
     int aligned_index;
 
     /* Assigned in feature extraction */
@@ -131,4 +134,8 @@ struct EventMsgSubMeta
     NvDsEventMsgMeta **msg_sub_meta_list;
 };
 
+typedef struct FaceEventMsgData
+{
+    gchar * feature;
+}FaceEventMsgData;
 #endif

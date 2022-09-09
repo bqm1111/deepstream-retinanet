@@ -106,14 +106,15 @@ generate_event_msg_meta(gpointer data, NvDsObjectMeta *obj_meta)
 
     strncpy(meta->objectId, obj_meta->obj_label, MAX_LABEL_SIZE);
     generate_ts_rfc3339(meta->ts, MAX_TIME_STAMP_LEN);
-
-    // if (obj_meta->class_id == FACE_CLASS_ID)
-    // {
-    //     std::string message = "I have done it";
-    //     meta->objType = NVDS_OBJECT_TYPE_FACE;
-    //     meta->extMsg = (char *)message.c_str();
-    //     meta->extMsgSize = sizeof(message);
-    // }
+    if (obj_meta->class_id == FACE_CLASS_ID)
+    {
+        FaceEventMsgData *obj = (FaceEventMsgData*)g_malloc0(sizeof(FaceEventMsgData));
+        std::string message = "I have done it";
+        obj->feature = (gchar*)message.c_str();
+        meta->objType = NVDS_OBJECT_TYPE_FACE;
+        meta->extMsg = obj;
+        meta->extMsgSize = sizeof(FaceEventMsgData);
+    }
 }
 
 static gpointer meta_copy_func(gpointer data, gpointer user_data)
@@ -133,10 +134,14 @@ static gpointer meta_copy_func(gpointer data, gpointer user_data)
     {
         if (srcMeta->objType == NVDS_OBJECT_TYPE_FACE)
         {
-            char *mess = (char *)srcMeta->extMsg;
-
-            dstMeta->extMsg = mess;
-            dstMeta->extMsgSize = sizeof(mess);
+            FaceEventMsgData *srcObj = (FaceEventMsgData *)srcMeta->extMsg;
+            FaceEventMsgData *obj = (FaceEventMsgData *)g_malloc0(sizeof(FaceEventMsgData));
+            if(srcObj->feature)
+            {
+                obj->feature = g_strdup(srcObj->feature);
+            }
+            dstMeta->extMsg = obj;
+            dstMeta->extMsgSize = sizeof(FaceEventMsgData);
         }
     }
 
@@ -151,9 +156,23 @@ static void meta_free_func(gpointer data, gpointer user_data)
     {
         g_free(srcMeta->objectId);
     }
+    if (srcMeta->extMsgSize > 0)
+    {
+        if(srcMeta->objType == NVDS_OBJECT_TYPE_FACE)
+        {
+            FaceEventMsgData *obj = (FaceEventMsgData*)srcMeta->extMsg;
+            if(obj->feature)
+            {
+                g_free(obj->feature);
+            }
+        }
+        g_free(srcMeta->extMsg);
+        srcMeta->extMsgSize = 0;
+    }
     g_free(user_meta->user_meta_data);
     user_meta->user_meta_data = NULL;
 }
+
 GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
@@ -276,7 +295,6 @@ GstPadProbeReturn osd_face_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info,
                 }
 
                 // ================== EVENT MESSAGE DATA ========================
-
                 NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
                 generate_event_msg_meta(msg_meta, obj_meta);
                 NvDsUserMeta *user_event_meta = nvds_acquire_user_meta_from_pool(batch_meta);
@@ -341,7 +359,6 @@ GstPadProbeReturn sgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
             if (user_meta->base_meta.meta_type != NVDSINFER_TENSOR_OUTPUT_META)
                 continue;
             cnt++;
-            std::cout << "Num tensor output = " << cnt << std::endl;
             printf("\n%s:%d tensor_output_meta_count=%d \n", __FILE__, __LINE__, tensor_output_meta_count++);
             NvDsInferTensorMeta *tensor_meta = reinterpret_cast<NvDsInferTensorMeta *>(user_meta->user_meta_data);
             // std::cout << "Total num output layer = " << tensor_meta->num_output_layers << std::endl;
@@ -385,8 +402,11 @@ GstPadProbeReturn sgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
                         //     printf(" %d ", output_layer_info->inferDims.d[jjj]);
                         // }
                         // printf("\n");
-                        memcpy(faceMeta->feature, reinterpret_cast<float *>(output_layer_info->buffer) +
-                                             faceMeta->aligned_index * output_layer_info->inferDims.numElements, FEATURE_SIZE * sizeof(float));
+                        memcpy(faceMeta->feature, reinterpret_cast<float *>(output_layer_info->buffer) + faceMeta->aligned_index * output_layer_info->inferDims.numElements, FEATURE_SIZE * sizeof(float));
+                        // for(int i = 0; i < FEATURE_SIZE; i++)
+                        // {
+                        //     std::cout << faceMeta->feature[i] << std::endl;
+                        // }
                         // printf("\n%s:%d algined_index=%d output_layer_info->buffer=%p\n", __FILE__, __LINE__, faceMeta->aligned_index, output_layer_info->buffer);
                     }
                 }

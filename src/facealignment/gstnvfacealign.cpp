@@ -39,7 +39,7 @@
 #include <gst/gst.h>
 #include <gst/base/gstbasetransform.h>
 #include "gstnvfacealign.h"
-#include "params.h"
+
 #include "gstnvdsfacealign_allocator.h"
 #include "alignment_logic.h"
 #include "nvdsfacealign_property_parser.h"
@@ -68,13 +68,15 @@ enum
   PROP_0,
   PROP_UNIQUE_ID,
   PROP_GPU_DEVICE_ID,
-  PROP_CONFIG_FILE
+  PROP_CONFIG_FILE,
+  PROP_OUTPUT_WRITE_TO_FILE
 };
 
 /* Default values for properties */
 #define DEFAULT_UNIQUE_ID 15
 #define DEFAULT_GPU_ID 0
 #define DEFAULT_CONFIG_FILE_PATH ""
+#define DEFAULT_OUTPUT_WRITE_TO_FILE FALSE
 #define DEFAULT_TENSOR_BUF_POOL_SIZE 6 /** Tensor Buffer Pool Size */
 
 /* pad templates */
@@ -149,6 +151,12 @@ gst_nvfacealign_class_init(GstNvfacealignClass *klass)
           "Face Alignment Config File",
           DEFAULT_CONFIG_FILE_PATH,
           (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+  g_object_class_install_property (gobject_class, PROP_OUTPUT_WRITE_TO_FILE,
+      g_param_spec_boolean ("raw-output-file-write", "Raw Output File Write",
+          "Write raw inference output to file",
+          DEFAULT_OUTPUT_WRITE_TO_FILE,
+          (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
+              GST_PARAM_MUTABLE_READY)));
 }
 
 static void
@@ -192,6 +200,9 @@ void gst_nvfacealign_set_property(GObject *object, guint property_id,
   case PROP_GPU_DEVICE_ID:
     nvfacealign->gpu_id = g_value_get_uint (value);
     break;
+  case PROP_OUTPUT_WRITE_TO_FILE:
+    nvfacealign->write_raw_buffers_to_file = g_value_get_boolean (value);
+    break;
   case PROP_CONFIG_FILE:
     {
       g_free (nvfacealign->config_file_path);
@@ -230,6 +241,9 @@ void gst_nvfacealign_get_property(GObject *object, guint property_id,
     break;
   case PROP_CONFIG_FILE:
     g_value_set_string (value, nvfacealign->config_file_path);
+    break;
+  case PROP_OUTPUT_WRITE_TO_FILE:
+    g_value_set_boolean (value, nvfacealign->write_raw_buffers_to_file);
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -346,6 +360,10 @@ gst_nvfacealign_start(GstBaseTransform *trans)
   /** class for actually do the alignment */
   nvfacealign->logic = std::make_unique<AlignmentLogic>(nvfacealign->tensor_params);
 
+  /** memory to save */
+  if (nvfacealign->write_raw_buffers_to_file)
+    nvfacealign->h_tensor = g_malloc(nvfacealign->tensor_params.buffer_size);
+
   return TRUE;
 
 error:
@@ -378,6 +396,10 @@ gst_nvfacealign_stop(GstBaseTransform *trans)
   }
 
   gst_object_unref (nvfacealign->tensor_pool);
+
+  if (nvfacealign->h_tensor) {
+    g_free(nvfacealign->h_tensor);
+  }
 
   return TRUE;
 }
@@ -509,7 +531,8 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
 
         if (face_meta->stage > NvDsFaceMetaStage::ALIGNED)
           continue;
-        
+
+
         if (obj_meta->detector_bbox_info.org_bbox_coords.width >= nvfacealign->min_input_object_width &&
           obj_meta->detector_bbox_info.org_bbox_coords.width <= nvfacealign->max_input_object_width && 
           obj_meta->detector_bbox_info.org_bbox_coords.height >= nvfacealign->min_input_object_height &&
@@ -545,7 +568,7 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
       nvds_remove_obj_meta_from_frame(frame_meta, obj_meta);
     }
   }
-  
+
   /* devide all the units into batches, each batches has the maxium element of nvfacealign->tensor_params.network_input_shape[0] */
   std::vector<std::vector<NvDsFaceAlignUnit>> batched_unit;
   {
@@ -649,7 +672,7 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
       abatch[i].face_meta->stage = NvDsFaceMetaStage::ALIGNED;
       abatch[i].face_meta->aligned_index = i;
       /* NOTE: also refer to this tensor in NVDS_OBJ_USER_META_FACE. Easy to access later. */
-      // abatch[i].face_meta->aligned_tensor = preprocess_batchmeta;
+      abatch[i].face_meta->aligned_tensor = preprocess_batchmeta;
     }
 
     GST_DEBUG_OBJECT (nvfacealign, "%s:%d preprocess_batchmeta->roi_vector size %d", __FILE__, __LINE__, preprocess_batchmeta->roi_vector.size());
@@ -673,13 +696,36 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
     batch_user_meta->base_meta.release_func = release_user_meta_at_batch_level;
     batch_user_meta->base_meta.batch_meta = batch_meta;
 
+    if (nvfacealign->write_raw_buffers_to_file)
+    {     
+      g_assert(cudaSuccess == cudaMemcpy(nvfacealign->h_tensor, preprocess_batchmeta->tensor_meta->raw_tensor_buffer, buffer_size, cudaMemcpyDeviceToHost));
+
+      // frame-number_stream-number_object-number_object-type_widthxheight.jpg
+      // gstnvfacealign_batchtensor_object-number%p.bin
+      const int MAX_STR_LEN = 1024;
+      char* file_name = (char *)g_malloc0(MAX_STR_LEN);
+      g_snprintf(file_name, MAX_STR_LEN - 1, "gstnvfacealign_batchtensor_%ld_%p.bin", std::time(0), preprocess_batchmeta->tensor_meta->raw_tensor_buffer);
+
+      FILE *file = fopen (file_name, "w");
+      if (!file) {
+        g_printerr ("Could not open file '%s' for writing:%s\n",
+            file_name, strerror (errno));
+      } else {
+        fwrite (nvfacealign->h_tensor, 
+          sizeof(float), 
+          tensor_shape[0] * tensor_shape[1] * tensor_shape[2] * tensor_shape[3], 
+          file);
+      }
+      fclose (file);
+    }
+
     nvds_add_user_meta_to_batch(batch_meta, batch_user_meta);
     GST_DEBUG_OBJECT (nvfacealign, "attached preprocessed tensor with shape (%d, %d, %d, %d) at %p to batch_meta=%p",
       preprocess_batchmeta->tensor_meta->tensor_shape[0], preprocess_batchmeta->tensor_meta->tensor_shape[1],
       preprocess_batchmeta->tensor_meta->tensor_shape[2], preprocess_batchmeta->tensor_meta->tensor_shape[3],
       ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr, batch_meta);
   }
-
+  
   /**
    * NOTE: Push no matter how many tensor attached
    */

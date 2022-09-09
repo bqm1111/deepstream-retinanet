@@ -7,10 +7,7 @@
 #include <gst/gstpipeline.h>
 #include <gst/gstpoll.h>
 #include <gst/gstvalue.h>
-#include <iostream>
 #include <nvdsmeta.h>
-#include <gstnvdsinfer.h>
-#include "gstnvdsmeta.h"
 #include <nvdsinfer_custom_impl.h>
 #include <nvdsmeta_schema.h>
 #include "helper_function.h"

@@ -14,7 +14,6 @@
 #include <opencv2/videostab/log.hpp>
 #include "probe.h"
 #include "helper_function.h"
-#include "params.h"
 #if __has_include(<filesystem>)
 #include <filesystem>
 namespace fs = std::filesystem;
