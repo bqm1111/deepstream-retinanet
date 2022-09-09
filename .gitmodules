@@ -1,0 +1,3 @@
+[submodule "configs/yolov5"]
+	path = configs/yolov5
+	url = https://github.com/ultralytics/yolov5

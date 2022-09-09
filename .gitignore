@@ -1,0 +1,10 @@
+build/
+**.weights
+**.avi
+**.mp4
+streams/
+data/
+**.pth
+**.onnx
+**.wts
+**.dot
