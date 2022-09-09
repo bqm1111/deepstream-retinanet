@@ -7,11 +7,12 @@ project(experiment LANGUAGES CXX CUDA)
 
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
-                    ${PROJECT_SOURCE_DIR}/samples/*.cpp
+                    # ${PROJECT_SOURCE_DIR}/samples/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp)
 
-include_directories(${PROJECT_SOURCE_DIR}/samples
+include_directories(
+                    # ${PROJECT_SOURCE_DIR}/samples
                     ${PROJECT_SOURCE_DIR}/utils
                     ${PROJECT_SOURCE_DIR}/common
                     ${PROJECT_SOURCE_DIR}/src/pipeline
@@ -36,8 +37,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC ${GST_PKG_CFLAGS_OTHER})
 # deepstream
 target_include_directories(${PROJECT_NAME} PUBLIC /opt/nvidia/deepstream/deepstream/sources/includes)
 target_link_directories(${PROJECT_NAME} PUBLIC /opt/nvidia/deepstream/deepstream/lib)
-target_link_libraries(${PROJECT_NAME} -lnvdsgst_meta -lnvds_meta -lnvinfer)
-
+target_link_libraries(${PROJECT_NAME} -lnvdsgst_meta -lnvds_meta -lnvinfer -lnvinfer_plugin -lnvds_inferutils -lnvds_utils -lm -lnvds_infercustomparser)
 # OpenCV
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})

@@ -5,11 +5,11 @@
 #include <gst/gstelement.h>
 #include <gst/gstelementfactory.h>
 #include <gst/gstobject.h>
-#include "BufferProbe.h"
+#include "probe.h"
 #include "params.h"
 
 struct FaceBinConfigs
-{
+{ 
     const char *pgie_config_path;
     const char *aligner_config_path;
     const char *sgie_config_path;
@@ -33,7 +33,8 @@ private:
     GstElement * m_masterBin = NULL;
     FaceBinBackbone m_backbone;
     
-    void createBin();
+    void createDetectBin();
+    void createFullBin();
 };
 
 #endif
