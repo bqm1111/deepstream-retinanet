@@ -2,8 +2,8 @@
 
 FaceBin::FaceBin(FaceBinConfigs configs) : m_configs(configs)
 {
-    createDetectBin();
-    // createFullBin();
+    // createDetectBin();
+    createFullBin();
 }
 
 void FaceBin::createDetectBin()
@@ -16,7 +16,7 @@ void FaceBin::createDetectBin()
 
     GstPad *pgie_src_pad = gst_element_get_static_pad(m_backbone.pgie, "src");
     GST_ASSERT(pgie_src_pad);
-    // gst_pad_add_probe(pgie_src_pad, GST_PAD_PROBE_TYPE_BUFFER, pgie_face_src_pad_buffer_probe, nullptr, NULL);
+    gst_pad_add_probe(pgie_src_pad, GST_PAD_PROBE_TYPE_BUFFER, pgie_face_src_pad_buffer_probe, nullptr, NULL);
 
     // Properties
     g_object_set(m_backbone.pgie, "config-file-path", m_configs.pgie_config_path, NULL);

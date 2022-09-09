@@ -45,7 +45,7 @@ struct CloudParam
 {
     CloudParam()
     {
-        topic = "yolo";
+        topic = "face";
         connection_str = "localhost;9092";
         msg_config_path = "../configs/faceid/msgconv_config.txt";
         proto_lib = "src/kafka_protocol_adaptor/libnvds_kafka_proto.so";

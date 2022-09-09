@@ -330,14 +330,19 @@ GstPadProbeReturn sgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
 
     NvDsInferLayerInfo *output_layer_info;
 
+    int tensor_output_meta_count = 0;
     for (l_frame = batchmeta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+        int cnt = 0;
         for (l_user = frame_meta->frame_user_meta_list; l_user != NULL; l_user = l_user->next)
         {
             NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
             if (user_meta->base_meta.meta_type != NVDSINFER_TENSOR_OUTPUT_META)
                 continue;
+            cnt++;
+            std::cout << "Num tensor output = " << cnt << std::endl;
+            printf("\n%s:%d tensor_output_meta_count=%d \n", __FILE__, __LINE__, tensor_output_meta_count++);
             NvDsInferTensorMeta *tensor_meta = reinterpret_cast<NvDsInferTensorMeta *>(user_meta->user_meta_data);
             // std::cout << "Total num output layer = " << tensor_meta->num_output_layers << std::endl;
             for (int i = 0; i < tensor_meta->num_output_layers; i++)
@@ -363,9 +368,26 @@ GstPadProbeReturn sgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *i
                     if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
                     {
                         NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
-                        float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
-                                             faceMeta->aligned_index * output_layer_info->inferDims.numElements;
-                        memcpy(faceMeta->feature, cur_feature, FEATURE_SIZE * sizeof(float));
+                        // if (faceMeta->stage == NvDsFaceMetaStage::EMPTY)
+                        //     continue;
+                        // if (faceMeta->stage == NvDsFaceMetaStage::FEATURED)
+                        //     continue;
+                        // if (faceMeta->stage != NvDsFaceMetaStage::ALIGNED) {
+                        //     printf(" %s:%d ERROR in feature, found an NVDS_OBJ_USER_META_FACE with stage = %d\n", __FILE__, __LINE__, faceMeta->stage);
+                        //     exit(1);
+                        // }
+                        // faceMeta->stage = NvDsFaceMetaStage::FEATURED;
+                        // // float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
+                        // //                      faceMeta->aligned_index * output_layer_info->inferDims.numElements;
+                        // printf("\n%s:%d algined_index=%d", __FILE__, __LINE__, faceMeta->aligned_index);
+                        // printf("\n%s:%d output_layer_info = ", __FILE__, __LINE__);
+                        // for(int jjj = 0; jjj < output_layer_info->inferDims.numDims; jjj++){
+                        //     printf(" %d ", output_layer_info->inferDims.d[jjj]);
+                        // }
+                        // printf("\n");
+                        memcpy(faceMeta->feature, reinterpret_cast<float *>(output_layer_info->buffer) +
+                                             faceMeta->aligned_index * output_layer_info->inferDims.numElements, FEATURE_SIZE * sizeof(float));
+                        // printf("\n%s:%d algined_index=%d output_layer_info->buffer=%p\n", __FILE__, __LINE__, faceMeta->aligned_index, output_layer_info->buffer);
                     }
                 }
             }
