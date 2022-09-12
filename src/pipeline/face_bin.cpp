@@ -62,10 +62,6 @@
                         float* cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) + 
                             faceMeta->aligned_index * feature_size;
                         memcpy(faceMeta->feature, cur_feature, feature_size * sizeof(float));
-                        // for(int i = 0; i < FEATURE_SIZE; i++)
-                        // {
-                        //     std::cout << cur_feature[i] << std::endl;
-                        // }
 
 #ifdef DEBUG_FACE_SGIE
                         /* save input of sgie */

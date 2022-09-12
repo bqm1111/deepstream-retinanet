@@ -91,10 +91,27 @@ static void generate_ts_rfc3339(char *buf, int buf_size)
     g_snprintf(strmsec, sizeof(strmsec), ".%.3dZ", ms);
     strncat(buf, strmsec, buf_size);
 }
-
+static void floatArr2Str(std::string &str, float *arr, int length)
+{
+    str = "";
+    for(int i = 0; i < length - 1; i++)
+    {
+        str += std::to_string(arr[i]) + " ";
+    }
+    str+= std::to_string(arr[length]);
+}
 static void
 generate_event_msg_meta(gpointer data, NvDsObjectMeta *obj_meta)
 {
+    NvDsFaceMetaData *faceMeta = NULL;
+    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+    {
+        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+        if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
+        {
+            faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
+        }
+    }
     NvDsEventMsgMeta *meta = (NvDsEventMsgMeta *)data;
     meta->bbox.top = obj_meta->detector_bbox_info.org_bbox_coords.top;
     meta->bbox.left = obj_meta->detector_bbox_info.org_bbox_coords.left;
@@ -108,9 +125,11 @@ generate_event_msg_meta(gpointer data, NvDsObjectMeta *obj_meta)
     generate_ts_rfc3339(meta->ts, MAX_TIME_STAMP_LEN);
     if (obj_meta->class_id == FACE_CLASS_ID)
     {
-        FaceEventMsgData *obj = (FaceEventMsgData*)g_malloc0(sizeof(FaceEventMsgData));
-        std::string message = "I have done it";
-        obj->feature = (gchar*)message.c_str();
+        FaceEventMsgData *obj = (FaceEventMsgData *)g_malloc0(sizeof(FaceEventMsgData));
+
+        std::string message;
+        floatArr2Str(message, faceMeta->feature, FEATURE_SIZE);
+        obj->feature = g_strdup((gchar *)message.c_str());
         meta->objType = NVDS_OBJECT_TYPE_FACE;
         meta->extMsg = obj;
         meta->extMsgSize = sizeof(FaceEventMsgData);
@@ -136,7 +155,7 @@ static gpointer meta_copy_func(gpointer data, gpointer user_data)
         {
             FaceEventMsgData *srcObj = (FaceEventMsgData *)srcMeta->extMsg;
             FaceEventMsgData *obj = (FaceEventMsgData *)g_malloc0(sizeof(FaceEventMsgData));
-            if(srcObj->feature)
+            if (srcObj->feature)
             {
                 obj->feature = g_strdup(srcObj->feature);
             }
@@ -144,7 +163,6 @@ static gpointer meta_copy_func(gpointer data, gpointer user_data)
             dstMeta->extMsgSize = sizeof(FaceEventMsgData);
         }
     }
-
     return dstMeta;
 }
 static void meta_free_func(gpointer data, gpointer user_data)
@@ -158,10 +176,10 @@ static void meta_free_func(gpointer data, gpointer user_data)
     }
     if (srcMeta->extMsgSize > 0)
     {
-        if(srcMeta->objType == NVDS_OBJECT_TYPE_FACE)
+        if (srcMeta->objType == NVDS_OBJECT_TYPE_FACE)
         {
-            FaceEventMsgData *obj = (FaceEventMsgData*)srcMeta->extMsg;
-            if(obj->feature)
+            FaceEventMsgData *obj = (FaceEventMsgData *)srcMeta->extMsg;
+            if (obj->feature)
             {
                 g_free(obj->feature);
             }
@@ -296,7 +314,9 @@ GstPadProbeReturn osd_face_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info,
 
                 // ================== EVENT MESSAGE DATA ========================
                 NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+
                 generate_event_msg_meta(msg_meta, obj_meta);
+
                 NvDsUserMeta *user_event_meta = nvds_acquire_user_meta_from_pool(batch_meta);
                 if (user_event_meta)
                 {

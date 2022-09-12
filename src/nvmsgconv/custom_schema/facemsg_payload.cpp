@@ -89,7 +89,6 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 		FaceEventMsgData *dsObj = (FaceEventMsgData *)meta->extMsg;
 		if (dsObj)
 		{
-			std::cout << "Message right here = " << std::string((char *)dsObj->feature) << std::endl;
 			json_object_set_string_member(jobject, "message", (gchar *)dsObj->feature);
 		}
 	}
