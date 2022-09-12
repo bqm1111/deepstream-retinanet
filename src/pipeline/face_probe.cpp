@@ -76,6 +76,7 @@ void nms(std::vector<Detection> &res, float *output, float post_cluster_thresh =
         }
     }
 }
+
 static void generate_ts_rfc3339(char *buf, int buf_size)
 {
     time_t tloc;
@@ -91,15 +92,17 @@ static void generate_ts_rfc3339(char *buf, int buf_size)
     g_snprintf(strmsec, sizeof(strmsec), ".%.3dZ", ms);
     strncat(buf, strmsec, buf_size);
 }
+
 static void floatArr2Str(std::string &str, float *arr, int length)
 {
     str = "";
-    for(int i = 0; i < length - 1; i++)
+    for (int i = 0; i < length - 1; i++)
     {
         str += std::to_string(arr[i]) + " ";
     }
-    str+= std::to_string(arr[length]);
+    str += std::to_string(arr[length]);
 }
+
 static void
 generate_event_msg_meta(gpointer data, NvDsObjectMeta *obj_meta)
 {

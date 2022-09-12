@@ -13,6 +13,9 @@
                 "/usr/local/cuda-11.5/targets/x86_64-linux/include",
                 "/opt/nvidia/deepstream/deepstream-6.0/sources/includes",
                 "/usr/include/gstreamer-1.0",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
                 "/usr/local/cuda-11.5/targets/x86_64-linux/include"
             ],
             "defines": [],

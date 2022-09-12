@@ -9,14 +9,16 @@ file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
                     # ${PROJECT_SOURCE_DIR}/samples/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
-                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp)
+                    # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp
+                    )
 
 include_directories(
                     # ${PROJECT_SOURCE_DIR}/samples
                     ${PROJECT_SOURCE_DIR}/utils
                     ${PROJECT_SOURCE_DIR}/common
                     ${PROJECT_SOURCE_DIR}/src/pipeline
-                    ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface)
+                    # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface
+                    )
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # cuda

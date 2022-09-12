@@ -89,10 +89,10 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 		FaceEventMsgData *dsObj = (FaceEventMsgData *)meta->extMsg;
 		if (dsObj)
 		{
-			json_object_set_string_member(jobject, "message", (gchar *)dsObj->feature);
+			json_object_set_string_member(jobject, "feature", (gchar *)dsObj->feature);
 		}
 	}
-	json_object_set_object_member(objectObj, "message", jobject);
+	json_object_set_object_member(objectObj, "feature", jobject);
 	return objectObj;
 }
 
