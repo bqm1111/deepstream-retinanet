@@ -13,7 +13,7 @@
 #include <gst/gstelement.h>
 #include <opencv2/videostab/log.hpp>
 #include "probe.h"
-#include "helper_function.h"
+#include "common.h"
 #if __has_include(<filesystem>)
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -60,7 +60,7 @@ public:
     GstElement *m_h265parse = NULL;
     GstElement *m_file_muxer = NULL;
     GstElement *m_sink = NULL;
-
+    
     GstPad *m_tee_msg_pad;
     GstPad *m_tee_display_pad;
 

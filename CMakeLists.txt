@@ -7,23 +7,28 @@ project(experiment LANGUAGES CXX CUDA)
 
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
+                    ${PROJECT_SOURCE_DIR}/common/*.cpp
                     # ${PROJECT_SOURCE_DIR}/samples/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/probe/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/deepsort/*.cpp
                     # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp
                     )
-
+                    
 include_directories(
-                    # ${PROJECT_SOURCE_DIR}/samples
-                    ${PROJECT_SOURCE_DIR}/utils
-                    ${PROJECT_SOURCE_DIR}/common
-                    ${PROJECT_SOURCE_DIR}/src/pipeline
-                    # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface
-                    )
+# ${PROJECT_SOURCE_DIR}/samples
+${PROJECT_SOURCE_DIR}/utils
+${PROJECT_SOURCE_DIR}/common
+${PROJECT_SOURCE_DIR}/src/pipeline
+${PROJECT_SOURCE_DIR}/src/probe
+${PROJECT_SOURCE_DIR}/src/deepsort
+# ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface
+)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # cuda
 find_package(CUDA REQUIRED)
-set(CMAKE_CUDA_ARCHITECTURES 52 60 61 75 CACHE STRING "CUDA architectures")
+set(CMAKE_CUDA_ARCHITECTURES 52 60 61 75 json-glib/json-glib.h: No such file or directoryCACHE STRING "CUDA architectures")
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_STANDARD 17)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 --compiler-options -fno-strict-aliasing --ptxas-options=-v --generate-line-info")
 include_directories(${CUDA_INCLUDE_DIRS})
@@ -46,5 +51,13 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 target_link_libraries(${PROJECT_NAME} -lstdc++fs)
 
+# Json-glib
+pkg_check_modules(JSON-GLIB REQUIRED json-glib-1.0)
+include_directories(${JSON-GLIB_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${JSON-GLIB_LIBRARIES})
+
+# Eigen 
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+target_include_directories(${PROJECT_NAME} PUBLIC ${EIGEN3_INCLUDE_DIR})
 # Subdirectory
 add_subdirectory(src)

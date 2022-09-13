@@ -16,7 +16,9 @@
                 "/usr/local/cuda-11.5/targets/x86_64-linux/include",
                 "/usr/local/cuda-11.5/targets/x86_64-linux/include",
                 "/usr/local/cuda-11.5/targets/x86_64-linux/include",
-                "/usr/local/cuda-11.5/targets/x86_64-linux/include"
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "${workspaceFolder}/src/deepsort",
+                "${workspaceFolder}/src/probe"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	{
 		app.add_video(argv[i], "video-" + std::to_string(i));
 	}
-
+	// 
 	// app.showVideo();
 	// app.faceDetection();
 

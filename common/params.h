@@ -24,12 +24,13 @@
 #ifndef FEATURE_SIZE
 #define FEATURE_SIZE 512
 #endif
+
 struct GstAppParam
 {
     GstAppParam()
     {
-        muxer_output_height = 1080;
         muxer_output_width = 1920;
+        muxer_output_height = 1080;
         tiler_rows = 1;
         tiler_cols = 1;
         tiler_width = 640;
