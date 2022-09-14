@@ -55,7 +55,7 @@ output-blob-names=output
 cluster-mode=2
 maintain-aspect-ratio=1
 parse-bbox-func-name=NvDsInferParseCustomYoloV5
-custom-lib-path=../../build/src/mot/nvdsinfer_customparser/libnvds_infercustomparser.so
+custom-lib-path=../../build/src/nvdsinfer_customparser/libnvds_infercustomparser.so
 ## Testing ...
 symmetric-padding=1
 

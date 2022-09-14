@@ -33,6 +33,15 @@ namespace fs = std::experimental::filesystem;
 #define FACEID_SGIE_CONFIG_PATH "../configs/faceid/faceid_secondary.txt"
 #endif
 
+#ifndef MOT_PGIE_CONFIG_PATH
+#define MOT_PGIE_CONFIG_PATH "../configs/faceid/mot_primary.txt"
+#endif
+
+#ifndef MOT_SGIE_CONFIG_PATH
+#define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
+#endif
+
+
 class AppPipeline
 {
 public:
@@ -44,7 +53,7 @@ public:
     std::vector<GstElement *> m_demux;
     std::vector<GstElement *> m_parser;
     std::vector<GstElement *> m_decoder;
-
+    
     GstElement *m_stream_muxer = NULL;
     GstElement *m_tiler = NULL;
     GstElement *m_convert = NULL;

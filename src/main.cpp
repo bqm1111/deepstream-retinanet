@@ -31,7 +31,8 @@ int main(int argc, char *argv[])
 	// app.showVideo();
 	// app.faceDetection();
 
-	app.detectAndSend();
+	// app.detectAndSend();
+	app.MOT();
 	bus = gst_pipeline_get_bus(GST_PIPELINE(app.getPipeline()));
 	GST_ASSERT(bus);
 	bus_watch_id = gst_bus_add_watch(bus, bus_watch_callback, nullptr);

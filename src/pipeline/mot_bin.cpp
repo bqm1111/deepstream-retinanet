@@ -28,12 +28,12 @@ void MOTBin::createBin()
 
     // Properties
     g_object_set(m_backbone.pgie, "config-file-path", m_configs.pgie_config_path, NULL);
-    g_object_set(m_backbone.pgie, "output-tensor-meta", TRUE, NULL);
-    g_object_set(m_backbone.pgie, "batch-size", 1, NULL);
+    // g_object_set(m_backbone.pgie, "output-tensor-meta", TRUE, NULL);
+    // g_object_set(m_backbone.pgie, "batch-size", 1, NULL);
 
     g_object_set(m_backbone.sgie, "config-file-path", m_configs.sgie_config_path, NULL);
-    g_object_set(m_backbone.sgie, "input-tensor-meta", TRUE, NULL);
-    g_object_set(m_backbone.sgie, "output-tensor-meta", TRUE, NULL);
+    // g_object_set(m_backbone.sgie, "input-tensor-meta", TRUE, NULL);
+    // g_object_set(m_backbone.sgie, "output-tensor-meta", TRUE, NULL);
 
     gst_bin_add_many(GST_BIN(m_masterBin), m_backbone.pgie, m_backbone.sgie, NULL);
     gst_element_link_many(m_backbone.pgie, m_backbone.sgie, NULL);
@@ -60,12 +60,24 @@ void MOTBin::createBin()
     gst_object_unref(pgie_sink_pad);
     gst_object_unref(sgie_src_pad);
 
-    // this->m_tracker_list = (MOTTrackerList *)g_malloc0(sizeof(MOTTrackerList));
-    // this->m_tracker_list->trackers = (tracker *)g_malloc0(sizeof(tracker) * this->m_configs.num_trackers);
-    // this->m_tracker_list->num_trackers = this->m_configs.num_trackers;
-    // for (size_t i = 0; i < this->m_tracker_list->num_trackers; i++)
-    //     this->m_tracker_list->trackers[i] = tracker(
-    //         0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
+    this->m_tracker_list = (MOTTrackerList *)g_malloc0(sizeof(MOTTrackerList));
+    std::cout << "Num tracker = " << this->m_configs.num_trackers << std::endl;
+    this->m_tracker_list->trackers = (tracker *)g_malloc0(sizeof(tracker) * this->m_configs.num_trackers);
+    this->m_tracker_list->num_trackers = this->m_configs.num_trackers;
+    for (size_t i = 0; i < this->m_tracker_list->num_trackers; i++)
+        this->m_tracker_list->trackers[i] = tracker(
+            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
+
+        // add probes
+    GstPad *sgie_srcpad = gst_element_get_static_pad(this->m_backbone.sgie, "src");
+    if (!sgie_srcpad) {
+        gst_print ("no pad with name \"src\" found for secondary-inference\n");
+        gst_object_unref(sgie_srcpad);
+        throw std::runtime_error("");
+    }
+    gst_pad_add_probe(sgie_srcpad, GST_PAD_PROBE_TYPE_BUFFER, 
+                      sgie_mot_src_pad_buffer_probe, this->m_tracker_list, NULL);
+    gst_object_unref(sgie_srcpad);
 }
 
 void MOTBin::getMasterBin(GstElement *&bin)

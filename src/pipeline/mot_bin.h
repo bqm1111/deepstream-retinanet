@@ -11,20 +11,22 @@
 #include <gst/gstobject.h>
 #include "tracker.h"
 
-struct MOTBinConfigs {
+struct MOTBinConfigs
+{
     size_t num_trackers = 0; // must match batch-size of nvstreammux
 
     const char *pgie_config_path;
     const char *sgie_config_path;
 };
 
-struct MOTBinBackbone {
+struct MOTBinBackbone
+{
     GstElement *pgie = NULL;
     GstElement *sgie = NULL;
 };
 
-
-struct MOTTrackerList {
+struct MOTTrackerList
+{
     tracker *trackers = NULL;
     size_t num_trackers;
 };
@@ -34,11 +36,13 @@ class MOTBin
 public:
     MOTBin(MOTBinConfigs configs);
     void getMasterBin(GstElement *&bin);
+
 private:
+    MOTTrackerList *m_tracker_list;
     MOTBinConfigs m_configs;
-    GstElement * m_masterBin = NULL;
+    GstElement *m_masterBin = NULL;
     MOTBinBackbone m_backbone;
-    
+
     void createBin();
 };
 

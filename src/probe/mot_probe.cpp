@@ -268,7 +268,6 @@ sgie_mot_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_
     while (l_frame) {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta*) l_frame->data;
         tracker *_tracker = tracker_list->trackers + frame_meta->source_id;
-
         // Track with DeepSORT
         DETECTIONS detections;
         parse_detections_from_frame_meta(detections, frame_meta);
@@ -319,6 +318,56 @@ sgie_mot_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_
         std::cout << "Average runtime: " << AVG_RUNTIME << " - Average FPS: "  << AVG_FPS << std::endl;
     }
 #endif
+
+    return GST_PAD_PROBE_OK;
+}
+
+
+GstPadProbeReturn 
+osd_mot_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data) {
+    gint frame_number = 0;
+
+    GstBuffer *gst_buffer = gst_pad_probe_info_get_buffer(info);
+    if (!gst_buffer) {
+        gst_print ("no GstBuffer found in osd_sink_pad_buffer_probe()\n");
+        gst_object_unref(gst_buffer);
+        return GST_PAD_PROBE_OK;
+    }
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(gst_buffer);
+    NvDsFrameMetaList *l_frame = batch_meta->frame_meta_list;
+    while (l_frame) {
+        NvDsFrameMeta *frame_meta = (NvDsFrameMeta*) l_frame->data;
+        frame_number = frame_meta->frame_num;
+        guint num_rects = frame_meta->num_obj_meta;
+
+        // Verbose
+        std::string display_text = "Frame Number " + std::to_string(frame_number) + " ";
+        display_text += "Number of objects " + std::to_string(num_rects);
+        std::cout << display_text << std::endl;
+
+        // Set display text
+        NvDsDisplayMeta *display_meta = nvds_acquire_display_meta_from_pool(batch_meta);
+        display_meta->num_labels = 1;
+        NvOSD_TextParams nvosd_text_params = display_meta->text_params[0];
+        nvosd_text_params.display_text = const_cast<char*>(display_text.c_str());
+
+        // Set text properties
+        nvosd_text_params.x_offset = 10;
+        nvosd_text_params.y_offset = 12;
+
+        nvosd_text_params.font_params.font_name = const_cast<char*>("Serif");
+        nvosd_text_params.font_params.font_size = 10;
+
+        nvosd_text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
+        nvosd_text_params.set_bg_clr = 1;
+        nvosd_text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
+
+        // Update display meta
+        nvds_add_display_meta_to_frame(frame_meta, display_meta);
+
+        l_frame = l_frame->next;
+        frame_number++;
+    }
 
     return GST_PAD_PROBE_OK;
 }

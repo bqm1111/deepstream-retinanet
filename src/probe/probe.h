@@ -46,7 +46,7 @@ GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info
 
 // MOT PROBE
 GstPadProbeReturn sgie_mot_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data);
-
+GstPadProbeReturn osd_mot_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data);
 // YOLO PROBE
 GstPadProbeReturn osd_yolo_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
 GstPadProbeReturn pgie_yolo_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer u_data);
