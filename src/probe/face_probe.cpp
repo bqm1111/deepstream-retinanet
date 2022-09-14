@@ -250,7 +250,7 @@ GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info
     return GST_PAD_PROBE_OK;
 }
 
-GstPadProbeReturn osd_face_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+GstPadProbeReturn osd_face_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
     GST_ASSERT(buf);

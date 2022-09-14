@@ -39,7 +39,7 @@ void sgie_output_callback(GstBuffer *buf,
                           guint num_layers,
                           guint batch_size,
                           gpointer user_data);
-GstPadProbeReturn osd_face_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+GstPadProbeReturn osd_face_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 GstPadProbeReturn pgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 GstPadProbeReturn sgie_face_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
