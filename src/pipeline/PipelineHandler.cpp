@@ -197,23 +197,9 @@ GstElement *AppPipeline::createFileSinkBin(std::string location)
 
     gst_object_unref(sink_pad);
 
-    {
-        GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
-        GST_ASSERT(osd_sink_pad);
-        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_mot_sink_pad_buffer_probe,
-                          reinterpret_cast<gpointer>(m_tiler), NULL);
-        gst_object_unref(osd_sink_pad);
-    }
-
-    {
-        GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
-        GST_ASSERT(tiler_sink_pad);
-        gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
-                          reinterpret_cast<gpointer>(m_tiler), NULL);
-        g_object_unref(tiler_sink_pad);
-    }
     return m_sink;
 }
+
 GstElement *AppPipeline::createVideoSinkBin()
 {
     m_tiler = gst_element_factory_make("nvmultistreamtiler", "sink-nvmultistreamtiler");
@@ -260,22 +246,26 @@ GstElement *AppPipeline::createVideoSinkBin()
 
     gst_object_unref(sink_pad);
 
-    {
-        GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
-        GST_ASSERT(osd_sink_pad);
-        gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_mot_sink_pad_buffer_probe,
-                          reinterpret_cast<gpointer>(m_tiler), NULL);
-        gst_object_unref(osd_sink_pad);
-    }
-
-    {
-        GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
-        GST_ASSERT(tiler_sink_pad);
-        gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
-                          reinterpret_cast<gpointer>(m_tiler), NULL);
-        g_object_unref(tiler_sink_pad);
-    }
     return m_sink;
+}
+
+void AppPipeline::attachTileProbe(GstPadProbeCallback callback)
+{
+
+    GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
+    GST_ASSERT(tiler_sink_pad);
+    gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, callback,
+                      reinterpret_cast<gpointer>(m_tiler), NULL);
+    g_object_unref(tiler_sink_pad);
+}
+void AppPipeline::attachOsdProbe(GstPadProbeCallback callback)
+{
+
+    GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
+    GST_ASSERT(osd_sink_pad);
+    gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, callback,
+                      reinterpret_cast<gpointer>(m_tiler), NULL);
+    gst_object_unref(osd_sink_pad);
 }
 
 void AppPipeline::linkMsgBroker()
@@ -306,7 +296,7 @@ void AppPipeline::linkMsgBroker()
     {
         g_printerr("%s:%d Elements could not be linked \n", __FILE__, __LINE__);
     }
-    
+
     GstPad *sink_pad = gst_element_get_static_pad(m_queue_msg, "sink");
     m_tee_msg_pad = gst_element_get_request_pad(m_tee, "src_%u");
     if (!m_tee_msg_pad)
@@ -319,6 +309,5 @@ void AppPipeline::linkMsgBroker()
         g_printerr("Unable to link tee and message converter\n");
         gst_object_unref(sink_pad);
     }
-
     gst_object_unref(sink_pad);
 }

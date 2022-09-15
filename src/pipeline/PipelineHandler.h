@@ -1,5 +1,6 @@
 #ifndef PIPELINE_HANDLER_H
 #define PIPELINE_HANDLER_H
+#include <gstreamer-1.0/gst/gstpad.h>
 #include <iostream>
 #include <string>
 #include <map>
@@ -12,8 +13,9 @@
 #include <gst/gstutils.h>
 #include <gst/gstelement.h>
 #include <opencv2/videostab/log.hpp>
-#include "probe.h"
 #include "common.h"
+#include "params.h"
+
 #if __has_include(<filesystem>)
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -21,26 +23,6 @@ namespace fs = std::filesystem;
 #include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 #endif
-
-#ifndef FACEID_PGIE_CONFIG_PATH
-#define FACEID_PGIE_CONFIG_PATH "../configs/faceid/faceid_primary.txt"
-// #define FACEID_PGIE_CONFIG_PATH "../configs/config_infer_primary_yoloV5.txt"
-#endif
-#ifndef FACEID_ALIGN_CONFIG_PATH
-#define FACEID_ALIGN_CONFIG_PATH "../configs/faceid/faceid_align_config.txt"
-#endif
-#ifndef FACEID_SGIE_CONFIG_PATH
-#define FACEID_SGIE_CONFIG_PATH "../configs/faceid/faceid_secondary.txt"
-#endif
-
-#ifndef MOT_PGIE_CONFIG_PATH
-#define MOT_PGIE_CONFIG_PATH "../configs/faceid/mot_primary.txt"
-#endif
-
-#ifndef MOT_SGIE_CONFIG_PATH
-#define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
-#endif
-
 
 class AppPipeline
 {
@@ -79,6 +61,8 @@ public:
     void create(std::string pipeline_name, GstAppParam params);
     GstElement *add_video_source(std::string video_path, std::string video_name);
     void linkMuxer();
+    void attachOsdProbe(GstPadProbeCallback callback);
+    void attachTileProbe(GstPadProbeCallback callback);
     GstElement *createVideoSinkBin();
     GstElement *createFileSinkBin(std::string location);
     void link(GstElement *in_elem, GstElement *out_elem);

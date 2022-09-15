@@ -8,20 +8,17 @@ project(experiment LANGUAGES CXX CUDA)
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
                     ${PROJECT_SOURCE_DIR}/common/*.cpp
-                    # ${PROJECT_SOURCE_DIR}/samples/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
-                    ${PROJECT_SOURCE_DIR}/src/probe/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/deepsort/*.cpp
                     # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp
                     )
                     
 include_directories(
-# ${PROJECT_SOURCE_DIR}/samples
 ${PROJECT_SOURCE_DIR}/utils
 ${PROJECT_SOURCE_DIR}/common
 ${PROJECT_SOURCE_DIR}/src/pipeline
-${PROJECT_SOURCE_DIR}/src/probe
 ${PROJECT_SOURCE_DIR}/src/deepsort
+${PROJECT_SOURCE_DIR}/src/mot
 # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -49,7 +46,7 @@ target_link_libraries(${PROJECT_NAME} -lnvdsgst_meta -lnvds_meta -lnvinfer -lnvi
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
-target_link_libraries(${PROJECT_NAME} -lstdc++fs)
+target_link_libraries(${PROJECT_NAME} -lstdc++fs -lcurl)
 
 # Json-glib
 pkg_check_modules(JSON-GLIB REQUIRED json-glib-1.0)

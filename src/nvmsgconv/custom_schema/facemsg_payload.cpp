@@ -7,6 +7,7 @@
 #include <vector>
 #include "custom_schema.h"
 #include "params.h"
+
 static JsonObject *
 generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 {

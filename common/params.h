@@ -9,6 +9,7 @@
 #include "gstnvdsmeta.h"
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
+
 #ifndef NVDS_OBJ_USER_META_FACE
 #define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
 #endif
@@ -24,6 +25,34 @@
 #ifndef FEATURE_SIZE
 #define FEATURE_SIZE 512
 #endif
+
+#ifndef MAX_DISPLAY_LEN
+#define MAX_DISPLAY_LEN 64
+#endif
+#define MAX_TIME_STAMP_LEN 32
+#define PGIE_CLASS_ID_VEHICLE 2
+#define PGIE_CLASS_ID_PERSON 0
+
+#ifndef FACEID_PGIE_CONFIG_PATH
+#define FACEID_PGIE_CONFIG_PATH "../configs/faceid/faceid_primary.txt"
+// #define FACEID_PGIE_CONFIG_PATH "../configs/config_infer_primary_yoloV5.txt"
+#endif
+#ifndef FACEID_ALIGN_CONFIG_PATH
+#define FACEID_ALIGN_CONFIG_PATH "../configs/faceid/faceid_align_config.txt"
+#endif
+#ifndef FACEID_SGIE_CONFIG_PATH
+#define FACEID_SGIE_CONFIG_PATH "../configs/faceid/faceid_secondary.txt"
+#endif
+
+#ifndef MOT_PGIE_CONFIG_PATH
+#define MOT_PGIE_CONFIG_PATH "../configs/faceid/mot_primary.txt"
+#endif
+
+#ifndef MOT_SGIE_CONFIG_PATH
+#define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
+#endif
+
+#define POST_TRACK_SCORE 1.0
 
 struct GstAppParam
 {
@@ -44,7 +73,7 @@ struct GstAppParam
     int tiler_width;
     int tiler_height;
 };
-//
+
 struct CloudParam
 {
     CloudParam()
@@ -120,6 +149,11 @@ struct NvDsFaceMetaData
     float naming_score;
 };
 
+typedef struct FaceEventMsgData
+{
+    gchar * feature;
+}FaceEventMsgData;
+
 enum EventMsgSubMetaType
 {
     SGIE_EVENT,
@@ -135,8 +169,5 @@ struct EventMsgSubMeta
     NvDsEventMsgMeta **msg_sub_meta_list;
 };
 
-typedef struct FaceEventMsgData
-{
-    gchar * feature;
-}FaceEventMsgData;
+
 #endif

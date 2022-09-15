@@ -1,13 +1,11 @@
 #ifndef APP_H
 #define APP_H
-#include <gst/gstelement.h>
-#include <gst/gstpipeline.h>
 #include <string>
-#include <gst/gstpad.h>
-
 #include "PipelineHandler.h"
-#include "face_bin.h"
-#include "mot_bin.h"
+#include "FaceBin.h"
+#include "MOTBin.h"
+#include <curl/curl.h>
+
 class FaceApp
 {
 public:
@@ -24,6 +22,13 @@ public:
     void faceDetection();
     void MOT();
     void detectAndSend();
-    GstElement * getPipeline();
+    GstElement *getPipeline();
+
+    MOTTrackerList *m_tracker_list;
+    CURL *m_curl;
+
+private:
+    void init_curl();
+    void free_curl();
 };
 #endif

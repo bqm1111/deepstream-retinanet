@@ -28,9 +28,6 @@
 #include "gstnvdsfacealign_allocator.h"
 #include "alignment_logic.h"
 #include "params.h"
-#ifndef FACE_CLASS_ID
-#define FACE_CLASS_ID 1000
-#endif
 
 #ifndef WANTED_SIZE
 #define WANTED_SIZE 112

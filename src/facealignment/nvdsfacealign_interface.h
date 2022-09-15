@@ -6,13 +6,6 @@
 
 #include "nvbufsurface.h"
 #include "params.h"
-#ifndef NVDS_OBJ_USER_META_FACE
-#define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
-#endif
-
-#ifndef NUM_FACEMARK
-#define NUM_FACEMARK 5
-#endif
 
 typedef enum
 {
