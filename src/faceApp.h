@@ -24,7 +24,7 @@ public:
     void detectAndSend();
     GstElement *getPipeline();
 
-    MOTTrackerList *m_tracker_list;
+    MOTTrackerList *m_tracker_list = nullptr;
     CURL *m_curl;
 
 private:

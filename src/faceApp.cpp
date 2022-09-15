@@ -10,15 +10,16 @@ FaceApp::FaceApp(std::string name)
 FaceApp::~FaceApp()
 {
     free_curl();
-    if (!m_tracker_list->trackers)
-    {
-        g_free(m_tracker_list->trackers);
-    }
+    // printf("tracker list = %p\n", m_tracker_list->trackers);
+    // if (m_tracker_list->trackers != nullptr)
+    // {
+    //     g_free(m_tracker_list->trackers);
+    // }
 
-    if (!m_tracker_list)
-    {
-        g_free(m_tracker_list);
-    }
+    // if (m_tracker_list != nullptr)
+    // {
+    //     g_free(m_tracker_list);
+    // }
 }
 
 void FaceApp::init_curl()
