@@ -4,22 +4,29 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.5/bin/nvcc)
 
 project(experiment LANGUAGES CXX CUDA)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pthread")
+set(CMAKE_CXX_STANDARD 17)
+
+find_package(PkgConfig REQUIRED)
+find_package(spdlog REQUIRED)
 
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
                     ${PROJECT_SOURCE_DIR}/common/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/deepsort/*.cpp
-                    # ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface/*.cpp
+                    ${PROJECT_SOURCE_DIR}/common/QDTConfig/*.cpp
+                    ${PROJECT_SOURCE_DIR}/common/QDTLog/*.cpp
                     )
                     
 include_directories(
 ${PROJECT_SOURCE_DIR}/utils
 ${PROJECT_SOURCE_DIR}/common
+${PROJECT_SOURCE_DIR}/common/QDTConfig
+${PROJECT_SOURCE_DIR}/common/QDTLog
 ${PROJECT_SOURCE_DIR}/src/pipeline
 ${PROJECT_SOURCE_DIR}/src/deepsort
 ${PROJECT_SOURCE_DIR}/src/mot
-# ${PROJECT_SOURCE_DIR}/src/nvdsinfer_custom_impl_retinaface
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
 
@@ -56,5 +63,6 @@ target_link_libraries(${PROJECT_NAME} ${JSON-GLIB_LIBRARIES})
 # Eigen 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 target_include_directories(${PROJECT_NAME} PUBLIC ${EIGEN3_INCLUDE_DIR})
+
 # Subdirectory
 add_subdirectory(src)

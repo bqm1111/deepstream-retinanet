@@ -15,6 +15,7 @@ inline void assert_98dae521c1e67e8b70f66d14866fe14e(void* element, const char *f
         exit(-3);
     }
 }
+
 #endif // GST_ASSERT
 
 #ifndef VTX_ASSERT
