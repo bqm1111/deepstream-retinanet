@@ -8,5 +8,4 @@ struct MOTTrackerList
     size_t num_trackers;
 };
 
-
 #endif

@@ -3,9 +3,8 @@
 
 NvInferMOTBin::~NvInferMOTBin()
 {
-    // g_free(m_tracker_list->trackers);
-    // g_free(m_tracker_list);
 }
+
 void NvInferMOTBin::acquireTrackerList(MOTTrackerList *tracker_list)
 {
     m_tracker_list = tracker_list;

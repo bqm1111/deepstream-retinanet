@@ -10,10 +10,8 @@
 class NvInferMOTBinConfig : public NvInferBinConfigBase
 {
 public:
-    NvInferMOTBinConfig(std::string pgie, std::string sgie)
+    NvInferMOTBinConfig(std::string pgie, std::string sgie) :NvInferBinConfigBase(pgie, sgie)
     {
-        pgie_config_path = pgie;
-        sgie_config_path = sgie;
     }
 
     ~NvInferMOTBinConfig() = default;

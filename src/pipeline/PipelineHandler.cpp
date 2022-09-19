@@ -1,4 +1,5 @@
 #include "PipelineHandler.h"
+#include "QDTLog.h"
 
 AppPipeline::AppPipeline(std::string pipeline_name, GstAppParam params)
 {
@@ -28,51 +29,67 @@ int AppPipeline::numVideoSrc()
     return m_video_source.size();
 }
 
-GstElement *AppPipeline::add_video_source(std::string video_path, std::string video_name)
+void AppPipeline::add_video_source(std::map<std::string, std::string> video_info, std::vector<std::string> video_name)
 {
-    m_video_source[video_name] = numVideoSrc() + 1;
-    int source_id = numVideoSrc() - 1;
-
-    m_source.push_back(gst_element_factory_make("filesrc", ("file-source-" + std::to_string(source_id)).c_str()));
-    GST_ASSERT(m_source[source_id]);
-
-    if (fs::path(video_path).extension() == ".avi")
+    int cnt = 0;
+    for (const auto &info : video_info)
     {
-        m_demux.push_back(gst_element_factory_make("tsdemux", ("tsdemux-" + std::to_string(source_id)).c_str()));
-    }
-    else if (fs::path(video_path).extension() == ".mp4")
-    {
-        m_demux.push_back(gst_element_factory_make("qtdemux", ("qtdemux-" + std::to_string(source_id)).c_str()));
-    }
-    //
-    m_parser.push_back(gst_element_factory_make("h265parse", ("h265-parser-" + std::to_string(source_id)).c_str()));
-    GST_ASSERT(m_parser[source_id]);
-    m_decoder.push_back(gst_element_factory_make("nvv4l2decoder", ("decoder-" + std::to_string(source_id)).c_str()));
-    GST_ASSERT(m_decoder[source_id]);
+        std::string video_path = info.first;
+        m_video_source[video_name[cnt]] = numVideoSrc() + 1;
+        int source_id = numVideoSrc() - 1;
 
-    std::cout << "Input video path: " << video_path << std::endl;
-    g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
+        m_source.push_back(gst_element_factory_make("filesrc", ("file-source-" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_source[source_id]);
 
-    /* link */
-    gst_bin_add_many(
-        GST_BIN(m_pipeline), m_source[source_id], m_demux[source_id],
-        m_parser[source_id], m_decoder[source_id], NULL);
+        if (fs::path(video_path).extension() == ".avi")
+        {
+            m_demux.push_back(gst_element_factory_make("tsdemux", ("tsdemux-" + std::to_string(source_id)).c_str()));
+        }
+        else if (fs::path(video_path).extension() == ".mp4")
+        {
+            m_demux.push_back(gst_element_factory_make("qtdemux", ("qtdemux-" + std::to_string(source_id)).c_str()));
+        }
 
-    if (!gst_element_link_many(m_source[source_id], m_demux[source_id], NULL))
-    {
-        gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
-        throw std::runtime_error("");
+        if (info.second == "h265")
+        {
+            m_parser.push_back(gst_element_factory_make("h265parse", ("h265-parser-" + std::to_string(source_id)).c_str()));
+        }
+        else if (info.second == "h264")
+        {
+            m_parser.push_back(gst_element_factory_make("h264parse", ("h264-parser-" + std::to_string(source_id)).c_str()));
+        }
+        else
+        {
+            QDTLog::error("Unknown encode type to create video parser\n");
+        }
+        GST_ASSERT(m_parser[source_id]);
+        m_decoder.push_back(gst_element_factory_make("nvv4l2decoder", ("decoder-" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_decoder[source_id]);
+
+        QDTLog::info("Input video path = {}\n", video_path);
+        g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
+
+        /* link */
+        gst_bin_add_many(
+            GST_BIN(m_pipeline), m_source[source_id], m_demux[source_id],
+            m_parser[source_id], m_decoder[source_id], NULL);
+
+        if (!gst_element_link_many(m_source[source_id], m_demux[source_id], NULL))
+        {
+            gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
+            throw std::runtime_error("");
+        }
+        if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], NULL))
+        {
+            gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
+            throw std::runtime_error("");
+        }
+        // link tsdemux to h265parser
+        g_signal_connect(m_demux[source_id], "pad-added", G_CALLBACK(addnewPad),
+                         m_parser[source_id]);
+
+        cnt++;
     }
-    if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], NULL))
-    {
-        gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
-        throw std::runtime_error("");
-    }
-    // link tsdemux to h265parser
-    g_signal_connect(m_demux[source_id], "pad-added", G_CALLBACK(addnewPad),
-                     m_parser[source_id]);
-
-    return m_decoder[source_id];
 }
 
 void AppPipeline::linkMuxer()
@@ -258,9 +275,9 @@ void AppPipeline::attachTileProbe(GstPadProbeCallback callback)
                       reinterpret_cast<gpointer>(m_tiler), NULL);
     g_object_unref(tiler_sink_pad);
 }
+
 void AppPipeline::attachOsdProbe(GstPadProbeCallback callback)
 {
-
     GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
     GST_ASSERT(osd_sink_pad);
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, callback,

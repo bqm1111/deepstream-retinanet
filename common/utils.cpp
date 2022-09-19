@@ -31,43 +31,32 @@ gchar *gen_body(int num_vec, gchar *vec)
     return json;
 }
 
-bool parseJson(std::string filename, std::map<std::string, std::string> &result)
+bool parseJson(std::string filename, std::vector<std::string> &name, std::map<std::string , std::string> &info)
 {
-    GError *error = NULL;
-
-    // Parse the JSON from the file
-    JsonParser *parser = json_parser_new();
-    json_parser_load_from_file(parser, filename.c_str(), &error);
-    if (error)
+    std::ifstream ifs{filename};
+    if (!ifs.is_open())
     {
-        printf("Unable to parse `%s': %s\n", filename.c_str(), error->message);
-        g_error_free(error);
-        g_object_unref(parser);
+        std::cerr << "Could not open file for reading!\n";
         return EXIT_FAILURE;
     }
+    IStreamWrapper isw{ifs};
 
-    // Get the root
-    // JsonNode *root = json_parser_get_root(parser);
-    JsonReader *reader = json_reader_new(json_parser_get_root(parser));
-    // Turn the root into a JSON object
-    char **members = json_reader_list_members(reader);
-    int i = 0;
-    while (members[i] != 0)
+    Document doc{};
+    doc.ParseStream(isw);
+
+    for (auto &m : doc.GetObject())
     {
-        std::string m = members[i];
-        json_reader_read_member(reader, members[i]);
-        std::string value = json_reader_get_string_value(reader);
-        json_reader_end_member(reader);
-        printf("parse member %s\n", members[i]);
-        printf("parse value %s\n", value.c_str());
+        name.push_back(m.name.GetString());
+        auto a = m.value.GetArray();
 
-        result.insert(std::make_pair(std::string(members[i]), value));
-        i++;
+        std::string information[a.Size()];
+        int cnt = 0;
+        for (Value::ConstValueIterator itr = a.Begin(); itr != a.End(); ++itr)
+        {
+            information[cnt] = itr->GetString();
+            cnt++;
+        }
+        info.insert(std::make_pair(information[0], information[1]));
     }
-
-    g_strfreev(members);
-    g_object_unref(reader);
-    g_object_unref(parser);
-
     return EXIT_SUCCESS;
 }

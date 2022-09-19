@@ -15,7 +15,13 @@ enum class DSAppProperty
     MOT_KAFKA_TOPIC,
     KAFKA_PROTO_LIB,
     KAFKA_CONNECTION_STR,
-    KAFKA_MSG2P_LIB
+    KAFKA_MSG2P_LIB,
+    MUXER_OUTPUT_WIDTH,
+    MUXER_OUTPUT_HEIGHT,
+    TILER_ROWS,
+    TILER_COLS,
+    TILER_WIDTH,
+    TILER_HEIGHT
 };
 
 class DSAppConfig : public ConfigBase
@@ -33,7 +39,13 @@ private:
             {DSAppProperty::MOT_KAFKA_TOPIC, "MOT_KAFKA_TOPIC"},
             {DSAppProperty::KAFKA_PROTO_LIB, "KAFKA_PROTO_LIB"},
             {DSAppProperty::KAFKA_CONNECTION_STR, "KAFKA_CONNECTION_STR"},
-            {DSAppProperty::KAFKA_MSG2P_LIB, "KAFKA_MSG2P_LIB"}};
+            {DSAppProperty::KAFKA_MSG2P_LIB, "KAFKA_MSG2P_LIB"},
+            {DSAppProperty::MUXER_OUTPUT_WIDTH, "MUXER_OUTPUT_WIDTH"},
+            {DSAppProperty::MUXER_OUTPUT_HEIGHT, "MUXER_OUTPUT_HEIGHT"},
+            {DSAppProperty::TILER_ROWS, "TILER_ROWS"},
+            {DSAppProperty::TILER_COLS, "TILER_COLS"},
+            {DSAppProperty::TILER_WIDTH, "TILER_WIDTH"},
+            {DSAppProperty::TILER_HEIGHT, "TILER_HEIGHT"}};
 
 public:
     DSAppConfig(const std::string &name = "DSApp");

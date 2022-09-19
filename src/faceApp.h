@@ -5,18 +5,19 @@
 #include "FaceBin.h"
 #include "MOTBin.h"
 #include <curl/curl.h>
+#include "utils.h"
+#include "ConfigManager.h"
+#include "DeepStreamAppConfig.h"
 
 class FaceApp
 {
 public:
-    FaceApp(std::string name);
+    FaceApp();
     ~FaceApp();
 
-    std::vector<std::string> m_video_source_path;
-    GstAppParam m_gstparam;
-    AppPipeline m_pipeline;
-    std::string m_pipeline_name;
-    void add_video(std::string video_path, std::string video_name);
+    void create(std::string name);
+    void loadConfig(std::string config_file);
+    void addVideoSource(std::string list_video_src_file);
     void linkMuxer();
     void showVideo();
     void faceDetection();
@@ -24,10 +25,17 @@ public:
     void detectAndSend();
     GstElement *getPipeline();
 
+    int numVideoSrc();
+
+    std::vector<std::string> m_video_source_name;
+    std::map<std::string, std::string> m_video_source_info;
+    GstAppParam m_gstparam;
+    AppPipeline m_pipeline;
     MOTTrackerList *m_tracker_list = nullptr;
     CURL *m_curl;
 
 private:
+    ConfigManager *m_config;
     void init_curl();
     void free_curl();
 };

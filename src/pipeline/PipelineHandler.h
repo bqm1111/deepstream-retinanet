@@ -35,7 +35,7 @@ public:
     std::vector<GstElement *> m_demux;
     std::vector<GstElement *> m_parser;
     std::vector<GstElement *> m_decoder;
-    
+
     GstElement *m_stream_muxer = NULL;
     GstElement *m_tiler = NULL;
     GstElement *m_convert = NULL;
@@ -51,7 +51,7 @@ public:
     GstElement *m_h265parse = NULL;
     GstElement *m_file_muxer = NULL;
     GstElement *m_sink = NULL;
-    
+
     GstPad *m_tee_msg_pad;
     GstPad *m_tee_display_pad;
 
@@ -59,7 +59,7 @@ public:
     GstAppParam m_gstparams;
     CloudParam m_cloudParams;
     void create(std::string pipeline_name, GstAppParam params);
-    GstElement *add_video_source(std::string video_path, std::string video_name);
+    void add_video_source(std::map<std::string, std::string> video_info, std::vector<std::string> video_name);
     void linkMuxer();
     void attachOsdProbe(GstPadProbeCallback callback);
     void attachTileProbe(GstPadProbeCallback callback);

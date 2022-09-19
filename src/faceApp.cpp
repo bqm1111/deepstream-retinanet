@@ -1,25 +1,49 @@
 #include "faceApp.h"
+#include "DeepStreamAppConfig.h"
 
-FaceApp::FaceApp(std::string name)
+FaceApp::FaceApp()
 {
-    m_pipeline_name = name;
-    m_pipeline.create(m_pipeline_name, m_gstparam);
+    m_config = new ConfigManager();
     init_curl();
 }
 
 FaceApp::~FaceApp()
 {
+    delete m_config;
     free_curl();
     // printf("tracker list = %p\n", m_tracker_list->trackers);
-    // if (m_tracker_list->trackers != nullptr)
+    // if (m_tracker_list->trackers != NULL)
     // {
     //     g_free(m_tracker_list->trackers);
     // }
 
-    // if (m_tracker_list != nullptr)
-    // {
-    //     g_free(m_tracker_list);
-    // }
+    if (!m_tracker_list)
+    {
+        g_free(m_tracker_list);
+    }
+}
+
+void FaceApp::loadConfig(std::string config_file)
+{
+    m_config->setContext();
+    std::shared_ptr<DSAppConfig> appConf = std::dynamic_pointer_cast<DSAppConfig>(m_config->getConfig(ConfigType::DeepStreamApp));
+    m_gstparam.muxer_output_height = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_HEIGHT).toInt();
+    m_gstparam.muxer_output_width = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_WIDTH).toInt();
+    m_gstparam.tiler_cols = appConf->getProperty(DSAppProperty::TILER_COLS).toInt();
+    m_gstparam.tiler_rows = appConf->getProperty(DSAppProperty::TILER_ROWS).toInt();
+    m_gstparam.tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
+    m_gstparam.tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
+}
+
+void FaceApp::create(std::string name)
+{
+    m_pipeline.create(name, m_gstparam);
+}
+
+void FaceApp::addVideoSource(std::string list_video_src_file)
+{
+    parseJson(list_video_src_file, m_video_source_name, m_video_source_info);
+    m_pipeline.add_video_source(m_video_source_info, m_video_source_name);
 }
 
 void FaceApp::init_curl()
@@ -56,10 +80,9 @@ GstElement *FaceApp::getPipeline()
     return m_pipeline.m_pipeline;
 }
 
-void FaceApp::add_video(std::string video_path, std::string video_name)
+int FaceApp::numVideoSrc()
 {
-    m_video_source_path.push_back(video_path);
-    m_pipeline.add_video_source(video_path, video_name);
+    return m_video_source_name.size();
 }
 
 void FaceApp::linkMuxer()
@@ -125,7 +148,7 @@ void FaceApp::detectAndSend()
 void FaceApp::MOT()
 {
     m_tracker_list = (MOTTrackerList *)g_malloc0(sizeof(MOTTrackerList));
-    int num_tracker = m_video_source_path.size();
+    int num_tracker = m_video_source_info.size();
     m_tracker_list->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
     m_tracker_list->num_trackers = num_tracker;
     for (size_t i = 0; i < m_tracker_list->num_trackers; i++)

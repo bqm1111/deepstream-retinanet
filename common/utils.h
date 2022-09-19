@@ -10,8 +10,14 @@
 #include <unordered_map>
 #include <vector>
 #include <map>
+#include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
+#include <fstream>
+#include <iostream>
+
+using namespace rapidjson;
 gchar* b64encode(float* vec, int size);
 void floatArr2Str(std::string &str, float *arr, int length);
 gchar* gen_body(int num_vec, gchar* vec);
-bool parseJson(std::string filename, std::map<std::string , std::string> &result);
+bool parseJson(std::string filename, std::vector<std::string> &name, std::map<std::string , std::string> &info);
 #endif

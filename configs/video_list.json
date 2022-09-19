@@ -1,4 +1,3 @@
 {
-    "../streams/4127.avi": "h265",
-    "../streams/4129.avi": "h265"
+    "VTX": ["../streams/4127.avi", "h265"]
 }
