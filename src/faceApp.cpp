@@ -23,16 +23,38 @@ FaceApp::~FaceApp()
     }
 }
 
+static void printParam(GstAppParam param)
+{
+    std::cout << param.muxer_output_height << std::endl
+              << param.muxer_output_width
+              << param.tiler_cols << std::endl
+              << param.tiler_rows << std::endl
+              << param.tiler_width << std::endl
+              << param.tiler_height << std::endl
+              << param.topic << std::endl
+              << param.msg_config_path << std::endl
+              << param.connection_str << std::endl
+              << param.msg2p_lib << std::endl
+              << param.proto_lib << std::endl;
+}
+
 void FaceApp::loadConfig(std::string config_file)
 {
     m_config->setContext();
     std::shared_ptr<DSAppConfig> appConf = std::dynamic_pointer_cast<DSAppConfig>(m_config->getConfig(ConfigType::DeepStreamApp));
+
     m_gstparam.muxer_output_height = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_HEIGHT).toInt();
     m_gstparam.muxer_output_width = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_WIDTH).toInt();
     m_gstparam.tiler_cols = appConf->getProperty(DSAppProperty::TILER_COLS).toInt();
     m_gstparam.tiler_rows = appConf->getProperty(DSAppProperty::TILER_ROWS).toInt();
     m_gstparam.tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
     m_gstparam.tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
+
+    m_gstparam.topic = appConf->getProperty(DSAppProperty::FACE_KAFKA_TOPIC).toString();
+    m_gstparam.msg_config_path = appConf->getProperty(DSAppProperty::MSG_CONFIG_PATH).toString();
+    m_gstparam.connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
+    m_gstparam.msg2p_lib = appConf->getProperty(DSAppProperty::KAFKA_MSG2P_LIB).toString();
+    m_gstparam.proto_lib = appConf->getProperty(DSAppProperty::KAFKA_PROTO_LIB).toString();
 }
 
 void FaceApp::create(std::string name)
@@ -85,39 +107,25 @@ int FaceApp::numVideoSrc()
     return m_video_source_name.size();
 }
 
-void FaceApp::linkMuxer()
-{
-    m_pipeline.linkMuxer();
-}
-
-void FaceApp::showVideo()
-{
-    m_pipeline.linkMuxer();
-    m_pipeline.createVideoSinkBin();
-    m_pipeline.link(m_pipeline.m_stream_muxer, m_pipeline.m_tiler);
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "showVideo");
-}
-
 void FaceApp::faceDetection()
 {
-    std::shared_ptr<NvInferFaceBinConfig> face_configs(std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH));
-    NvInferFaceBin face_bin(face_configs);
-    face_bin.createBin();
+    // std::shared_ptr<NvInferFaceBinConfig> face_configs(std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH));
+    // NvInferFaceBin face_bin(face_configs);
+    // m_pipeline.linkMuxer();
 
-    m_pipeline.linkMuxer();
-    m_pipeline.createVideoSinkBin();
-    m_pipeline.attachOsdProbe(face_bin.osd_sink_pad_callback);
-    m_pipeline.attachTileProbe(face_bin.tiler_sink_pad_buffer_probe);
-    // m_app.createFileSinkBin("out.mp4");
+    // m_pipeline.attachOsdProbe(face_bin.osd_sink_pad_callback);
+    // m_pipeline.attachTileProbe(face_bin.tiler_sink_pad_buffer_probe);
+    // // m_app.createFileSinkBin("out.mp4");
 
-    GstElement *bin = NULL;
-    face_bin.getMasterBin(bin);
-    gst_bin_add(GST_BIN(m_pipeline.m_pipeline), bin);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, bin, m_pipeline.m_tiler, NULL))
-    {
-        g_printerr("%s:%d Cant link face detection bin\n", __FILE__, __LINE__);
-    }
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
+    // GstElement *bin = NULL;
+    // face_bin.getMasterBin(bin);
+    // gst_bin_add(GST_BIN(m_pipeline.m_pipeline), bin);
+    // if (!gst_element_link_many(m_pipeline.m_stream_muxer, bin, m_pipeline.m_tiler, NULL))
+    // {
+    //     g_printerr("%s:%d Cant link face detection bin\n", __FILE__, __LINE__);
+    // }
+
+    // GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
 }
 
 void FaceApp::detectAndSend()
@@ -125,22 +133,17 @@ void FaceApp::detectAndSend()
     std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
+    face_bin.setParam(m_gstparam);
+
     face_bin.acquireCurl(m_curl);
-    face_bin.createBin();
-    GstElement *bin = NULL;
-    face_bin.getMasterBin(bin);
-
     m_pipeline.linkMuxer();
-    m_pipeline.createVideoSinkBin();
-    m_pipeline.attachOsdProbe(face_bin.osd_sink_pad_callback);
-    m_pipeline.attachTileProbe(face_bin.tiler_sink_pad_buffer_probe);
+    GstElement *inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
+    face_bin.attachProbe();
+    face_bin.setMsgBrokerConfig();
 
-    m_pipeline.linkMsgBroker();
-
-    gst_bin_add(GST_BIN(m_pipeline.m_pipeline), bin);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, bin, m_pipeline.m_tiler, NULL))
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
     {
-        g_printerr("%s:%d Cant link face detection bin\n", __FILE__, __LINE__);
+        g_printerr("%s:%d Cant link inferbin to detect and Send\n", __FILE__, __LINE__);
     }
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
 }
@@ -160,16 +163,15 @@ void FaceApp::MOT()
     // remember to acquire trackerList before createBin
 
     mot_bin.acquireTrackerList(m_tracker_list);
-    mot_bin.createBin();
-
+    mot_bin.setParam(m_gstparam);
     m_pipeline.linkMuxer();
-    m_pipeline.createVideoSinkBin();
-    m_pipeline.attachOsdProbe(mot_bin.osd_sink_pad_buffer_probe);
 
-    GstElement *bin = NULL;
-    mot_bin.getMasterBin(bin);
-    gst_bin_add(GST_BIN(m_pipeline.m_pipeline), bin);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, bin, m_pipeline.m_tiler, NULL))
+    mot_bin.createInferBin();
+
+    GstElement *inferbin = mot_bin.createInferPipeline(m_pipeline.m_pipeline);
+    mot_bin.attachProbe();
+
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
     {
         g_printerr("%s:%d Cant link mot bin\n", __FILE__, __LINE__);
     }

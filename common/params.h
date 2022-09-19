@@ -56,45 +56,18 @@
 
 struct GstAppParam
 {
-    GstAppParam()
-    {
-        muxer_output_width = 1920;
-        muxer_output_height = 1080;
-        tiler_rows = 1;
-        tiler_cols = 1;
-        tiler_width = 640;
-        tiler_height = 480;
-    }
-
     int muxer_output_width;
     int muxer_output_height;
     int tiler_rows;
     int tiler_cols;
     int tiler_width;
     int tiler_height;
-};
 
-struct CloudParam
-{
-    CloudParam()
-    {
-        topic = "face";
-        connection_str = "localhost;9092";
-        msg_config_path = "../configs/faceid/msgconv_config.txt";
-        proto_lib = "src/kafka_protocol_adaptor/libnvds_kafka_proto.so";
-        msg2p_lib = "/home/martin/minhbq6/NVIDIA/experiment/build/src/nvmsgconv/libnvmsgconv.so";
-        schema_type = NVDS_PAYLOAD_CUSTOM;
-        msg2p_meta = 0;
-        frame_interval = 30;
-    }
     std::string topic;
-    std::string connection_str;
     std::string msg_config_path;
-    std::string proto_lib;
+    std::string connection_str;
     std::string msg2p_lib;
-    gint schema_type;
-    gint msg2p_meta;
-    gint frame_interval;
+    std::string proto_lib;
 };
 
 struct alignas(float) Detection
@@ -151,8 +124,8 @@ struct NvDsFaceMetaData
 
 typedef struct FaceEventMsgData
 {
-    gchar * feature;
-}FaceEventMsgData;
+    gchar *feature;
+} FaceEventMsgData;
 
 enum EventMsgSubMetaType
 {
@@ -168,6 +141,5 @@ struct EventMsgSubMeta
     guint num_msg_sub_meta;
     NvDsEventMsgMeta **msg_sub_meta_list;
 };
-
 
 #endif

@@ -34,9 +34,11 @@ public:
     }
     ~NvInferFaceBin() {}
 
-    void createBin() override;
+    void createInferBin() override;
     void createDetectBin();
     void acquireCurl(CURL *curl);
+    void setMsgBrokerConfig();
+    void attachProbe();
     static void sgie_output_callback(GstBuffer *buf,
                                      NvDsInferNetworkInfo *network_info,
                                      NvDsInferLayerInfo *layers_info,

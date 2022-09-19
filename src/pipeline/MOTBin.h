@@ -25,8 +25,9 @@ public:
         m_configs = configs;
     }
     ~NvInferMOTBin();
+    void attachProbe();
     void acquireTrackerList(MOTTrackerList * tracker_list);
-    void createBin() override;
+    void createInferBin() override;
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 

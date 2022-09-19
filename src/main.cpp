@@ -30,16 +30,16 @@ int main(int argc, char *argv[])
 	loop = g_main_loop_new(NULL, FALSE);
 
 	FaceApp app;
-	app.loadConfig("DsApp.conf");
-	
+	app.loadConfig("../configs/DsApp.conf");
+
 	app.create("face-app");
 	app.addVideoSource("../configs/video_list.json");
 
 	// app.showVideo();
 	// app.faceDetection();
 
-	app.detectAndSend();
-	// app.MOT();
+	// app.detectAndSend();
+	app.MOT();
 	bus = gst_pipeline_get_bus(GST_PIPELINE(app.getPipeline()));
 	GST_ASSERT(bus);
 	bus_watch_id = gst_bus_add_watch(bus, bus_watch_callback, nullptr);

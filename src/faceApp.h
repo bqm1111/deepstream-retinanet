@@ -18,8 +18,6 @@ public:
     void create(std::string name);
     void loadConfig(std::string config_file);
     void addVideoSource(std::string list_video_src_file);
-    void linkMuxer();
-    void showVideo();
     void faceDetection();
     void MOT();
     void detectAndSend();
