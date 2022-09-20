@@ -63,6 +63,8 @@ typedef enum NvDsPayloadType {
   /** Specifies a custom payload. You must implement the nvds_msg2p_*
    interface. */
   NVDS_PAYLOAD_CUSTOM = 0x101,
+  NVDS_PAYLOAD_FACE,
+  NVDS_PAYLOAD_MOT,
   NVDS_PAYLOAD_FORCE32 = 0x7FFFFFFF
 } NvDsPayloadType;
 

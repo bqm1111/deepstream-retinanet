@@ -125,3 +125,63 @@ gchar *generate_face_event_message(void *privData, NvDsEventMsgMeta *meta)
 
 	return message;
 }
+
+gchar *
+generate_mot_event_message(void *privData, NvDsEventMsgMeta *meta)
+{
+	JsonNode *rootNode;
+	JsonObject *rootObj;
+	JsonObject *embeddingObj;
+	gchar *message;
+
+	uuid_t msgId;
+	gchar msgIdStr[37];
+
+	uuid_generate_random(msgId);
+	uuid_unparse_lower(msgId, msgIdStr);
+
+	// create root obj
+	rootObj = json_object_new();
+
+	// add frame info
+	EventMsgSubMeta *msg_meta_content = (EventMsgSubMeta *)meta->extMsg;
+	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
+	json_object_set_int_member(rootObj, "stream_id", msg_meta_content->sensorId);
+
+	// add objects
+	JsonArray *jObjectArray = json_array_sized_new(msg_meta_content->num_msg_sub_meta);
+	for (size_t i = 0; i < msg_meta_content->num_msg_sub_meta; i++)
+	{
+		NvDsEventMsgMeta *msg_sub_meta = msg_meta_content->msg_sub_meta_list[i];
+
+		JsonObject *jObject = json_object_new();
+
+		JsonObject *jBoxObject = json_object_new();
+		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
+		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
+		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
+		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
+		json_object_set_object_member(jObject, "box", jBoxObject);
+		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
+
+		JsonArray *jObjectEmbedding = json_array_sized_new(msg_sub_meta->objSignature.size);
+		for (size_t j = 0; j < msg_sub_meta->objSignature.size; j++)
+			json_array_add_double_element(
+				jObjectEmbedding, msg_sub_meta->objSignature.signature[j]);
+		json_object_set_array_member(jObject, "embedding", jObjectEmbedding);
+
+		json_array_add_object_element(jObjectArray, jObject);
+	}
+	json_object_set_array_member(rootObj, "objects", jObjectArray);
+
+	// create root node
+	rootNode = json_node_new(JSON_NODE_OBJECT);
+	json_node_set_object(rootNode, rootObj);
+
+	// create message
+	message = json_to_string(rootNode, TRUE);
+	json_node_free(rootNode);
+	json_object_unref(rootObj);
+
+	return message;
+}

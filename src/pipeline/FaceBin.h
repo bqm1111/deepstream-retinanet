@@ -21,16 +21,16 @@ public:
 struct user_feature_callback_data_t
 {
     int tensor_count = 0;
-    CURL * curl;
+    CURL *curl;
 };
 
 class NvInferFaceBin : public NvInferBinBase
 {
 public:
     NvInferFaceBin(std::shared_ptr<NvInferFaceBinConfig> configs)
-    : NvInferBinBase(configs)
     {
         m_configs = configs;
+        m_module_name = "face";
     }
     ~NvInferFaceBin() {}
 

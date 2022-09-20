@@ -142,7 +142,8 @@ nvds_msg2p_generate(NvDsMsg2pCtx *ctx, NvDsEvent *events, guint size)
 
 	if (ctx->payloadType == NVDS_PAYLOAD_DEEPSTREAM)
 	{
-		message = generate_event_message(ctx->privData, events->metadata);
+		// message = generate_event_message(ctx->privData, events->metadata);
+		message = generate_mot_event_message(ctx->privData, events->metadata);
 		if (message)
 		{
 			len = strlen(message);
@@ -235,7 +236,7 @@ nvds_msg2p_generate_multiple_new(NvDsMsg2pCtx *ctx, void *metadataInfo, guint *p
 	gint len = 0;
 	NvDsPayload **payloads = NULL;
 	*payloadCount = 0;
-	
+
 	// Set how many payloads are being sent back to the plugin
 	payloads = (NvDsPayload **)g_malloc0(sizeof(NvDsPayload *) * 1);
 

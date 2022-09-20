@@ -10,7 +10,7 @@
 class NvInferMOTBinConfig : public NvInferBinConfigBase
 {
 public:
-    NvInferMOTBinConfig(std::string pgie, std::string sgie) :NvInferBinConfigBase(pgie, sgie)
+    NvInferMOTBinConfig(std::string pgie, std::string sgie) : NvInferBinConfigBase(pgie, sgie)
     {
     }
 
@@ -23,10 +23,13 @@ public:
     NvInferMOTBin(std::shared_ptr<NvInferMOTBinConfig> configs)
     {
         m_configs = configs;
+        m_module_name = "mot";
     }
     ~NvInferMOTBin();
     void attachProbe();
-    void acquireTrackerList(MOTTrackerList * tracker_list);
+    void setMsgBrokerConfig();
+
+    void acquireTrackerList(MOTTrackerList *tracker_list);
     void createInferBin() override;
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);

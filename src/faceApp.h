@@ -22,9 +22,7 @@ public:
     void MOT();
     void detectAndSend();
     GstElement *getPipeline();
-
     int numVideoSrc();
-
     std::vector<std::string> m_video_source_name;
     std::map<std::string, std::string> m_video_source_info;
     GstAppParam m_gstparam;

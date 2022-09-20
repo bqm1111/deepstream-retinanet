@@ -120,7 +120,7 @@ void NvInferFaceBin::setMsgBrokerConfig()
     g_object_set(G_OBJECT(m_msgbroker), "proto-lib", m_params.proto_lib.c_str(),
                  "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.topic.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.face_topic.c_str(), NULL);
 }
 
 void NvInferFaceBin::attachProbe()

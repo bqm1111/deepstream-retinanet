@@ -63,7 +63,8 @@ struct GstAppParam
     int tiler_width;
     int tiler_height;
 
-    std::string topic;
+    std::string mot_topic;
+    std::string face_topic;
     std::string msg_config_path;
     std::string connection_str;
     std::string msg2p_lib;

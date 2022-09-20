@@ -31,7 +31,7 @@ static void printParam(GstAppParam param)
               << param.tiler_rows << std::endl
               << param.tiler_width << std::endl
               << param.tiler_height << std::endl
-              << param.topic << std::endl
+              << param.face_topic << std::endl
               << param.msg_config_path << std::endl
               << param.connection_str << std::endl
               << param.msg2p_lib << std::endl
@@ -50,7 +50,9 @@ void FaceApp::loadConfig(std::string config_file)
     m_gstparam.tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
     m_gstparam.tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
 
-    m_gstparam.topic = appConf->getProperty(DSAppProperty::FACE_KAFKA_TOPIC).toString();
+    m_gstparam.face_topic = appConf->getProperty(DSAppProperty::FACE_KAFKA_TOPIC).toString();
+    m_gstparam.mot_topic = appConf->getProperty(DSAppProperty::MOT_KAFKA_TOPIC).toString();
+
     m_gstparam.msg_config_path = appConf->getProperty(DSAppProperty::MSG_CONFIG_PATH).toString();
     m_gstparam.connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
     m_gstparam.msg2p_lib = appConf->getProperty(DSAppProperty::KAFKA_MSG2P_LIB).toString();
@@ -59,7 +61,7 @@ void FaceApp::loadConfig(std::string config_file)
 
 void FaceApp::create(std::string name)
 {
-    m_pipeline.create(name, m_gstparam);
+    m_pipeline.create(name);
 }
 
 void FaceApp::addVideoSource(std::string list_video_src_file)
@@ -136,7 +138,7 @@ void FaceApp::detectAndSend()
     face_bin.setParam(m_gstparam);
 
     face_bin.acquireCurl(m_curl);
-    m_pipeline.linkMuxer();
+    m_pipeline.linkMuxer(m_gstparam.muxer_output_width, m_gstparam.muxer_output_height);
     GstElement *inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
     face_bin.attachProbe();
     face_bin.setMsgBrokerConfig();
@@ -164,12 +166,13 @@ void FaceApp::MOT()
 
     mot_bin.acquireTrackerList(m_tracker_list);
     mot_bin.setParam(m_gstparam);
-    m_pipeline.linkMuxer();
+    m_pipeline.linkMuxer(m_gstparam.muxer_output_width, m_gstparam.muxer_output_height);
 
     mot_bin.createInferBin();
 
     GstElement *inferbin = mot_bin.createInferPipeline(m_pipeline.m_pipeline);
     mot_bin.attachProbe();
+    mot_bin.setMsgBrokerConfig();
 
     if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
     {

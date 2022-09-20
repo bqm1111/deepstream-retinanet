@@ -113,6 +113,8 @@ bool nvds_msg2p_parse_key_value (void *privData, const gchar *file);
 bool nvds_msg2p_parse_csv (void *privData, const gchar *file);
 
 gchar* generate_face_event_message (void *privData, NvDsEventMsgMeta *meta);
+gchar* generate_mot_event_message (void *privData, NvDsEventMsgMeta *meta);
+
 #ifdef __cplusplus
 }
 #endif

@@ -28,7 +28,7 @@ class AppPipeline
 {
 public:
     AppPipeline() {}
-    AppPipeline(std::string pipeline_name, GstAppParam params);
+    AppPipeline(std::string pipeline_name);
     ~AppPipeline();
     GstElement *m_pipeline = NULL;
     std::vector<GstElement *> m_source;
@@ -38,12 +38,11 @@ public:
 
     GstElement *m_stream_muxer = NULL;
     std::string m_pipeline_name;
-    GstAppParam m_gstparams;
 
-    void create(std::string pipeline_name, GstAppParam params);
+    void create(std::string pipeline_name);
     void add_video_source(std::map<std::string, std::string> video_info, std::vector<std::string> video_name);
     void link(GstElement *in_elem, GstElement *out_elem);
-    void linkMuxer();
+    void linkMuxer(int muxer_output_width, int muxer_output_height);
     std::map<std::string, int> m_video_source;
     int numVideoSrc();
 };

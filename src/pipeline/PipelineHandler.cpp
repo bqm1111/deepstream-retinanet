@@ -1,10 +1,9 @@
 #include "PipelineHandler.h"
 #include "QDTLog.h"
 
-AppPipeline::AppPipeline(std::string pipeline_name, GstAppParam params)
+AppPipeline::AppPipeline(std::string pipeline_name)
 {
     m_pipeline_name = pipeline_name;
-    m_gstparams = params;
     m_pipeline = gst_pipeline_new(m_pipeline_name.c_str());
 }
 
@@ -17,10 +16,9 @@ AppPipeline::~AppPipeline()
     // gst_object_unref(m_tee_display_pad);
 }
 
-void AppPipeline::create(std::string pipeline_name, GstAppParam params)
+void AppPipeline::create(std::string pipeline_name)
 {
     m_pipeline_name = pipeline_name;
-    m_gstparams = params;
     m_pipeline = gst_pipeline_new(m_pipeline_name.c_str());
 }
 
@@ -92,11 +90,11 @@ void AppPipeline::add_video_source(std::map<std::string, std::string> video_info
     }
 }
 
-void AppPipeline::linkMuxer()
+void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 {
     m_stream_muxer = gst_element_factory_make("nvstreammux", "streammuxer");
-    g_object_set(m_stream_muxer, "width", m_gstparams.muxer_output_width,
-                 "height", m_gstparams.muxer_output_height,
+    g_object_set(m_stream_muxer, "width", muxer_output_width,
+                 "height", muxer_output_height,
                  "batch-size", numVideoSrc(),
                  "batched-push-timeout", 220000, // 5FPS
                  NULL);

@@ -84,3 +84,17 @@ void NvInferMOTBin::attachProbe()
                       reinterpret_cast<gpointer>(m_tiler), NULL);
     gst_object_unref(osd_sink_pad);
 }
+
+void NvInferMOTBin::setMsgBrokerConfig()
+{
+    g_object_set(G_OBJECT(m_msgconv), "config", m_params.msg_config_path.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", m_params.msg2p_lib.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_DEEPSTREAM, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "msg2p-newapi", 0, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "frame-interval", 30, NULL);
+
+    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", m_params.proto_lib.c_str(),
+                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+
+    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.mot_topic.c_str(), NULL);
+}

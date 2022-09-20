@@ -18,7 +18,7 @@ public:
 
     virtual ~NvInferBinBase() {}
     void getMasterBin(GstElement *&bin) { bin = this->m_masterBin; }
-    void setParam(GstAppParam param) { m_params = param; }
+    void setParam(GstAppParam param) { m_params = param; };
     virtual void createInferBin() = 0;
 
     GstElement *createInferPipeline(GstElement *pipeline);
@@ -54,6 +54,7 @@ protected:
     GstAppParam m_params;
     GstElement *m_masterBin = NULL;
     std::shared_ptr<NvInferBinConfigBase> m_configs;
+    std::string m_module_name;
 };
 
 #endif

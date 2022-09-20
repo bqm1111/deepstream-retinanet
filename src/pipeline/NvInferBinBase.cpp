@@ -1,10 +1,10 @@
 #include "NvInferBinBase.h"
 
-GstElement* NvInferBinBase::createInferPipeline(GstElement *pipeline)
+GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
 {
     m_pipeline = pipeline;
     createVideoSinkBin();
-    // linkMsgBroker();
+    linkMsgBroker();
     createInferBin();
     GstElement *inferbin;
     getMasterBin(inferbin);
@@ -18,21 +18,21 @@ GstElement* NvInferBinBase::createInferPipeline(GstElement *pipeline)
 
 void NvInferBinBase::createVideoSinkBin()
 {
-    m_tiler = gst_element_factory_make("nvmultistreamtiler", "sink-nvmultistreamtiler");
+    m_tiler = gst_element_factory_make("nvmultistreamtiler", std::string("sink-nvmultistreamtiler" + m_module_name).c_str());
     GST_ASSERT(m_tiler);
     g_object_set(G_OBJECT(m_tiler), "rows", m_params.tiler_rows, NULL);
     g_object_set(G_OBJECT(m_tiler), "columns", m_params.tiler_cols, NULL);
     g_object_set(G_OBJECT(m_tiler), "width", m_params.tiler_width, NULL);
     g_object_set(G_OBJECT(m_tiler), "height", m_params.tiler_height, NULL);
-    m_convert = gst_element_factory_make("nvvideoconvert", "video-convert");
+    m_convert = gst_element_factory_make("nvvideoconvert", std::string("video-convert" + m_module_name).c_str());
     GST_ASSERT(m_convert);
 
-    m_osd = gst_element_factory_make("nvdsosd", "sink-nvdsosd");
+    m_osd = gst_element_factory_make("nvdsosd", std::string("sink-nvdsosd" + m_module_name).c_str());
     GST_ASSERT(m_osd);
-    m_tee = gst_element_factory_make("tee", "nvsink-tee");
-    m_queue_display = gst_element_factory_make("queue", "nvtee-queue-display");
+    m_tee = gst_element_factory_make("tee", std::string("nvsink-tee" + m_module_name).c_str());
+    m_queue_display = gst_element_factory_make("queue", std::string("nvtee-queue-display" + m_module_name).c_str());
 
-    m_sink = gst_element_factory_make("nveglglessink", "nv-sink");
+    m_sink = gst_element_factory_make("nveglglessink", std::string("nv-sink" + m_module_name).c_str());
     GST_ASSERT(m_sink);
     g_object_set(G_OBJECT(m_sink), "sync", TRUE, NULL);
     gst_bin_add_many(GST_BIN(m_pipeline), m_tiler, m_convert, m_osd, m_tee, m_queue_display, m_sink, NULL);
@@ -61,43 +61,42 @@ void NvInferBinBase::createVideoSinkBin()
     }
 
     gst_object_unref(sink_pad);
-    
 }
 
 void NvInferBinBase::createFileSinkBin(std::string location)
 {
-    m_tiler = gst_element_factory_make("nvmultistreamtiler", "sink-nvmultistreamtiler");
+    m_tiler = gst_element_factory_make("nvmultistreamtiler", std::string("sink-nvmultistreamtiler" + m_module_name).c_str());
     GST_ASSERT(m_tiler);
     g_object_set(G_OBJECT(m_tiler), "rows", m_params.tiler_rows, NULL);
     g_object_set(G_OBJECT(m_tiler), "columns", m_params.tiler_cols, NULL);
     g_object_set(G_OBJECT(m_tiler), "width", m_params.tiler_width, NULL);
     g_object_set(G_OBJECT(m_tiler), "height", m_params.tiler_height, NULL);
-    m_convert = gst_element_factory_make("nvvideoconvert", "video-convert");
+    m_convert = gst_element_factory_make("nvvideoconvert", std::string("video-convert" + m_module_name).c_str());
     GST_ASSERT(m_convert);
 
-    m_osd = gst_element_factory_make("nvdsosd", "sink-nvdsosd");
+    m_osd = gst_element_factory_make("nvdsosd", std::string("sink-nvdsosd" + m_module_name).c_str());
     GST_ASSERT(m_osd);
-    m_tee = gst_element_factory_make("tee", "nvsink-tee");
-    m_queue_display = gst_element_factory_make("queue", "nvtee-queue-display");
-    GstElement *m_file_convert = gst_element_factory_make("nvvideoconvert", "sink-nvvideoconvert2");
+    m_tee = gst_element_factory_make("tee", std::string("nvsink-tee" + m_module_name).c_str());
+    m_queue_display = gst_element_factory_make("queue", std::string("nvtee-queue-display" + m_module_name).c_str());
+    GstElement *m_file_convert = gst_element_factory_make("nvvideoconvert", std::string("sink-nvvideoconvert2" + m_module_name).c_str());
     GST_ASSERT(m_file_convert);
 
-    GstElement *m_capsfilter = gst_element_factory_make("capsfilter", "sink-capsfilter");
+    GstElement *m_capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter" + m_module_name).c_str());
     GST_ASSERT(m_capsfilter);
     GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)I420");
     GST_ASSERT(caps);
     g_object_set(G_OBJECT(m_capsfilter), "caps", caps, NULL);
 
-    GstElement *m_nvv4l2h265enc = gst_element_factory_make("nvv4l2h265enc", "sink-nvv4l2h265enc");
+    GstElement *m_nvv4l2h265enc = gst_element_factory_make("nvv4l2h265enc", std::string("sink-nvv4l2h265enc" + m_module_name).c_str());
     GST_ASSERT(m_nvv4l2h265enc);
 
-    GstElement *m_h265parse = gst_element_factory_make("h265parse", "sink-h265parse");
+    GstElement *m_h265parse = gst_element_factory_make("h265parse", std::string("sink-h265parse" + m_module_name).c_str());
     GST_ASSERT(m_h265parse);
 
-    GstElement *m_file_muxer = gst_element_factory_make("matroskamux", "sink-muxer");
+    GstElement *m_file_muxer = gst_element_factory_make("matroskamux", std::string("sink-muxer" + m_module_name).c_str());
     GST_ASSERT(m_file_muxer);
 
-    GstElement *m_sink = gst_element_factory_make("filesink", "sink-filesink");
+    GstElement *m_sink = gst_element_factory_make("filesink", std::string("sink-filesink" + m_module_name).c_str());
     GST_ASSERT(m_sink);
     g_object_set(G_OBJECT(m_sink), "location", location.c_str(), NULL);
     g_object_set(G_OBJECT(m_sink), "sync", false, NULL);
@@ -152,9 +151,9 @@ void NvInferBinBase::createFileSinkBin(std::string location)
 
 void NvInferBinBase::linkMsgBroker()
 {
-    m_msgconv = gst_element_factory_make("nvmsgconv", "nvmsg-converter");
-    m_msgbroker = gst_element_factory_make("nvmsgbroker", "nvmsg-broker");
-    m_queue_msg = gst_element_factory_make("queue", "nvtee-queue-msg");
+    m_msgconv = gst_element_factory_make("nvmsgconv", std::string("nvmsg-converter" + m_module_name).c_str());
+    m_msgbroker = gst_element_factory_make("nvmsgbroker", std::string("nvmsg-broker" + m_module_name).c_str());
+    m_queue_msg = gst_element_factory_make("queue", std::string("nvtee-queue-msg" + m_module_name).c_str());
 
     if (!m_msgbroker || !m_msgconv || !m_tee || !m_queue_display || !m_queue_msg)
     {
