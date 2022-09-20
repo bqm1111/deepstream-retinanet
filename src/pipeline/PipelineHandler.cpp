@@ -1,12 +1,6 @@
 #include "PipelineHandler.h"
 #include "QDTLog.h"
 
-AppPipeline::AppPipeline(std::string pipeline_name)
-{
-    m_pipeline_name = pipeline_name;
-    m_pipeline = gst_pipeline_new(m_pipeline_name.c_str());
-}
-
 AppPipeline::~AppPipeline()
 {
     // gst_object_unref(GST_OBJECT(m_pipeline));
@@ -27,32 +21,56 @@ int AppPipeline::numVideoSrc()
     return m_video_source.size();
 }
 
-void AppPipeline::add_video_source(std::map<std::string, std::string> video_info, std::vector<std::string> video_name)
+void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_info, std::vector<std::string> video_name)
 {
     int cnt = 0;
     for (const auto &info : video_info)
     {
-        std::string video_path = info.first;
+        std::string video_path = info[0];
         m_video_source[video_name[cnt]] = numVideoSrc() + 1;
         int source_id = numVideoSrc() - 1;
+        if (info[2] == std::string("file"))
+        {
+            m_source.push_back(gst_element_factory_make("filesrc", ("file-source-" + std::to_string(source_id)).c_str()));
+            if (fs::path(video_path).extension() == ".avi")
+            {
+                m_demux.push_back(gst_element_factory_make("tsdemux", ("tsdemux-" + std::to_string(source_id)).c_str()));
+            }
+            else if (fs::path(video_path).extension() == ".mp4")
+            {
+                m_demux.push_back(gst_element_factory_make("qtdemux", ("qtdemux-" + std::to_string(source_id)).c_str()));
+            }
+        }
+        else if (info[2] == std::string("rtsp"))
+        {
+            m_source.push_back(gst_element_factory_make("rtspsrc", ("rtsp-source-" + std::to_string(source_id)).c_str()));
+            if (info[1] == "h265")
+            {
+                m_demux.push_back(gst_element_factory_make("rtph265depay", ("rtph265depay-" + std::to_string(source_id)).c_str()));
+            }
+            else if (info[1] == "h264")
+            {
+                m_demux.push_back(gst_element_factory_make("rtph264depay", ("rtph264depay-" + std::to_string(source_id)).c_str()));
+            }
+            else
+            {
+                QDTLog::error("Unknown encode type to create video parser\n");
+            }
+        }
 
-        m_source.push_back(gst_element_factory_make("filesrc", ("file-source-" + std::to_string(source_id)).c_str()));
+        else
+        {
+            QDTLog::error("Unknown video input type\n");
+        }
+
         GST_ASSERT(m_source[source_id]);
+        GST_ASSERT(m_demux[source_id]);
 
-        if (fs::path(video_path).extension() == ".avi")
-        {
-            m_demux.push_back(gst_element_factory_make("tsdemux", ("tsdemux-" + std::to_string(source_id)).c_str()));
-        }
-        else if (fs::path(video_path).extension() == ".mp4")
-        {
-            m_demux.push_back(gst_element_factory_make("qtdemux", ("qtdemux-" + std::to_string(source_id)).c_str()));
-        }
-
-        if (info.second == "h265")
+        if (info[1] == "h265")
         {
             m_parser.push_back(gst_element_factory_make("h265parse", ("h265-parser-" + std::to_string(source_id)).c_str()));
         }
-        else if (info.second == "h264")
+        else if (info[1] == "h264")
         {
             m_parser.push_back(gst_element_factory_make("h264parse", ("h264-parser-" + std::to_string(source_id)).c_str()));
         }
@@ -71,20 +89,32 @@ void AppPipeline::add_video_source(std::map<std::string, std::string> video_info
         gst_bin_add_many(
             GST_BIN(m_pipeline), m_source[source_id], m_demux[source_id],
             m_parser[source_id], m_decoder[source_id], NULL);
-
-        if (!gst_element_link_many(m_source[source_id], m_demux[source_id], NULL))
+        if (info[2] == std::string("file"))
         {
-            gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
-            throw std::runtime_error("");
+            if (!gst_element_link_many(m_source[source_id], m_demux[source_id], NULL))
+            {
+                gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
+                throw std::runtime_error("");
+            }
+            // link tsdemux to h265parser
+            g_signal_connect(m_demux[source_id], "pad-added", G_CALLBACK(addnewPad),
+                             m_parser[source_id]);
+        }
+        else if (info[2] == std::string("rtsp"))
+        {
+            g_signal_connect(m_source[source_id], "pad-added", G_CALLBACK(addnewPad),
+                             m_demux[source_id]);
+            if (!gst_element_link_many(m_demux[source_id], m_parser[source_id], NULL))
+            {
+                gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
+                throw std::runtime_error("");
+            }
         }
         if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], NULL))
         {
             gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
             throw std::runtime_error("");
         }
-        // link tsdemux to h265parser
-        g_signal_connect(m_demux[source_id], "pad-added", G_CALLBACK(addnewPad),
-                         m_parser[source_id]);
 
         cnt++;
     }
@@ -125,4 +155,54 @@ void AppPipeline::link(GstElement *in_elem, GstElement *out_elem)
     {
         gst_printerr("Could not link elements: %s%d\n", __FILE__, __LINE__);
     }
+}
+
+void AppPipeline::linkTwoBranch(GstElement *mot_bin, GstElement *face_bin)
+{
+    m_tee_app = gst_element_factory_make("tee", "nvsink-tee-app");
+    m_queue_mot = gst_element_factory_make("queue", "nvtee-queue-mot");
+    m_queue_face = gst_element_factory_make("queue", "nvtee-queue-face");
+    gst_bin_add_many(GST_BIN(m_pipeline), m_tee_app, m_queue_mot, m_queue_face, NULL);
+
+    if (!gst_element_link_many(m_stream_muxer, m_tee_app, NULL))
+    {
+        gst_printerr("%s:%d Could not link streammuxer with tee_app\n", __FILE__, __LINE__);
+    }
+
+    if (!gst_element_link_many(m_queue_mot, mot_bin, NULL))
+    {
+        gst_printerr("%s:%d Could not link queue_mot with mot_inferbin\n", __FILE__, __LINE__);
+    }
+    if (!gst_element_link_many(m_queue_face, face_bin, NULL))
+    {
+        gst_printerr("%s:%d Could not link queue_face with face_inferbin\n", __FILE__, __LINE__);
+    }
+
+    GstPad *sink_pad = gst_element_get_static_pad(m_queue_mot, "sink");
+    GstPad *tee_app_mot_pad = gst_element_get_request_pad(m_tee_app, "src_%u");
+    if (!tee_app_mot_pad)
+    {
+        g_printerr("%s:%d Unable to get request pads\n", __FILE__, __LINE__);
+    }
+
+    if (gst_pad_link(tee_app_mot_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
+
+    sink_pad = gst_element_get_static_pad(m_queue_face, "sink");
+    GstPad *tee_app_face_pad = gst_element_get_request_pad(m_tee_app, "src_%u");
+    if (!tee_app_mot_pad)
+    {
+        g_printerr("%s:%d Unable to get request pads\n", __FILE__, __LINE__);
+    }
+
+    if (gst_pad_link(tee_app_face_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
 }

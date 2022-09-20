@@ -90,7 +90,7 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 		FaceEventMsgData *dsObj = (FaceEventMsgData *)meta->extMsg;
 		if (dsObj)
 		{
-			json_object_set_string_member(jobject, "feature", (gchar *)dsObj->feature);
+			// json_object_set_string_member(jobject, "feature", (gchar *)dsObj->feature);
 		}
 	}
 	json_object_set_object_member(objectObj, "feature", jobject);
@@ -115,7 +115,7 @@ gchar *generate_face_event_message(void *privData, NvDsEventMsgMeta *meta)
 	// root object
 	rootObj = json_object_new();
 	json_object_set_object_member(rootObj, "object", objectObj);
-
+	// 
 	rootNode = json_node_new(JSON_NODE_OBJECT);
 	json_node_set_object(rootNode, rootObj);
 

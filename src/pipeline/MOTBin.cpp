@@ -12,7 +12,7 @@ void NvInferMOTBin::acquireTrackerList(MOTTrackerList *tracker_list)
 
 void NvInferMOTBin::createInferBin()
 {
-    m_masterBin = gst_bin_new("face-bin");
+    m_masterBin = gst_bin_new("mot-bin");
     GST_ASSERT(m_masterBin);
 
     m_pgie = gst_element_factory_make("nvinfer", "mot-primary-nvinfer");
@@ -87,14 +87,14 @@ void NvInferMOTBin::attachProbe()
 
 void NvInferMOTBin::setMsgBrokerConfig()
 {
-    g_object_set(G_OBJECT(m_msgconv), "config", m_params.msg_config_path.c_str(), NULL);
-    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", m_params.msg2p_lib.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgconv), "config", MSG_CONFIG_PATH, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_DEEPSTREAM, NULL);
     g_object_set(G_OBJECT(m_msgconv), "msg2p-newapi", 0, NULL);
     g_object_set(G_OBJECT(m_msgconv), "frame-interval", 30, NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", m_params.proto_lib.c_str(),
+    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
                  "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.mot_topic.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.topic.c_str(), NULL);
 }

@@ -513,7 +513,7 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
     }
     gint source_id = frame_meta->source_id;     /* source id of incoming buffer */
     gint batch_index = frame_meta->batch_id;    /* batch id of incoming buffer */
-
+    
     // NOTE: access width height of frame by
     // in_surf->surfaceList[batch_index].width;
     std::vector<NvDsObjectMeta*> to_remove;

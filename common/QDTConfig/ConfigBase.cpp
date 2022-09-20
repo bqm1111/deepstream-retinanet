@@ -39,6 +39,7 @@ bool ConfigBase::isDirty()
 void ConfigBase::loadFile(const std::string &fileName)
 {
     fileConfigName_ = fileName;
+    QDTLog::info("Config file name = {}", fileName);
     if (!rootDataDoc_.load_file(fileName.c_str()))
     {
         QDTLog::error("Fail to load {} config file", moduleConfigName_);

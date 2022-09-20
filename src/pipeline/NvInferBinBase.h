@@ -20,6 +20,8 @@ public:
     void getMasterBin(GstElement *&bin) { bin = this->m_masterBin; }
     void setParam(GstAppParam param) { m_params = param; };
     virtual void createInferBin() = 0;
+    virtual void attachProbe() = 0;
+    virtual void setMsgBrokerConfig() = 0;
 
     GstElement *createInferPipeline(GstElement *pipeline);
     void createVideoSinkBin();

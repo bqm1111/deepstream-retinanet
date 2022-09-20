@@ -88,7 +88,7 @@ void NvInferFaceBin::createDetectBin()
     // Add ghost pads
     GstPad *pgie_sink_pad = gst_element_get_static_pad(m_pgie, "sink");
     GST_ASSERT(pgie_sink_pad);
-
+    
     GstPad *sink_ghost_pad = gst_ghost_pad_new("sink", pgie_sink_pad);
     GST_ASSERT(sink_ghost_pad);
 
@@ -111,16 +111,16 @@ void NvInferFaceBin::acquireCurl(CURL *curl)
 
 void NvInferFaceBin::setMsgBrokerConfig()
 {
-    g_object_set(G_OBJECT(m_msgconv), "config", m_params.msg_config_path.c_str(), NULL);
-    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", m_params.msg2p_lib.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgconv), "config", MSG_CONFIG_PATH, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_msgconv), "msg2p-newapi", 0, NULL);
     g_object_set(G_OBJECT(m_msgconv), "frame-interval", 30, NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", m_params.proto_lib.c_str(),
+    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
                  "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.face_topic.c_str(), NULL);
+    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.topic.c_str(), NULL);
 }
 
 void NvInferFaceBin::attachProbe()

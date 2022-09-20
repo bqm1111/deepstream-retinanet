@@ -10,6 +10,7 @@
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 
+
 #ifndef NVDS_OBJ_USER_META_FACE
 #define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
 #endif
@@ -35,7 +36,6 @@
 
 #ifndef FACEID_PGIE_CONFIG_PATH
 #define FACEID_PGIE_CONFIG_PATH "../configs/faceid/faceid_primary.txt"
-// #define FACEID_PGIE_CONFIG_PATH "../configs/config_infer_primary_yoloV5.txt"
 #endif
 #ifndef FACEID_ALIGN_CONFIG_PATH
 #define FACEID_ALIGN_CONFIG_PATH "../configs/faceid/faceid_align_config.txt"
@@ -52,6 +52,18 @@
 #define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
 #endif
 
+#ifndef MSG_CONFIG_PATH
+#define MSG_CONFIG_PATH "../configs/faceid/msgconv_config.txt"
+#endif
+
+#ifndef KAFKA_MSG2P_LIB
+#define KAFKA_MSG2P_LIB "src/nvmsgconv/libnvmsgconv.so"
+#endif
+
+#ifndef KAFKA_PROTO_LIB
+#define KAFKA_PROTO_LIB "src/kafka_protocol_adaptor/libnvds_kafka_proto.so"
+#endif 
+
 #define POST_TRACK_SCORE 1.0
 
 struct GstAppParam
@@ -63,12 +75,9 @@ struct GstAppParam
     int tiler_width;
     int tiler_height;
 
-    std::string mot_topic;
-    std::string face_topic;
-    std::string msg_config_path;
+    std::string topic;
     std::string connection_str;
-    std::string msg2p_lib;
-    std::string proto_lib;
+    std::string curl_address;
 };
 
 struct alignas(float) Detection

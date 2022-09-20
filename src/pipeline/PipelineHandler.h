@@ -28,7 +28,6 @@ class AppPipeline
 {
 public:
     AppPipeline() {}
-    AppPipeline(std::string pipeline_name);
     ~AppPipeline();
     GstElement *m_pipeline = NULL;
     std::vector<GstElement *> m_source;
@@ -37,12 +36,16 @@ public:
     std::vector<GstElement *> m_decoder;
 
     GstElement *m_stream_muxer = NULL;
+    GstElement *m_tee_app = NULL;
+    GstElement *m_queue_mot = NULL;
+    GstElement *m_queue_face = NULL;
     std::string m_pipeline_name;
 
     void create(std::string pipeline_name);
-    void add_video_source(std::map<std::string, std::string> video_info, std::vector<std::string> video_name);
+    void add_video_source(std::vector<std::vector<std::string>> video_info, std::vector<std::string> video_name);
     void link(GstElement *in_elem, GstElement *out_elem);
     void linkMuxer(int muxer_output_width, int muxer_output_height);
+    void linkTwoBranch(GstElement * mot_bin, GstElement*face_bin);
     std::map<std::string, int> m_video_source;
     int numVideoSrc();
 };

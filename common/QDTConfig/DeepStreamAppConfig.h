@@ -5,18 +5,9 @@
 
 enum class DSAppProperty
 {
-    FACE_PGIE_CONFIG,
-    FACE_ALIGN_CONFIG,
-    FACE_SGIE_CONFIG,
     FACE_FEATURE_CURL_ADDRESS,
-    FACE_KAFKA_TOPIC,
-    MOT_PGIE_CONFIG,
-    MOT_SGIE_CONFIG,
-    MOT_KAFKA_TOPIC,
-    KAFKA_PROTO_LIB,
+    KAFKA_TOPIC,
     KAFKA_CONNECTION_STR,
-    KAFKA_MSG2P_LIB,
-    MSG_CONFIG_PATH,
     MUXER_OUTPUT_WIDTH,
     MUXER_OUTPUT_HEIGHT,
     TILER_ROWS,
@@ -30,18 +21,9 @@ class DSAppConfig : public ConfigBase
 private:
     std::map<DSAppProperty, std::string> DsAppDataField_ =
         {
-            {DSAppProperty::FACE_PGIE_CONFIG, "FACE_PGIE_CONFIG"},
-            {DSAppProperty::FACE_ALIGN_CONFIG, "FACE_ALIGN_CONFIG"},
-            {DSAppProperty::FACE_SGIE_CONFIG, "FACE_SGIE_CONFIG"},
             {DSAppProperty::FACE_FEATURE_CURL_ADDRESS, "FACE_FEATURE_CURL_ADDRESS"},
-            {DSAppProperty::FACE_KAFKA_TOPIC, "FACE_KAFKA_TOPIC"},
-            {DSAppProperty::MOT_PGIE_CONFIG, "MOT_PGIE_CONFIG"},
-            {DSAppProperty::MOT_SGIE_CONFIG, "MOT_SGIE_CONFIG"},
-            {DSAppProperty::MOT_KAFKA_TOPIC, "MOT_KAFKA_TOPIC"},
-            {DSAppProperty::KAFKA_PROTO_LIB, "KAFKA_PROTO_LIB"},
+            {DSAppProperty::KAFKA_TOPIC, "KAFKA_TOPIC"},
             {DSAppProperty::KAFKA_CONNECTION_STR, "KAFKA_CONNECTION_STR"},
-            {DSAppProperty::KAFKA_MSG2P_LIB, "KAFKA_MSG2P_LIB"},
-            {DSAppProperty::MSG_CONFIG_PATH, "MSG_CONFIG_PATH"},
             {DSAppProperty::MUXER_OUTPUT_WIDTH, "MUXER_OUTPUT_WIDTH"},
             {DSAppProperty::MUXER_OUTPUT_HEIGHT, "MUXER_OUTPUT_HEIGHT"},
             {DSAppProperty::TILER_ROWS, "TILER_ROWS"},

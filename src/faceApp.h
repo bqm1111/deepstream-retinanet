@@ -18,13 +18,13 @@ public:
     void create(std::string name);
     void loadConfig(std::string config_file);
     void addVideoSource(std::string list_video_src_file);
-    void faceDetection();
     void MOT();
-    void detectAndSend();
+    void detect();
+    void detectAndMOT();
     GstElement *getPipeline();
     int numVideoSrc();
     std::vector<std::string> m_video_source_name;
-    std::map<std::string, std::string> m_video_source_info;
+    std::vector<std::vector<std::string>> m_video_source_info;
     GstAppParam m_gstparam;
     AppPipeline m_pipeline;
     MOTTrackerList *m_tracker_list = nullptr;

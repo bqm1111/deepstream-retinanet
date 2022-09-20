@@ -26,8 +26,8 @@ public:
         m_module_name = "mot";
     }
     ~NvInferMOTBin();
-    void attachProbe();
-    void setMsgBrokerConfig();
+    void attachProbe() override;
+    void setMsgBrokerConfig() override;
 
     void acquireTrackerList(MOTTrackerList *tracker_list);
     void createInferBin() override;

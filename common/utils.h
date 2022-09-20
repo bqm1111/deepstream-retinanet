@@ -16,8 +16,9 @@
 #include <iostream>
 
 using namespace rapidjson;
-gchar* b64encode(float* vec, int size);
+gchar *b64encode(float *vec, int size);
 void floatArr2Str(std::string &str, float *arr, int length);
-gchar* gen_body(int num_vec, gchar* vec);
-bool parseJson(std::string filename, std::vector<std::string> &name, std::map<std::string , std::string> &info);
+gchar *gen_body(int num_vec, gchar *vec);
+bool parseJson(std::string filename, std::vector<std::string> &name,
+               std::vector<std::vector<std::string>> &info);
 #endif

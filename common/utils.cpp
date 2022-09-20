@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "QDTLog.h"
 
 gchar *b64encode(float *vec, int size)
 {
@@ -31,7 +32,7 @@ gchar *gen_body(int num_vec, gchar *vec)
     return json;
 }
 
-bool parseJson(std::string filename, std::vector<std::string> &name, std::map<std::string , std::string> &info)
+bool parseJson(std::string filename, std::vector<std::string> &name, std::vector<std::vector<std::string>> &info)
 {
     std::ifstream ifs{filename};
     if (!ifs.is_open())
@@ -48,15 +49,12 @@ bool parseJson(std::string filename, std::vector<std::string> &name, std::map<st
     {
         name.push_back(m.name.GetString());
         auto a = m.value.GetArray();
-
-        std::string information[a.Size()];
-        int cnt = 0;
+        std::vector<std::string> value;
         for (Value::ConstValueIterator itr = a.Begin(); itr != a.End(); ++itr)
         {
-            information[cnt] = itr->GetString();
-            cnt++;
+            value.push_back(itr->GetString());
         }
-        info.insert(std::make_pair(information[0], information[1]));
+        info.push_back(value);
     }
     return EXIT_SUCCESS;
 }

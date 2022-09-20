@@ -183,6 +183,7 @@ static void meta_free_func(gpointer data, gpointer user_data)
     g_free(user_meta->user_meta_data);
     user_meta->user_meta_data = NULL;
 }
+
 GstPadProbeReturn NvInferFaceBin::osd_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
@@ -199,6 +200,7 @@ GstPadProbeReturn NvInferFaceBin::osd_sink_pad_callback(GstPad *pad, GstPadProbe
     NvDsMetaList *l_frame = NULL;
     NvDsMetaList *l_obj = NULL;
     NvDsMetaList *l_user = NULL;
+    
     for (l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
