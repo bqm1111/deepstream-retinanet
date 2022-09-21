@@ -33,9 +33,9 @@ int main(int argc, char *argv[])
 	app.loadConfig("../configs/DsApp.conf");
 
 	app.create("face-app");
-	// app.addVideoSource("../configs/video_list.json");
-	app.addVideoSource("../configs/rtsp_source_list.json");
-
+	app.addVideoSource("../configs/video_list.json");
+	// app.addVideoSource("../configs/rtsp_source_list.json");
+	
 	// app.detect();
 	// app.MOT();
 	// app.detectAndMOT();
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 	g_timeout_add(40, event_thread_func, NULL);
 
 	g_main_loop_run(loop);
-
+	
 	gst_element_set_state(app.getPipeline(), GST_STATE_NULL);
 	g_source_remove(bus_watch_id);
 	g_main_loop_unref(loop);

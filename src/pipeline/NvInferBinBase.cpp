@@ -1,4 +1,5 @@
 #include "NvInferBinBase.h"
+#include "QDTLog.h"
 
 GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
 {
@@ -17,6 +18,16 @@ GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
         g_printerr("%s:%d Cant link infer bin to tiler\n", __FILE__, __LINE__);
     }
     return inferbin;
+}
+
+GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
+{
+    
+    m_pipeline = pipeline;
+    // createVideoSinkBin();
+    createFileSinkBin("out.avi");
+    // attachProbe();
+    return m_tiler;
 }
 
 void NvInferBinBase::createVideoSinkBin()
@@ -183,4 +194,23 @@ void NvInferBinBase::linkMsgBroker()
         gst_object_unref(sink_pad);
     }
     gst_object_unref(sink_pad);
+}
+
+void NvInferBinBase::attachProbe()
+{
+    GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
+    GST_ASSERT(tiler_sink_pad);
+    gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
+                      reinterpret_cast<gpointer>(m_tiler), NULL);
+    g_object_unref(tiler_sink_pad);
+
+    GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
+    GST_ASSERT(osd_sink_pad);
+    gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
+                      reinterpret_cast<gpointer>(m_tiler), NULL);
+    gst_object_unref(osd_sink_pad);
+}
+
+void NvInferBinBase::setMsgBrokerConfig()
+{
 }

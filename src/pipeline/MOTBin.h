@@ -26,11 +26,10 @@ public:
         m_module_name = "mot";
     }
     ~NvInferMOTBin();
+    void createInferBin() override;
     void attachProbe() override;
     void setMsgBrokerConfig() override;
-
     void acquireTrackerList(MOTTrackerList *tracker_list);
-    void createInferBin() override;
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 

@@ -184,7 +184,7 @@ static void meta_free_func(gpointer data, gpointer user_data)
     user_meta->user_meta_data = NULL;
 }
 
-GstPadProbeReturn NvInferFaceBin::osd_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+GstPadProbeReturn NvInferFaceBin::osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
     GST_ASSERT(buf);

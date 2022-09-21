@@ -37,18 +37,18 @@ public:
     void createInferBin() override;
     void createDetectBin();
     void acquireCurl(CURL *curl);
-    void setMsgBrokerConfig();
-    void attachProbe();
+    void setMsgBrokerConfig() override;
+    void attachProbe() override;
     static void sgie_output_callback(GstBuffer *buf,
                                      NvDsInferNetworkInfo *network_info,
                                      NvDsInferLayerInfo *layers_info,
                                      guint num_layers,
                                      guint batch_size,
                                      gpointer user_data);
-    static GstPadProbeReturn osd_sink_pad_callback(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn pgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
-    static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
     GstElement *aligner = NULL;
     CURL *m_curl;

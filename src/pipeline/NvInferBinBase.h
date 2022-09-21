@@ -19,11 +19,12 @@ public:
     virtual ~NvInferBinBase() {}
     void getMasterBin(GstElement *&bin) { bin = this->m_masterBin; }
     void setParam(GstAppParam param) { m_params = param; };
-    virtual void createInferBin() = 0;
-    virtual void attachProbe() = 0;
-    virtual void setMsgBrokerConfig() = 0;
+    virtual void createInferBin(){}
+    virtual void attachProbe();
+    virtual void setMsgBrokerConfig();
 
     GstElement *createInferPipeline(GstElement *pipeline);
+    GstElement *createNonInferPipeline(GstElement *pipeline);
     void createVideoSinkBin();
     void createFileSinkBin(std::string location);
     void linkMsgBroker();
@@ -51,6 +52,8 @@ public:
 
     GstPad *m_tee_msg_pad;
     GstPad *m_tee_display_pad;
+    static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
 protected:
     GstAppParam m_params;
