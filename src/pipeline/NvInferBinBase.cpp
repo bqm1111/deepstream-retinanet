@@ -3,14 +3,15 @@
 GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
 {
     m_pipeline = pipeline;
-    createVideoSinkBin();
-    linkMsgBroker();
+    // createVideoSinkBin();
+    createFileSinkBin("out.avi");
     createInferBin();
+    // linkMsgBroker();
+    // setMsgBrokerConfig();
     GstElement *inferbin;
     getMasterBin(inferbin);
     gst_bin_add(GST_BIN(m_pipeline), inferbin);
     attachProbe();
-    setMsgBrokerConfig();
     if (!gst_element_link_many(inferbin, m_tiler, NULL))
     {
         g_printerr("%s:%d Cant link infer bin to tiler\n", __FILE__, __LINE__);

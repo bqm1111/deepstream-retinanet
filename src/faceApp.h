@@ -21,6 +21,7 @@ public:
     void MOT();
     void detect();
     void detectAndMOT();
+    void sequentialDetectAndMOT();
     GstElement *getPipeline();
     int numVideoSrc();
     std::vector<std::string> m_video_source_name;

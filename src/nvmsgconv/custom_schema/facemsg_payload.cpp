@@ -75,7 +75,7 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 		// default:
 		// 	cout << "Object type not implemented" << endl;
 	}
-
+	
 	// bbox sub object
 	jobject = json_object_new();
 	json_object_set_int_member(jobject, "topleftx", meta->bbox.left);
@@ -90,7 +90,7 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 		FaceEventMsgData *dsObj = (FaceEventMsgData *)meta->extMsg;
 		if (dsObj)
 		{
-			// json_object_set_string_member(jobject, "feature", (gchar *)dsObj->feature);
+			json_object_set_string_member(jobject, "feature", (gchar *)dsObj->feature);
 		}
 	}
 	json_object_set_object_member(objectObj, "feature", jobject);

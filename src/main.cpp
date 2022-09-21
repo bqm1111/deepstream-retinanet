@@ -21,7 +21,7 @@ static gboolean event_thread_func(gpointer arg)
 
 int main(int argc, char *argv[])
 {
-	QDTLog::init();
+	QDTLog::init("logs/");
 
 	GstBus *bus = NULL;
 	guint bus_watch_id;
@@ -33,11 +33,13 @@ int main(int argc, char *argv[])
 	app.loadConfig("../configs/DsApp.conf");
 
 	app.create("face-app");
-	app.addVideoSource("../configs/video_list.json");
+	// app.addVideoSource("../configs/video_list.json");
+	app.addVideoSource("../configs/rtsp_source_list.json");
 
 	// app.detect();
-	app.MOT();
+	// app.MOT();
 	// app.detectAndMOT();
+	app.sequentialDetectAndMOT();
 	bus = gst_pipeline_get_bus(GST_PIPELINE(app.getPipeline()));
 	GST_ASSERT(bus);
 	bus_watch_id = gst_bus_add_watch(bus, bus_watch_callback, nullptr);
@@ -51,18 +53,4 @@ int main(int argc, char *argv[])
 	g_source_remove(bus_watch_id);
 	g_main_loop_unref(loop);
 	return 0;
-
-	// ConfigManager *config = new ConfigManager();
-	// config->setContext();
-	// std::shared_ptr<DSAppConfig> dsConf = std::dynamic_pointer_cast<DSAppConfig>(config->getConfig(ConfigType::DeepStreamApp));
-	// dsConf->setProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS, std::string("http://tainp.local:5555/search"));
-	// dsConf->setProperty(DSAppProperty::KAFKA_TOPIC, std::string("XFace"));
-	// dsConf->setProperty(DSAppProperty::KAFKA_CONNECTION_STR, std::string("localhost;9092"));
-	// dsConf->setProperty(DSAppProperty::MUXER_OUTPUT_WIDTH, 1920);
-	// dsConf->setProperty(DSAppProperty::MUXER_OUTPUT_HEIGHT, 1080);
-	// dsConf->setProperty(DSAppProperty::TILER_COLS, 2);
-	// dsConf->setProperty(DSAppProperty::TILER_ROWS, 1);
-	// dsConf->setProperty(DSAppProperty::TILER_WIDTH, 1280);
-	// dsConf->setProperty(DSAppProperty::TILER_HEIGHT, 480);
-	// dsConf->save();
 }

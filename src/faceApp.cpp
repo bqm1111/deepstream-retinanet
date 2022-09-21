@@ -161,3 +161,39 @@ void FaceApp::detectAndMOT()
     m_pipeline.linkTwoBranch(mot_inferbin, face_inferbin);
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
 }
+
+void FaceApp::sequentialDetectAndMOT()
+{
+    // MOT BRANCH
+    m_tracker_list = (MOTTrackerList *)g_malloc0(sizeof(MOTTrackerList));
+    int num_tracker = m_video_source_info.size();
+    m_tracker_list->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
+    m_tracker_list->num_trackers = num_tracker;
+    for (size_t i = 0; i < m_tracker_list->num_trackers; i++)
+        this->m_tracker_list->trackers[i] = tracker(
+            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
+
+    std::shared_ptr<NvInferMOTBinConfig> mot_configs = std::make_shared<NvInferMOTBinConfig>(MOT_PGIE_CONFIG_PATH, MOT_SGIE_CONFIG_PATH);
+    NvInferMOTBin mot_bin(mot_configs);
+    // remember to acquire trackerList before createBin
+    mot_bin.acquireTrackerList(m_tracker_list);
+    mot_bin.setParam(m_gstparam);
+    GstElement *mot_inferbin = mot_bin.createInferPipeline(m_pipeline.m_pipeline);
+    
+    // DETECT BRANCH
+    std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
+    NvInferFaceBin face_bin(face_configs);
+    // remember to acquire curl before createBin
+    face_bin.setParam(m_gstparam);
+    face_bin.acquireCurl(m_curl);
+    GstElement *face_inferbin;
+    face_bin.createInferBin();
+    face_bin.getMasterBin(face_inferbin);
+    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, NULL);
+    if(!gst_element_link_many(m_pipeline.m_stream_muxer, face_inferbin, mot_inferbin, NULL))
+    {
+        QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
+    }
+
+    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
+}
