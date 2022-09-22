@@ -486,9 +486,11 @@ static gpointer XFace_msg_meta_release_func(gpointer data, gpointer user_data)
         g_free(srcExtMsg->timestamp);
 
         // Delete face
+
         for (int i = 0; i < srcExtMsg->num_face_obj; i++)
         {
             NvDsEventMsgMeta *msg_sub_meta = srcExtMsg->face_meta_list[i];
+
             g_free(msg_sub_meta->sensorStr);
             g_free(msg_sub_meta->otherAttrs);
             g_free(msg_sub_meta);
@@ -638,43 +640,43 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             }
             else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON)
             {
-                QDTLog::info("Succesfully enter here");
                 getMOTMetaData(batch_meta, obj_meta, mot_sub_meta_list);
             }
+        }
 
-            XFaceMsgMeta *msg_meta_content = (XFaceMsgMeta *)g_malloc0(sizeof(XFaceMsgMeta));
-            // Get MOT meta
-            msg_meta_content->num_mot_obj = mot_sub_meta_list.size();
-            msg_meta_content->mot_meta_list = (NvDsEventMsgMeta **)g_malloc0(mot_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
-            memcpy(msg_meta_content->mot_meta_list, mot_sub_meta_list.data(), mot_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
+        // Start gathering information and send to Kafka server
+        XFaceMsgMeta *msg_meta_content = (XFaceMsgMeta *)g_malloc0(sizeof(XFaceMsgMeta));
+        // Get MOT meta
+        msg_meta_content->num_mot_obj = mot_sub_meta_list.size();
+        msg_meta_content->mot_meta_list = (NvDsEventMsgMeta **)g_malloc0(mot_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
+        memcpy(msg_meta_content->mot_meta_list, mot_sub_meta_list.data(), mot_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
 
-            // Get Face meta
-            msg_meta_content->num_face_obj = face_sub_meta_list.size();
-            msg_meta_content->face_meta_list = (NvDsEventMsgMeta **)g_malloc0(face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
-            memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
+        // Get Face meta
+        msg_meta_content->num_face_obj = face_sub_meta_list.size();
+        msg_meta_content->face_meta_list = (NvDsEventMsgMeta **)g_malloc0(face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
+        memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
 
-            // Generate timestamp
-            msg_meta_content->timestamp = (gchar *)g_malloc0(MAX_TIME_STAMP_LEN + 1);
-            generate_ts_rfc3339(msg_meta_content->timestamp, MAX_TIME_STAMP_LEN);
-            msg_meta_content->cameraId = frame_meta->source_id;
-            msg_meta_content->frameId = frame_meta->frame_num;
-            QDTLog::info("Num face and person = {} - {}", face_sub_meta_list.size(), mot_sub_meta_list.size());
+        // Generate timestamp
+        msg_meta_content->timestamp = (gchar *)g_malloc0(MAX_TIME_STAMP_LEN + 1);
+        generate_ts_rfc3339(msg_meta_content->timestamp, MAX_TIME_STAMP_LEN);
+        msg_meta_content->cameraId = frame_meta->source_id;
+        msg_meta_content->frameId = frame_meta->frame_num;
+        QDTLog::info("Num face and person = {} - {}", face_sub_meta_list.size(), mot_sub_meta_list.size());
 
-            // This is where to create the final NvDsEventMsgMeta before sending
-            NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-            msg_meta->extMsg = (void *)msg_meta_content;
-            msg_meta->extMsgSize = sizeof(XFaceMsgMeta);
+        // This is where to create the final NvDsEventMsgMeta before sending
+        NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+        msg_meta->extMsg = (void *)msg_meta_content;
+        msg_meta->extMsgSize = sizeof(XFaceMsgMeta);
 
-            // Pack EventMsgMeta into UserMeta
-            NvDsUserMeta *user_event_meta = nvds_acquire_user_meta_from_pool(batch_meta);
-            if (user_event_meta)
-            {
-                user_event_meta->user_meta_data = (void *)msg_meta;
-                user_event_meta->base_meta.meta_type = NVDS_EVENT_MSG_META;
-                user_event_meta->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_meta_copy_func;
-                user_event_meta->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_meta_release_func;
-                nvds_add_user_meta_to_frame(frame_meta, user_event_meta);
-            }
+        // Pack EventMsgMeta into UserMeta
+        NvDsUserMeta *user_event_meta = nvds_acquire_user_meta_from_pool(batch_meta);
+        if (user_event_meta)
+        {
+            user_event_meta->user_meta_data = (void *)msg_meta;
+            user_event_meta->base_meta.meta_type = NVDS_EVENT_MSG_META;
+            user_event_meta->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_meta_copy_func;
+            user_event_meta->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_meta_release_func;
+            nvds_add_user_meta_to_frame(frame_meta, user_event_meta);
         }
     }
     callback_data->tensor_count++;
