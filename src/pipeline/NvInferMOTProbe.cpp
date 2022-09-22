@@ -1,5 +1,7 @@
 
 #include "MOTBin.h"
+#include "QDTLog.h"
+#include "utils.h"
 
 static gpointer sgie_src_pad_meta_copy_func(gpointer data, gpointer user_data)
 {
@@ -13,7 +15,6 @@ static gpointer sgie_src_pad_meta_copy_func(gpointer data, gpointer user_data)
     dstMeta->extMsg = g_malloc0(sizeof(EventMsgSubMeta));
     EventMsgSubMeta *srcExtMsg = (EventMsgSubMeta *)srcMeta->extMsg;
     EventMsgSubMeta *dstExtMsg = (EventMsgSubMeta *)dstMeta->extMsg;
-
     // copy extMsg -- copy main information
     dstExtMsg->type = srcExtMsg->type;
     dstExtMsg->frameId = srcExtMsg->frameId;
@@ -90,7 +91,7 @@ void parse_embedding_from_user_meta_data(
     embedding_data_f = (float *)tensor_meta->out_buf_ptrs_host[0];
 }
 
-void parse_detections_from_frame_meta(DETECTIONS &detections, NvDsFrameMeta *frame_meta)
+static void parse_detections_from_frame_meta(DETECTIONS &detections, NvDsFrameMeta *frame_meta)
 {
     NvDsObjectMetaList *l_object = frame_meta->obj_meta_list;
     while (l_object)
@@ -210,28 +211,6 @@ void sgie_src_pad_make_msg_sub_meta_list(
         NvDsEventMsgMeta *msg_sub_meta;
         make_msg_sub_meta(track, frame_meta, msg_sub_meta);
         _msg_sub_meta_list.push_back(msg_sub_meta);
-
-#ifdef ENABLE_EVAL_MOT
-        // Save MOT results for evaluation
-        char *filename = (char *)g_malloc0(64 * sizeof(char));
-        snprintf(filename, 64, "stream_%u.txt", frame_meta->source_id);
-        std::string save_path = std::string(MOT_EVAL_SAVE_DIR) + "/" + std::string(filename);
-
-        float h_ratio = ((float)frame_meta->source_frame_height) / ((float)frame_meta->pipeline_height);
-        float w_ratio = ((float)frame_meta->source_frame_width) / ((float)frame_meta->pipeline_width);
-        float obj_left = obj_meta->rect_params.left * w_ratio;
-        float obj_top = obj_meta->rect_params.top * h_ratio;
-        float obj_width = obj_meta->rect_params.width * w_ratio;
-        float obj_height = obj_meta->rect_params.height * h_ratio;
-
-        std::ofstream outfile;
-        outfile.open(save_path, std::ios::out | std::ios::app);
-        outfile << frame_meta->frame_num << "," << obj_meta->object_id << ","
-                << (int)obj_left << "," << (int)obj_top << ","
-                << (int)obj_width << "," << (int)obj_height << ","
-                << "-1,-1,-1,-1\n";
-        outfile.close();
-#endif
     }
 
     // make EventMsgSubMeta
@@ -250,6 +229,8 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
 {
     MOTTrackerList *tracker_list = (MOTTrackerList *)user_data;
     GstBuffer *gst_buffer = gst_pad_probe_info_get_buffer(info);
+    NvDsMetaList *l_obj = NULL;
+
     if (!gst_buffer)
     {
         gst_print("no GstBuffer found in sgie_mot_src_pad_buffer_probe()\n");
@@ -258,9 +239,30 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
     }
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(gst_buffer);
     NvDsFrameMetaList *l_frame = batch_meta->frame_meta_list;
+    
     while (l_frame)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)l_frame->data;
+
+        // for (l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
+        // {
+        //     NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
+        //     if (obj_meta->class_id == FACE_CLASS_ID)
+        //     {
+        //         NvDsFaceMetaData *faceMeta = NULL;
+        //         for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+        //         {
+        //             NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+        //             if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
+        //             {
+        //                 faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
+
+        //                 QDTLog::info("face feature = {}", std::string(b64encode(faceMeta->feature, FEATURE_SIZE)));
+        //             }
+        //         }
+        //     }
+        // }
+
         tracker *_tracker = tracker_list->trackers + frame_meta->source_id;
         // Track with DeepSORT
         DETECTIONS detections;
@@ -291,30 +293,6 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
 
         l_frame = l_frame->next;
     }
-
-#ifdef ENABLE_EVAL_SPEED
-    if (!START_MEASURE_FPS)
-    {
-        START_MEASURE_FPS = true;
-        LAST_TICK = std::chrono::system_clock::now();
-    }
-    else
-    {
-        // Measure
-        auto tick = std::chrono::system_clock::now();
-        double elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(tick - LAST_TICK).count();
-
-        // Update
-        LAST_TICK = tick;
-        TOTAL_TIME += elapsed_time;
-        NUM_TICKS++;
-
-        // Statistics
-        double AVG_RUNTIME = TOTAL_TIME / NUM_TICKS / 1e6;
-        double AVG_FPS = 1.0 / AVG_RUNTIME;
-        std::cout << "Average runtime: " << AVG_RUNTIME << " - Average FPS: " << AVG_FPS << std::endl;
-    }
-#endif
 
     return GST_PAD_PROBE_OK;
 }

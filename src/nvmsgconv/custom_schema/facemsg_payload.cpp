@@ -24,56 +24,6 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 
 	switch (meta->objType)
 	{
-		// case NVDS_OBJECT_TYPE_PERSON:
-		// 	// person sub object
-		// 	jobject = json_object_new();
-
-		// 	if (meta->extMsgSize)
-		// 	{
-		// 		NvDsPersonObject *dsObj = (NvDsPersonObject *)meta->extMsg;
-		// 		if (dsObj)
-		// 		{
-		// 			json_object_set_double_member(jobject, "confidence", meta->confidence);
-		// 		}
-		// 	}
-
-		// 	else
-		// 	{
-		// 		// No person object in meta data. Attach empty person sub object.
-		// 		json_object_set_double_member(jobject, "confidence", 1.0);
-		// 	}
-		// 	json_object_set_object_member(objectObj, "person", jobject);
-		// 	break;
-		// case NVDS_OBJECT_TYPE_PERSON_EXT:
-		// 	// person sub object
-		// 	jobject = json_object_new();
-
-		// 	if (meta->extMsgSize)
-		// 	{
-		// 		NvDsPersonObjectExt *dsObj = (NvDsPersonObjectExt *)meta->extMsg;
-		// 		if (dsObj)
-		// 		{
-		// 			json_object_set_double_member(jobject, "confidence", meta->confidence);
-		// 		}
-		// 	}
-		// 	else
-		// 	{
-		// 		// No person object in meta data. Attach empty person sub object.
-		// 		json_object_set_double_member(jobject, "confidence", 1.0);
-		// 	}
-		// 	json_object_set_object_member(objectObj, "person", jobject);
-		// 	break;
-		// case NVDS_OBJECT_TYPE_UNKNOWN:
-		// 	if (!meta->objectId)
-		// 	{
-		// 		break;
-		// 	}
-		// 	/** No information to add; object type unknown within NvDsEventMsgMeta */
-		// 	jobject = json_object_new();
-		// 	json_object_set_object_member(objectObj, meta->objectId, jobject);
-		// 	break;
-		// default:
-		// 	cout << "Object type not implemented" << endl;
 	}
 	
 	// bbox sub object
@@ -172,7 +122,7 @@ generate_mot_event_message(void *privData, NvDsEventMsgMeta *meta)
 
 		json_array_add_object_element(jObjectArray, jObject);
 	}
-	json_object_set_array_member(rootObj, "objects", jObjectArray);
+	json_object_set_array_member(rootObj, "MOT", jObjectArray);
 
 	// create root node
 	rootNode = json_node_new(JSON_NODE_OBJECT);

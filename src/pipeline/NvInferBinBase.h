@@ -9,6 +9,7 @@
 #include "NvInferBinConfigBase.h"
 #include "common.h"
 #include "params.h"
+#include "mot_struct.h"
 
 class NvInferBinBase
 {
@@ -19,9 +20,10 @@ public:
     virtual ~NvInferBinBase() {}
     void getMasterBin(GstElement *&bin) { bin = this->m_masterBin; }
     void setParam(GstAppParam param) { m_params = param; };
-    virtual void createInferBin(){}
+    virtual void createInferBin() {}
     virtual void attachProbe();
     virtual void setMsgBrokerConfig();
+    void acquireTrackerList(MOTTrackerList *tracker_list) { m_tracker_list = tracker_list; }
 
     GstElement *createInferPipeline(GstElement *pipeline);
     GstElement *createNonInferPipeline(GstElement *pipeline);
@@ -56,6 +58,7 @@ public:
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
 protected:
+    MOTTrackerList *m_tracker_list;
     GstAppParam m_params;
     GstElement *m_masterBin = NULL;
     std::shared_ptr<NvInferBinConfigBase> m_configs;

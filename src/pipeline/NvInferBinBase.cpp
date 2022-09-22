@@ -4,11 +4,11 @@
 GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
 {
     m_pipeline = pipeline;
-    // createVideoSinkBin();
-    createFileSinkBin("out.avi");
+    createVideoSinkBin();
+    // createFileSinkBin("out.mkv");
     createInferBin();
-    // linkMsgBroker();
-    // setMsgBrokerConfig();
+    linkMsgBroker();
+    setMsgBrokerConfig();
     GstElement *inferbin;
     getMasterBin(inferbin);
     gst_bin_add(GST_BIN(m_pipeline), inferbin);
@@ -22,11 +22,14 @@ GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
 
 GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
 {
-    
+
     m_pipeline = pipeline;
     // createVideoSinkBin();
-    createFileSinkBin("out.avi");
-    // attachProbe();
+    createFileSinkBin("out.mkv");
+    linkMsgBroker();
+    setMsgBrokerConfig();
+
+    attachProbe();
     return m_tiler;
 }
 
@@ -207,10 +210,20 @@ void NvInferBinBase::attachProbe()
     GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
     GST_ASSERT(osd_sink_pad);
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
-                      reinterpret_cast<gpointer>(m_tiler), NULL);
+                      m_tracker_list, NULL);
     gst_object_unref(osd_sink_pad);
 }
 
 void NvInferBinBase::setMsgBrokerConfig()
 {
+    g_object_set(G_OBJECT(m_msgconv), "config", MSG_CONFIG_PATH, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_DEEPSTREAM, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "msg2p-newapi", 0, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "frame-interval", 30, NULL);
+
+    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
+                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+
+    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.topic.c_str(), NULL);
 }

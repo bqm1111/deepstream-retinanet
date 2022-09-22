@@ -51,6 +51,7 @@ void FaceApp::addVideoSource(std::string list_video_src_file)
     parseJson(list_video_src_file, m_video_source_name, m_video_source_info);
     m_pipeline.add_video_source(m_video_source_info, m_video_source_name);
     m_pipeline.linkMuxer(m_gstparam.muxer_output_width, m_gstparam.muxer_output_height);
+    QDTLog::info("Num video source = {}", m_video_source_info.size());
 }
 
 void FaceApp::init_curl()
@@ -181,7 +182,7 @@ void FaceApp::sequentialDetectAndMOT()
     GstElement *mot_inferbin;
     mot_bin.createInferBin();
     mot_bin.getMasterBin(mot_inferbin);
-
+    
     // ======================== DETECT BRANCH ========================
     std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
     NvInferFaceBin face_bin(face_configs);
@@ -195,13 +196,19 @@ void FaceApp::sequentialDetectAndMOT()
     // ========================================================================
     NvInferBinBase bin;
     bin.setParam(m_gstparam);
+    bin.acquireTrackerList(m_tracker_list);
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
-
+    
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, NULL);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, face_inferbin, mot_inferbin, bin.m_tiler, NULL))
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer,face_inferbin, mot_inferbin, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
-    
+
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
+}
+
+void FaceApp::setLive(bool is_live)
+{
+    m_pipeline.setLiveSource(is_live);
 }

@@ -120,13 +120,20 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
     }
 }
 
+void AppPipeline::setLiveSource(bool is_live)
+{
+    m_live_source = is_live;
+}
+
 void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 {
+    QDTLog::info("live source = {}", m_live_source);
     m_stream_muxer = gst_element_factory_make("nvstreammux", "streammuxer");
     g_object_set(m_stream_muxer, "width", muxer_output_width,
                  "height", muxer_output_height,
                  "batch-size", numVideoSrc(),
-                 "batched-push-timeout", 220000, // 5FPS
+                 "batched-push-timeout", 220000,
+                 "live-source", m_live_source,
                  NULL);
     gst_bin_add(GST_BIN(m_pipeline), m_stream_muxer);
 

@@ -5,11 +5,6 @@ NvInferMOTBin::~NvInferMOTBin()
 {
 }
 
-void NvInferMOTBin::acquireTrackerList(MOTTrackerList *tracker_list)
-{
-    m_tracker_list = tracker_list;
-}
-
 void NvInferMOTBin::createInferBin()
 {
     m_masterBin = gst_bin_new("mot-bin");
@@ -81,7 +76,7 @@ void NvInferMOTBin::attachProbe()
     GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
     GST_ASSERT(osd_sink_pad);
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
-                      reinterpret_cast<gpointer>(m_tiler), NULL);
+                      m_tracker_list, NULL);
     gst_object_unref(osd_sink_pad);
 }
 

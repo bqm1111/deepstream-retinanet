@@ -16,6 +16,7 @@ public:
     ~FaceApp();
 
     void create(std::string name);
+    void setLive(bool is_live);
     void loadConfig(std::string config_file);
     void addVideoSource(std::string list_video_src_file);
     void MOT();

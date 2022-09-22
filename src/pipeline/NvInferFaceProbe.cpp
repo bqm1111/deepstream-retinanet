@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <nvdsinfer_custom_impl.h>
+#include "QDTLog.h"
 #include "utils.h"
 
 gpointer user_copy_facemark_meta(gpointer data, gpointer user_data)
@@ -200,7 +201,7 @@ GstPadProbeReturn NvInferFaceBin::osd_sink_pad_buffer_probe(GstPad *pad, GstPadP
     NvDsMetaList *l_frame = NULL;
     NvDsMetaList *l_obj = NULL;
     NvDsMetaList *l_user = NULL;
-    
+
     for (l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
@@ -489,7 +490,11 @@ GstPadProbeReturn NvInferFaceBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadP
     }
     return GST_PAD_PROBE_OK;
 }
-
+static size_t WriteCallback(char *contents, size_t size, size_t nmemb, void *userp)
+{
+    ((std::string*)userp)->append((char*)contents, size * nmemb);
+    return size * nmemb;
+}
 void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                           NvDsInferNetworkInfo *network_info,
                                           NvDsInferLayerInfo *layers_info,
@@ -537,25 +542,24 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                     float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
                                          faceMeta->aligned_index * feature_size;
                     memcpy(faceMeta->feature, cur_feature, feature_size * sizeof(float));
-                    float norm = 0;
-                    for(int i = 0; i < FEATURE_SIZE; i++)
-                    {
-                        norm += cur_feature[i] * cur_feature[i];
-                    }
-                    norm = std::sqrt(norm);
-                    // std::cout << "VECTOR NORM = " << norm << std::endl;
                     // Send HTTP request
                     CURL *curl = callback_data->curl;
+                    std::string response_string;
                     const char *data = gen_body(1, b64encode(cur_feature, FEATURE_SIZE));
                     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-                    
+                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+
+                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
                     // request over HTTP/2, using the same connection!
                     CURLcode res = curl_easy_perform(curl);
+
                     if (res != CURLE_OK)
                     {
                         fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
                         break;
                     }
+                    QDTLog::info("Response string = {}", response_string);
 
 #ifdef DEBUG_FACE_SGIE
                     /* save input of sgie */
@@ -634,6 +638,8 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
     }
     callback_data->tensor_count++;
 }
+
+
 
 GstPadProbeReturn NvInferFaceBin::tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {

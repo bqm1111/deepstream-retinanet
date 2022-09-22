@@ -1,1 +1,2 @@
 gst-launch-1.0 filesrc location=../streams/4124.avi ! tsdemux ! h265parse ! nvv4l2decoder ! m.sink_0 filesrc location=../streams/4127.avi ! tsdemux ! h265parse ! nvv4l2decoder ! m.sink_1 nvstreammux name=m width=1920 height=1080 batch-size=2 batched-push-timeout=220000 ! nvmultistreamtiler rows=1 columns=2 width=1280 height=480 ! nvvideoconvert ! nvdsosd ! nveglglessink sync=0
+kafkacat -b 172.21.100.154:9092 -C -t XFace

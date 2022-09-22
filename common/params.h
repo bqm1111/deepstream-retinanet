@@ -152,4 +152,9 @@ struct EventMsgSubMeta
     NvDsEventMsgMeta **msg_sub_meta_list;
 };
 
+struct NvDsMOTMetaData
+{
+    float feature[FEATURE_SIZE];
+};
+
 #endif

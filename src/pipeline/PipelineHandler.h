@@ -30,6 +30,7 @@ public:
     AppPipeline() {}
     ~AppPipeline();
     GstElement *m_pipeline = NULL;
+    void setLiveSource(bool is_live);
     std::vector<GstElement *> m_source;
     std::vector<GstElement *> m_demux;
     std::vector<GstElement *> m_parser;
@@ -45,8 +46,9 @@ public:
     void add_video_source(std::vector<std::vector<std::string>> video_info, std::vector<std::string> video_name);
     void link(GstElement *in_elem, GstElement *out_elem);
     void linkMuxer(int muxer_output_width, int muxer_output_height);
-    void linkTwoBranch(GstElement * mot_bin, GstElement*face_bin);
+    void linkTwoBranch(GstElement *mot_bin, GstElement *face_bin);
     std::map<std::string, int> m_video_source;
+    bool m_live_source;
     int numVideoSrc();
 };
 

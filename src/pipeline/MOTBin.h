@@ -29,12 +29,8 @@ public:
     void createInferBin() override;
     void attachProbe() override;
     void setMsgBrokerConfig() override;
-    void acquireTrackerList(MOTTrackerList *tracker_list);
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
-
-private:
-    MOTTrackerList *m_tracker_list;
 };
 
 #endif
