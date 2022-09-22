@@ -15,8 +15,8 @@ parser = trt.OnnxParser(network, TRT_LOGGER)
 
 # parse ONNX
 curdir = osp.dirname(__file__)
-onnx_path = osp.join(curdir, 'data/models/onnx/', 'glint360k_r50.onnx')
-trt_path = osp.join(curdir, 'data/models/trt/', 'glint360k_r50.trt')
+onnx_path = osp.join(curdir, '../data/models/onnx/', 'glint360k_r50.onnx')
+trt_path = osp.join(curdir, '../data/models/trt/', 'glint360k_r50.trt')
 with open(onnx_path, 'rb') as model:
     print('Beginning ONNX file parsing')
     parser.parse(model.read())

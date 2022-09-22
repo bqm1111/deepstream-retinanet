@@ -10,6 +10,7 @@
 #include "common.h"
 #include "params.h"
 #include "mot_struct.h"
+#include "utils.h"
 
 class NvInferBinBase
 {

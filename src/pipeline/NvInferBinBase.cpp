@@ -7,8 +7,8 @@ GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
     createVideoSinkBin();
     // createFileSinkBin("out.mkv");
     createInferBin();
-    linkMsgBroker();
-    setMsgBrokerConfig();
+    // linkMsgBroker();
+    // setMsgBrokerConfig();
     GstElement *inferbin;
     getMasterBin(inferbin);
     gst_bin_add(GST_BIN(m_pipeline), inferbin);
@@ -26,8 +26,8 @@ GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
     m_pipeline = pipeline;
     // createVideoSinkBin();
     createFileSinkBin("out.mkv");
-    linkMsgBroker();
-    setMsgBrokerConfig();
+    // linkMsgBroker();
+    // setMsgBrokerConfig();
 
     attachProbe();
     return m_tiler;
@@ -218,7 +218,7 @@ void NvInferBinBase::setMsgBrokerConfig()
 {
     g_object_set(G_OBJECT(m_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
-    g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_DEEPSTREAM, NULL);
+    g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_msgconv), "msg2p-newapi", 0, NULL);
     g_object_set(G_OBJECT(m_msgconv), "frame-interval", 30, NULL);
 

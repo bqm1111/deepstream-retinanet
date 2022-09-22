@@ -167,7 +167,8 @@ nvds_msg2p_generate(NvDsMsg2pCtx *ctx, NvDsEvent *events, guint size)
 	}
 	else if (ctx->payloadType == NVDS_PAYLOAD_CUSTOM)
 	{
-		message = generate_face_event_message(ctx->privData, events->metadata);
+		// message = generate_face_event_message(ctx->privData, events->metadata);
+		message = generate_XFace_event_message(ctx->privData, events->metadata);
 		if (message)
 		{
 			len = strlen(message);

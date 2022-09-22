@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.5/bin/nvcc)
+set(CMAKE_CUDA_COMPILER /usr/local/cuda-11.4/bin/nvcc)
 
 project(experiment LANGUAGES CXX CUDA)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pthread")
@@ -32,7 +32,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 # cuda
 find_package(CUDA REQUIRED)
-set(CMAKE_CUDA_ARCHITECTURES 52 60 61 75 json-glib/json-glib.h: No such file or directoryCACHE STRING "CUDA architectures")
+set(CMAKE_CUDA_ARCHITECTURES 52 60 61 75 CACHE STRING "CUDA architectures")
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_STANDARD 17)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 --compiler-options -fno-strict-aliasing --ptxas-options=-v --generate-line-info")
 include_directories(${CUDA_INCLUDE_DIRS})

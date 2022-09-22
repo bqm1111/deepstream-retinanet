@@ -182,7 +182,7 @@ void FaceApp::sequentialDetectAndMOT()
     GstElement *mot_inferbin;
     mot_bin.createInferBin();
     mot_bin.getMasterBin(mot_inferbin);
-    
+
     // ======================== DETECT BRANCH ========================
     std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
     NvInferFaceBin face_bin(face_configs);
@@ -192,15 +192,15 @@ void FaceApp::sequentialDetectAndMOT()
     GstElement *face_inferbin;
     face_bin.createInferBin();
     face_bin.getMasterBin(face_inferbin);
-    
+
     // ========================================================================
     NvInferBinBase bin;
     bin.setParam(m_gstparam);
     bin.acquireTrackerList(m_tracker_list);
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
-    
+
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, NULL);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer,face_inferbin, mot_inferbin, bin.m_tiler, NULL))
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }

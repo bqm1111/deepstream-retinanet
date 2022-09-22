@@ -30,7 +30,9 @@ public:
     void attachProbe() override;
     void setMsgBrokerConfig() override;
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
-    static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstPadProbeReturn sgie_src_pad_buffer_probe_VNU(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data);
+
 };
 
 #endif

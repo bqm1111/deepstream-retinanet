@@ -10,6 +10,9 @@
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 
+#ifndef NVDS_OBJ_USER_META_MOT
+#define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
+#endif
 
 #ifndef NVDS_OBJ_USER_META_FACE
 #define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
@@ -152,9 +155,21 @@ struct EventMsgSubMeta
     NvDsEventMsgMeta **msg_sub_meta_list;
 };
 
-struct NvDsMOTMetaData
+struct XFaceMsgMeta
 {
-    float feature[FEATURE_SIZE];
+    gchar *timestamp;
+    gint frameId;
+    gint cameraId;
+    gint num_face_obj;
+    gint num_mot_obj;
+    NvDsEventMsgMeta **face_meta_list;
+    NvDsEventMsgMeta **mot_meta_list;
 };
+
+typedef struct NvDsMOTMetaData
+{
+    gchar *feature;
+} NvDsMOTMetaData;
+
 
 #endif

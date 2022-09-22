@@ -1,4 +1,3 @@
-
 #include "MOTBin.h"
 #include "QDTLog.h"
 #include "utils.h"
@@ -141,15 +140,15 @@ void make_obj_meta_from_track_box(NvDsObjectMeta *obj_meta, Track track)
     obj_meta->object_id = track.track_id;
     strcpy(obj_meta->obj_label, "PersonBox");
 
-    obj_meta->text_params.x_offset = obj_meta->rect_params.left;
-    obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top - 10);
-    obj_meta->text_params.display_text = (char *)g_malloc0(64 * sizeof(char));
-    snprintf(obj_meta->text_params.display_text, 64, "PersonBox_%lu", obj_meta->object_id);
-    obj_meta->text_params.font_params.font_name = (char *)"Serif";
-    obj_meta->text_params.font_params.font_size = 10;
-    obj_meta->text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
-    obj_meta->text_params.set_bg_clr = 1;
-    obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
+    // obj_meta->text_params.x_offset = obj_meta->rect_params.left;
+    // obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top - 10);
+    // obj_meta->text_params.display_text = (char *)g_malloc0(64 * sizeof(char));
+    // snprintf(obj_meta->text_params.display_text, 64, "PersonBox_%lu", obj_meta->object_id);
+    // obj_meta->text_params.font_params.font_name = (char *)"Serif";
+    // obj_meta->text_params.font_params.font_size = 10;
+    // obj_meta->text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
+    // obj_meta->text_params.set_bg_clr = 1;
+    // obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
 }
 
 void make_msg_sub_meta(Track track, NvDsFrameMeta *frame_meta, NvDsEventMsgMeta *&msg_sub_meta)
@@ -225,7 +224,7 @@ void sgie_src_pad_make_msg_sub_meta_list(
            _msg_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
 }
 
-GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe_VNU(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
     MOTTrackerList *tracker_list = (MOTTrackerList *)user_data;
     GstBuffer *gst_buffer = gst_pad_probe_info_get_buffer(info);
@@ -239,29 +238,10 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
     }
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(gst_buffer);
     NvDsFrameMetaList *l_frame = batch_meta->frame_meta_list;
-    
+
     while (l_frame)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)l_frame->data;
-
-        // for (l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
-        // {
-        //     NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
-        //     if (obj_meta->class_id == FACE_CLASS_ID)
-        //     {
-        //         NvDsFaceMetaData *faceMeta = NULL;
-        //         for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
-        //         {
-        //             NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-        //             if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
-        //             {
-        //                 faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
-
-        //                 QDTLog::info("face feature = {}", std::string(b64encode(faceMeta->feature, FEATURE_SIZE)));
-        //             }
-        //         }
-        //     }
-        // }
 
         tracker *_tracker = tracker_list->trackers + frame_meta->source_id;
         // Track with DeepSORT
@@ -291,6 +271,92 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
             nvds_add_user_meta_to_frame(frame_meta, user_event_meta);
         }
 
+        l_frame = l_frame->next;
+    }
+
+    return GST_PAD_PROBE_OK;
+}
+gpointer user_copy_mot_meta(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(data);
+    NvDsMOTMetaData *mot_meta_data_ptr = reinterpret_cast<NvDsMOTMetaData *>(
+        user_meta->user_meta_data);
+    NvDsMOTMetaData *new_mot_meta_data_ptr = reinterpret_cast<NvDsMOTMetaData *>(
+        g_memdup(mot_meta_data_ptr, sizeof(NvDsMOTMetaData)));
+    return reinterpret_cast<gpointer>(new_mot_meta_data_ptr);
+}
+
+/**
+ * @brief implement NvDsMetaReleaseFun
+ *
+ * @param data
+ * @param user_data
+ */
+void user_release_mot_meta(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(data);
+    NvDsMOTMetaData *mot_meta_data_ptr = reinterpret_cast<NvDsMOTMetaData *>(
+        user_meta->user_meta_data);
+    delete mot_meta_data_ptr;
+}
+
+GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
+{
+    MOTTrackerList *tracker_list = (MOTTrackerList *)user_data;
+    GstBuffer *gst_buffer = gst_pad_probe_info_get_buffer(info);
+    NvDsMetaList *l_obj = NULL;
+
+    if (!gst_buffer)
+    {
+        gst_print("no GstBuffer found in sgie_mot_src_pad_buffer_probe()\n");
+        gst_object_unref(gst_buffer);
+        return GST_PAD_PROBE_OK;
+    }
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(gst_buffer);
+    NvDsFrameMetaList *l_frame = batch_meta->frame_meta_list;
+
+    while (l_frame)
+    {
+        NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)l_frame->data;
+
+        tracker *_tracker = tracker_list->trackers + frame_meta->source_id;
+        // Track with DeepSORT
+        DETECTIONS detections;
+        parse_detections_from_frame_meta(detections, frame_meta);
+        _tracker->predict();
+        _tracker->update(detections);
+
+        nvds_clear_obj_meta_list(frame_meta, frame_meta->obj_meta_list);
+        for (Track &track : _tracker->tracks)
+        {
+            if (!track.is_confirmed() || track.time_since_update > 1)
+                continue;
+
+            // Create metadata for object including bbox, id and material for nvosd
+            NvDsObjectMeta *obj_meta = nvds_acquire_obj_meta_from_pool(batch_meta);
+            make_obj_meta_from_track_box(obj_meta, track);
+
+            // Extract object embedding and add to user_meta_data of the obj_meta
+            NvDsMOTMetaData *mot_meta_ptr = new NvDsMOTMetaData();
+
+            double *embedding_data = (double *)g_malloc0(FEATURE_SIZE * sizeof(double));
+            FEATURE last_feature = track.last_feature;
+            Eigen::Matrix<
+                double, 1, FEATURE_SIZE, Eigen::RowMajor>
+                last_feature_d = last_feature.cast<double>();
+            Eigen::Map<
+                Eigen::Matrix<double, 1, FEATURE_SIZE, Eigen::RowMajor>>(embedding_data, last_feature_d.rows(), last_feature_d.cols()) = last_feature_d;
+
+            mot_meta_ptr->feature = g_strdup(b64encode((float *)embedding_data, FEATURE_SIZE));
+
+            NvDsUserMeta *user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
+            user_meta->user_meta_data = static_cast<void *>(mot_meta_ptr);
+            user_meta->base_meta.meta_type = (NvDsMetaType)NVDS_OBJ_USER_META_MOT;
+            user_meta->base_meta.copy_func = (NvDsMetaCopyFunc)user_copy_mot_meta;
+            user_meta->base_meta.release_func = (NvDsMetaReleaseFunc)user_release_mot_meta;
+            nvds_add_user_meta_to_obj(obj_meta, user_meta);
+            nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
+        }
         l_frame = l_frame->next;
     }
 

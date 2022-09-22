@@ -4,6 +4,10 @@
 #include "NvInferBinConfigBase.h"
 #include "params.h"
 #include <curl/curl.h>
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+using namespace rapidjson;
 
 class NvInferFaceBinConfig : public NvInferBinConfigBase
 {
@@ -48,7 +52,7 @@ public:
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn pgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
-    static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    // static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
     GstElement *aligner = NULL;
     CURL *m_curl;

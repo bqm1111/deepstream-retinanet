@@ -25,7 +25,7 @@ generate_object_object(void *privData, NvDsEventMsgMeta *meta)
 	switch (meta->objType)
 	{
 	}
-	
+
 	// bbox sub object
 	jobject = json_object_new();
 	json_object_set_int_member(jobject, "topleftx", meta->bbox.left);
@@ -65,7 +65,7 @@ gchar *generate_face_event_message(void *privData, NvDsEventMsgMeta *meta)
 	// root object
 	rootObj = json_object_new();
 	json_object_set_object_member(rootObj, "object", objectObj);
-	// 
+	//
 	rootNode = json_node_new(JSON_NODE_OBJECT);
 	json_node_set_object(rootNode, rootObj);
 
@@ -123,6 +123,83 @@ generate_mot_event_message(void *privData, NvDsEventMsgMeta *meta)
 		json_array_add_object_element(jObjectArray, jObject);
 	}
 	json_object_set_array_member(rootObj, "MOT", jObjectArray);
+
+	// create root node
+	rootNode = json_node_new(JSON_NODE_OBJECT);
+	json_node_set_object(rootNode, rootObj);
+
+	// create message
+	message = json_to_string(rootNode, TRUE);
+	json_node_free(rootNode);
+	json_object_unref(rootObj);
+
+	return message;
+}
+
+gchar *
+generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
+{
+	JsonNode *rootNode;
+	JsonObject *rootObj;
+	JsonObject *embeddingObj;
+	gchar *message;
+
+	uuid_t msgId;
+	gchar msgIdStr[37];
+
+	uuid_generate_random(msgId);
+	uuid_unparse_lower(msgId, msgIdStr);
+
+	// create root obj
+	rootObj = json_object_new();
+
+	// add frame info
+	XFaceMsgMeta *msg_meta_content = (XFaceMsgMeta *)meta->extMsg;
+	json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
+	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
+	json_object_set_int_member(rootObj, "camera_id", msg_meta_content->cameraId);
+
+	// add MOT objects
+	JsonArray *jMotObjectArray = json_array_sized_new(msg_meta_content->num_mot_obj);
+	for (size_t i = 0; i < msg_meta_content->num_mot_obj; i++)
+	{
+		NvDsEventMsgMeta *msg_sub_meta = msg_meta_content->mot_meta_list[i];
+
+		JsonObject *jObject = json_object_new();
+
+		JsonObject *jBoxObject = json_object_new();
+		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
+		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
+		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
+		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
+		json_object_set_object_member(jObject, "box", jBoxObject);
+		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
+
+		json_object_set_string_member(jObject, "embedding", msg_sub_meta->otherAttrs);
+	}
+	json_object_set_array_member(rootObj, "MOT", jMotObjectArray);
+
+	// add FACE objects
+	JsonArray *jFaceObjectArray = json_array_sized_new(msg_meta_content->num_face_obj);
+	for (size_t i = 0; i < msg_meta_content->num_face_obj; i++)
+	{
+		NvDsEventMsgMeta *msg_sub_meta = msg_meta_content->face_meta_list[i];
+
+		JsonObject *jObject = json_object_new();
+
+		json_object_set_double_member(jObject, "confidence", msg_sub_meta->confidence);
+		JsonObject *jBoxObject = json_object_new();
+		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
+		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
+		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
+		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
+		json_object_set_object_member(jObject, "box", jBoxObject);
+		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
+
+		json_object_set_string_member(jObject, "feature", msg_sub_meta->otherAttrs);
+		json_object_set_string_member(jObject, "staff-id", msg_sub_meta->sensorStr);
+	}
+	json_object_set_array_member(rootObj, "FACE", jFaceObjectArray);
 
 	// create root node
 	rootNode = json_node_new(JSON_NODE_OBJECT);

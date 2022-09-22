@@ -159,6 +159,7 @@ static gpointer meta_copy_func(gpointer data, gpointer user_data)
     }
     return dstMeta;
 }
+
 static void meta_free_func(gpointer data, gpointer user_data)
 {
     NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
@@ -412,88 +413,186 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
     return GST_PAD_PROBE_OK;
 }
 
-GstPadProbeReturn NvInferFaceBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void *userp)
 {
-    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
-    NvDsBatchMeta *batchmeta = gst_buffer_get_nvds_batch_meta(buf);
+    ((std::string *)userp)->append((char *)contents, size * nmemb);
+    return size * nmemb;
+}
 
-    NvDsMetaList *l_frame = NULL;
-    NvDsMetaList *l_obj = NULL;
-    NvDsMetaList *l_user = NULL;
+static gpointer XFace_msg_meta_copy_func(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
+    NvDsEventMsgMeta *dstMeta = NULL;
 
-    NvDsInferLayerInfo *output_layer_info;
+    dstMeta = (NvDsEventMsgMeta *)g_memdup(srcMeta, sizeof(NvDsEventMsgMeta));
+    dstMeta->extMsg = g_malloc0(sizeof(XFaceMsgMeta));
+    XFaceMsgMeta *srcExtMsg = (XFaceMsgMeta *)srcMeta->extMsg;
+    XFaceMsgMeta *dstExtMsg = (XFaceMsgMeta *)dstMeta->extMsg;
 
-    int tensor_output_meta_count = 0;
-    for (l_frame = batchmeta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+    dstExtMsg->cameraId = srcExtMsg->cameraId;
+    dstExtMsg->frameId = srcExtMsg->frameId;
+    dstExtMsg->timestamp = g_strdup(srcExtMsg->timestamp);
+    dstExtMsg->num_face_obj = srcExtMsg->num_face_obj;
+    dstExtMsg->num_mot_obj = srcExtMsg->num_mot_obj;
+
+    dstExtMsg->mot_meta_list = (NvDsEventMsgMeta **)g_malloc0(dstExtMsg->num_mot_obj * sizeof(NvDsEventMsgMeta *));
+    dstExtMsg->face_meta_list = (NvDsEventMsgMeta **)g_malloc0(dstExtMsg->num_face_obj * sizeof(NvDsEventMsgMeta *));
+
+    // Copy Face
+    for (int i = 0; i < dstExtMsg->num_face_obj; i++)
     {
-        NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
-        int cnt = 0;
-        for (l_user = frame_meta->frame_user_meta_list; l_user != NULL; l_user = l_user->next)
-        {
-            NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-            if (user_meta->base_meta.meta_type != NVDSINFER_TENSOR_OUTPUT_META)
-                continue;
-            cnt++;
-            printf("\n%s:%d tensor_output_meta_count=%d \n", __FILE__, __LINE__, tensor_output_meta_count++);
-            NvDsInferTensorMeta *tensor_meta = reinterpret_cast<NvDsInferTensorMeta *>(user_meta->user_meta_data);
-            // std::cout << "Total num output layer = " << tensor_meta->num_output_layers << std::endl;
-            for (int i = 0; i < tensor_meta->num_output_layers; i++)
-            {
-                output_layer_info = &tensor_meta->output_layers_info[i];
-                output_layer_info->buffer = tensor_meta->out_buf_ptrs_host[i];
-                if (tensor_meta->out_buf_ptrs_dev[i])
-                {
-                    cudaMemcpy(tensor_meta->out_buf_ptrs_host[i], tensor_meta->out_buf_ptrs_dev[i], output_layer_info->inferDims.numElements * 4, cudaMemcpyDeviceToHost);
-                }
-            }
-        }
+        NvDsEventMsgMeta *msg_sub_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+        msg_sub_meta->bbox.top = srcExtMsg->face_meta_list[i]->bbox.top;
+        msg_sub_meta->bbox.left = srcExtMsg->face_meta_list[i]->bbox.left;
+        msg_sub_meta->bbox.width = srcExtMsg->face_meta_list[i]->bbox.width;
+        msg_sub_meta->bbox.height = srcExtMsg->face_meta_list[i]->bbox.height;
 
-        for (l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
+        msg_sub_meta->confidence = srcExtMsg->face_meta_list[i]->confidence;           // confidence score
+        msg_sub_meta->otherAttrs = g_strdup(srcExtMsg->face_meta_list[i]->otherAttrs); // face feature
+        msg_sub_meta->sensorStr = g_strdup(srcExtMsg->face_meta_list[i]->sensorStr);   // Staff_code
+
+        dstExtMsg->face_meta_list[i] = msg_sub_meta;
+    }
+
+    // Copy MOT
+    for (int i = 0; i < dstExtMsg->num_mot_obj; i++)
+    {
+        NvDsEventMsgMeta *msg_sub_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+        msg_sub_meta->bbox.top = srcExtMsg->mot_meta_list[i]->bbox.top;
+        msg_sub_meta->bbox.left = srcExtMsg->mot_meta_list[i]->bbox.left;
+        msg_sub_meta->bbox.width = srcExtMsg->mot_meta_list[i]->bbox.width;
+        msg_sub_meta->bbox.height = srcExtMsg->mot_meta_list[i]->bbox.height;
+        msg_sub_meta->trackingId = srcExtMsg->mot_meta_list[i]->trackingId;
+
+        msg_sub_meta->otherAttrs = g_strdup(srcExtMsg->mot_meta_list[i]->otherAttrs); // person embedding
+
+        dstExtMsg->mot_meta_list[i] = msg_sub_meta;
+    }
+
+    dstMeta->extMsgSize = srcMeta->extMsgSize;
+    return dstMeta;
+}
+
+static gpointer XFace_msg_meta_release_func(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
+
+    if (srcMeta->extMsgSize > 0)
+    {
+        // free extMsg content
+        XFaceMsgMeta *srcExtMsg = (XFaceMsgMeta *)srcMeta->extMsg;
+        g_free(srcExtMsg->timestamp);
+
+        // Delete face
+        for (int i = 0; i < srcExtMsg->num_face_obj; i++)
         {
-            NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
-            NvDsInferTensorMeta *tensor_meta = reinterpret_cast<NvDsInferTensorMeta *>(obj_meta->obj_user_meta_list);
-            if (obj_meta->class_id == FACE_CLASS_ID)
-            {
-                for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
-                {
-                    NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-                    if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
-                    {
-                        NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
-                        // if (faceMeta->stage == NvDsFaceMetaStage::EMPTY)
-                        //     continue;
-                        // if (faceMeta->stage == NvDsFaceMetaStage::FEATURED)
-                        //     continue;
-                        // if (faceMeta->stage != NvDsFaceMetaStage::ALIGNED) {
-                        //     printf(" %s:%d ERROR in feature, found an NVDS_OBJ_USER_META_FACE with stage = %d\n", __FILE__, __LINE__, faceMeta->stage);
-                        //     exit(1);
-                        // }
-                        // faceMeta->stage = NvDsFaceMetaStage::FEATURED;
-                        // // float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
-                        // //                      faceMeta->aligned_index * output_layer_info->inferDims.numElements;
-                        // printf("\n%s:%d algined_index=%d", __FILE__, __LINE__, faceMeta->aligned_index);
-                        // printf("\n%s:%d output_layer_info = ", __FILE__, __LINE__);
-                        // for(int jjj = 0; jjj < output_layer_info->inferDims.numDims; jjj++){
-                        //     printf(" %d ", output_layer_info->inferDims.d[jjj]);
-                        // }
-                        // printf("\n");
-                        memcpy(faceMeta->feature, reinterpret_cast<float *>(output_layer_info->buffer) + faceMeta->aligned_index * output_layer_info->inferDims.numElements, FEATURE_SIZE * sizeof(float));
-                        // for(int i = 0; i < FEATURE_SIZE; i++)
-                        // {
-                        //     std::cout << faceMeta->feature[i] << std::endl;
-                        // }
-                        // printf("\n%s:%d algined_index=%d output_layer_info->buffer=%p\n", __FILE__, __LINE__, faceMeta->aligned_index, output_layer_info->buffer);
-                    }
-                }
-            }
+            NvDsEventMsgMeta *msg_sub_meta = srcExtMsg->face_meta_list[i];
+            g_free(msg_sub_meta->sensorStr);
+            g_free(msg_sub_meta->otherAttrs);
+            g_free(msg_sub_meta);
+        }
+        g_free(srcExtMsg->face_meta_list);
+        srcExtMsg->num_face_obj = 0;
+
+        // Delete MOT
+        for (int i = 0; i < srcExtMsg->num_mot_obj; i++)
+        {
+            NvDsEventMsgMeta *msg_sub_meta = srcExtMsg->mot_meta_list[i];
+            g_free(msg_sub_meta->otherAttrs);
+            g_free(msg_sub_meta);
+        }
+        g_free(srcExtMsg->mot_meta_list);
+        srcExtMsg->num_mot_obj = 0;
+
+        // free extMsg
+        g_free(srcMeta->extMsg);
+
+        // free extMsgSize
+        srcMeta->extMsgSize = 0;
+    }
+
+    g_free(user_meta->user_meta_data);
+
+    user_meta->user_meta_data = NULL;
+}
+
+void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsEventMsgMeta *> &face_meta, user_feature_callback_data_t *callback_data, NvDsInferLayerInfo *output_layer_info)
+{
+    NvDsEventMsgMeta *face_msg_sub_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+    face_msg_sub_meta->bbox.top = obj_meta->rect_params.top;
+    face_msg_sub_meta->bbox.left = obj_meta->rect_params.left;
+    face_msg_sub_meta->bbox.width = obj_meta->rect_params.width;
+    face_msg_sub_meta->bbox.height = obj_meta->rect_params.height;
+    face_msg_sub_meta->objClassId = obj_meta->class_id;
+
+    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+    {
+        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+        if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
+        {
+            NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
+
+            const int feature_size = output_layer_info->inferDims.numElements;
+            float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
+                                 faceMeta->aligned_index * feature_size;
+            memcpy(faceMeta->feature, cur_feature, feature_size * sizeof(float));
+            face_msg_sub_meta->otherAttrs = g_strdup(b64encode(faceMeta->feature, FEATURE_SIZE));
+
+            face_msg_sub_meta->confidence = 0;
+            face_msg_sub_meta->sensorStr = g_strdup("236573");
+
+            // Send HTTP request
+            // CURL *curl = callback_data->curl;
+            // std::string response_string;
+            // const char *data = gen_body(1, b64encode(cur_feature, FEATURE_SIZE));
+            // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+            // curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+
+            // curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+            // std::string response_json = response_string.substr(1, json.size() - 2);
+            // Document doc;
+            // d.Parse(response_json.c_str());
+            // Value &s = d["distance"];
+            // face_msg_sub_meta->confidence = s.getDouble();
+            // s = d["code"];
+            // face_msg_sub_meta->objClassId = s.GetInt();
+            // std::cout << s.GetDouble() << std::endl;
+
+            // // request over HTTP/2, using the same connection!
+            // CURLcode res = curl_easy_perform(curl);
+
+            // if (res != CURLE_OK)
+            // {
+            //     fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            //     break;
+            // }
+            // QDTLog::info("Response string = {}", response_string);
         }
     }
-    return GST_PAD_PROBE_OK;
+    face_meta.push_back(face_msg_sub_meta);
 }
-static size_t WriteCallback(char *contents, size_t size, size_t nmemb, void *userp)
+
+void getMOTMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsEventMsgMeta *> &mot_meta)
 {
-    ((std::string*)userp)->append((char*)contents, size * nmemb);
-    return size * nmemb;
+    NvDsEventMsgMeta *mot_msg_sub_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+    mot_msg_sub_meta->bbox.top = obj_meta->rect_params.top;
+    mot_msg_sub_meta->bbox.left = obj_meta->rect_params.left;
+    mot_msg_sub_meta->bbox.width = obj_meta->rect_params.width;
+    mot_msg_sub_meta->bbox.height = obj_meta->rect_params.height;
+    mot_msg_sub_meta->trackingId = obj_meta->object_id;
+
+    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+    {
+        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+        if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_MOT)
+        {
+            NvDsMOTMetaData *motMeta = reinterpret_cast<NvDsMOTMetaData *>(user_meta->user_meta_data);
+            mot_msg_sub_meta->otherAttrs = g_strdup(motMeta->feature);
+        }
+    }
+    mot_meta.push_back(mot_msg_sub_meta);
 }
 void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                           NvDsInferNetworkInfo *network_info,
@@ -526,120 +625,60 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+
+        std::vector<NvDsEventMsgMeta *> face_sub_meta_list;
+        std::vector<NvDsEventMsgMeta *> mot_sub_meta_list;
+
         for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
         {
             NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
-            if (FACE_CLASS_ID != obj_meta->class_id)
-                continue;
-            for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+            if (FACE_CLASS_ID == obj_meta->class_id)
             {
-                NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-                if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
-                {
-                    NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
+                getFaceMetaData(batch_meta, obj_meta, face_sub_meta_list, callback_data, output_layer_info);
+            }
+            else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON)
+            {
+                QDTLog::info("Succesfully enter here");
+                getMOTMetaData(batch_meta, obj_meta, mot_sub_meta_list);
+            }
 
-                    const int feature_size = output_layer_info->inferDims.numElements;
-                    float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
-                                         faceMeta->aligned_index * feature_size;
-                    memcpy(faceMeta->feature, cur_feature, feature_size * sizeof(float));
-                    // Send HTTP request
-                    CURL *curl = callback_data->curl;
-                    std::string response_string;
-                    const char *data = gen_body(1, b64encode(cur_feature, FEATURE_SIZE));
-                    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-                    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            XFaceMsgMeta *msg_meta_content = (XFaceMsgMeta *)g_malloc0(sizeof(XFaceMsgMeta));
+            // Get MOT meta
+            msg_meta_content->num_mot_obj = mot_sub_meta_list.size();
+            msg_meta_content->mot_meta_list = (NvDsEventMsgMeta **)g_malloc0(mot_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
+            memcpy(msg_meta_content->mot_meta_list, mot_sub_meta_list.data(), mot_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
 
-                    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+            // Get Face meta
+            msg_meta_content->num_face_obj = face_sub_meta_list.size();
+            msg_meta_content->face_meta_list = (NvDsEventMsgMeta **)g_malloc0(face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
+            memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
 
-                    // request over HTTP/2, using the same connection!
-                    CURLcode res = curl_easy_perform(curl);
+            // Generate timestamp
+            msg_meta_content->timestamp = (gchar *)g_malloc0(MAX_TIME_STAMP_LEN + 1);
+            generate_ts_rfc3339(msg_meta_content->timestamp, MAX_TIME_STAMP_LEN);
+            msg_meta_content->cameraId = frame_meta->source_id;
+            msg_meta_content->frameId = frame_meta->frame_num;
+            QDTLog::info("Num face and person = {} - {}", face_sub_meta_list.size(), mot_sub_meta_list.size());
 
-                    if (res != CURLE_OK)
-                    {
-                        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-                        break;
-                    }
-                    QDTLog::info("Response string = {}", response_string);
+            // This is where to create the final NvDsEventMsgMeta before sending
+            NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+            msg_meta->extMsg = (void *)msg_meta_content;
+            msg_meta->extMsgSize = sizeof(XFaceMsgMeta);
 
-#ifdef DEBUG_FACE_SGIE
-                    /* save input of sgie */
-                    {
-                        auto tensor_meta = faceMeta->aligned_tensor->tensor_meta;
-                        int one_tensor_size = tensor_meta->buffer_size / tensor_meta->tensor_shape[0];
-                        gpointer h_tensor = g_malloc(one_tensor_size);
-                        g_assert(cudaSuccess == cudaMemcpy(h_tensor,
-                                                           tensor_meta->raw_tensor_buffer + faceMeta->aligned_index * one_tensor_size,
-                                                           one_tensor_size, cudaMemcpyDeviceToHost));
-
-                        // frame-number_stream-number_object-number_object-type_widthxheight.jpg
-                        const int MAX_STR_LEN = 1024;
-                        char *filelocation = (char *)g_malloc0(MAX_STR_LEN);
-                        snprintf(filelocation, MAX_STR_LEN - 1, "sgie_input_%d_%d_%d_roi_l%.f_t%.f_w%.f_h%.f.bin",
-                                 frame_meta->frame_num,
-                                 frame_meta->source_id,
-                                 faceMeta->aligned_index,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.left,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.top,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.width,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.height);
-
-                        FILE *file = fopen(filelocation, "w");
-                        if (!file)
-                        {
-                            g_printerr("Could not open file '%s' for writing:%s\n", filelocation, strerror(errno));
-                        }
-                        else
-                        {
-                            size_t written = fwrite(h_tensor, sizeof(float), one_tensor_size / sizeof(float), file);
-                            if (written != one_tensor_size / sizeof(float))
-                            {
-                                g_printerr("Error occurred at writing time to '%s'!\n", filelocation);
-                                exit(1);
-                            }
-                        }
-                        fclose(file);
-
-                        g_free(h_tensor);
-                    }
-
-                    /* save output of sgie */
-                    {
-                        const int MAX_STR_LEN = 1024;
-                        char *filelocation = (char *)g_malloc0(MAX_STR_LEN);
-                        snprintf(filelocation, MAX_STR_LEN - 1, "sgie_output_%d_%d_%d_roi_l%.f_t%.f_w%.f_h%.f.bin",
-                                 frame_meta->frame_num,
-                                 frame_meta->source_id,
-                                 faceMeta->aligned_index,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.left,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.top,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.width,
-                                 obj_meta->detector_bbox_info.org_bbox_coords.height);
-
-                        FILE *file = fopen(filelocation, "w");
-                        if (!file)
-                        {
-                            g_printerr("Could not open file '%s' for writing:%s\n", filelocation, strerror(errno));
-                        }
-                        else
-                        {
-                            size_t written = fwrite(faceMeta->feature, sizeof(float), feature_size, file);
-                            if (written != feature_size)
-                            {
-                                g_printerr("Error occurred at writing time to '%s'!\n", filelocation);
-                                exit(1);
-                            }
-                        }
-                        fclose(file);
-                    }
-#endif // DEBUG_FACE_SGIE
-                }
+            // Pack EventMsgMeta into UserMeta
+            NvDsUserMeta *user_event_meta = nvds_acquire_user_meta_from_pool(batch_meta);
+            if (user_event_meta)
+            {
+                user_event_meta->user_meta_data = (void *)msg_meta;
+                user_event_meta->base_meta.meta_type = NVDS_EVENT_MSG_META;
+                user_event_meta->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_meta_copy_func;
+                user_event_meta->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_meta_release_func;
+                nvds_add_user_meta_to_frame(frame_meta, user_event_meta);
             }
         }
     }
     callback_data->tensor_count++;
 }
-
-
 
 GstPadProbeReturn NvInferFaceBin::tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
