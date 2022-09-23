@@ -474,7 +474,7 @@ static gpointer XFace_msg_meta_copy_func(gpointer data, gpointer user_data)
     return dstMeta;
 }
 
-static gpointer XFace_msg_meta_release_func(gpointer data, gpointer user_data)
+static void XFace_msg_meta_release_func(gpointer data, gpointer user_data)
 {
     NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
     NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
@@ -553,7 +553,6 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-            QDTLog::info("Info curl = {}", response_string);
             // std::string response_json = response_string.substr(1, response_string.size() - 2);
             // Document doc;
             // doc.Parse(response_json.c_str());
@@ -665,7 +664,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         msg_meta_content->timestamp = std::chrono::duration_cast<std::chrono::seconds>(p1.time_since_epoch()).count();
         msg_meta_content->cameraId = frame_meta->source_id;
         msg_meta_content->frameId = frame_meta->frame_num;
-        QDTLog::info("Num face and person = {} - {}", face_sub_meta_list.size(), mot_sub_meta_list.size());
 
         // This is where to create the final NvDsEventMsgMeta before sending
         NvDsEventMsgMeta *msg_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));

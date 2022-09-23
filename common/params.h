@@ -9,6 +9,7 @@
 #include "gstnvdsmeta.h"
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
+#include <chrono>
 
 #ifndef NVDS_OBJ_USER_META_MOT
 #define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
@@ -170,6 +171,14 @@ typedef struct NvDsMOTMetaData
 {
     gchar *feature;
 } NvDsMOTMetaData;
+
+struct SinkPerfStruct
+{
+    bool start_perf_measurement = false;
+    std::chrono::high_resolution_clock::time_point last_tick = std::chrono::high_resolution_clock::now();
+    gdouble total_time = 0;
+    gdouble num_ticks = 0;
+};
 
 
 #endif

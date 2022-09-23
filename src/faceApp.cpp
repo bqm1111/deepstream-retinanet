@@ -200,7 +200,7 @@ void FaceApp::sequentialDetectAndMOT()
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
 
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, NULL);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, face_inferbin, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
