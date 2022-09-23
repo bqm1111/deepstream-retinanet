@@ -157,7 +157,7 @@ struct EventMsgSubMeta
 
 struct XFaceMsgMeta
 {
-    gchar *timestamp;
+    double timestamp;
     gint frameId;
     gint cameraId;
     gint num_face_obj;

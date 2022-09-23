@@ -432,7 +432,7 @@ static gpointer XFace_msg_meta_copy_func(gpointer data, gpointer user_data)
 
     dstExtMsg->cameraId = srcExtMsg->cameraId;
     dstExtMsg->frameId = srcExtMsg->frameId;
-    dstExtMsg->timestamp = g_strdup(srcExtMsg->timestamp);
+    dstExtMsg->timestamp = srcExtMsg->timestamp;
     dstExtMsg->num_face_obj = srcExtMsg->num_face_obj;
     dstExtMsg->num_mot_obj = srcExtMsg->num_mot_obj;
 
@@ -483,7 +483,7 @@ static gpointer XFace_msg_meta_release_func(gpointer data, gpointer user_data)
     {
         // free extMsg content
         XFaceMsgMeta *srcExtMsg = (XFaceMsgMeta *)srcMeta->extMsg;
-        g_free(srcExtMsg->timestamp);
+        // g_free(srcExtMsg->timestamp);
 
         // Delete face
 
@@ -546,30 +546,31 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
             face_msg_sub_meta->sensorStr = g_strdup("236573");
 
             // Send HTTP request
-            // CURL *curl = callback_data->curl;
-            // std::string response_string;
-            // const char *data = gen_body(1, b64encode(cur_feature, FEATURE_SIZE));
-            // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-            // curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+            CURL *curl = callback_data->curl;
+            std::string response_string;
+            const char *data = gen_body(1, b64encode(cur_feature, FEATURE_SIZE));
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
 
-            // curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-            // std::string response_json = response_string.substr(1, json.size() - 2);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+            QDTLog::info("Info curl = {}", response_string);
+            // std::string response_json = response_string.substr(1, response_string.size() - 2);
             // Document doc;
-            // d.Parse(response_json.c_str());
-            // Value &s = d["distance"];
-            // face_msg_sub_meta->confidence = s.getDouble();
-            // s = d["code"];
-            // face_msg_sub_meta->objClassId = s.GetInt();
+            // doc.Parse(response_json.c_str());
+            // Value &s = doc["distance"];
+            // face_msg_sub_meta->confidence = s.GetDouble();
+            // s = doc["code"];
+            // face_msg_sub_meta->sensorStr = g_strdup(s.GetString());
             // std::cout << s.GetDouble() << std::endl;
 
-            // // request over HTTP/2, using the same connection!
-            // CURLcode res = curl_easy_perform(curl);
+            // request over HTTP/2, using the same connection!
+            CURLcode res = curl_easy_perform(curl);
 
-            // if (res != CURLE_OK)
-            // {
-            //     fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            //     break;
-            // }
+            if (res != CURLE_OK)
+            {
+                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+                break;
+            }
             // QDTLog::info("Response string = {}", response_string);
         }
     }
@@ -596,6 +597,7 @@ void getMOTMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::ve
     }
     mot_meta.push_back(mot_msg_sub_meta);
 }
+
 void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                           NvDsInferNetworkInfo *network_info,
                                           NvDsInferLayerInfo *layers_info,
@@ -657,8 +659,10 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsEventMsgMeta *));
 
         // Generate timestamp
-        msg_meta_content->timestamp = (gchar *)g_malloc0(MAX_TIME_STAMP_LEN + 1);
-        generate_ts_rfc3339(msg_meta_content->timestamp, MAX_TIME_STAMP_LEN);
+        const auto p1 = std::chrono::system_clock::now();
+        // msg_meta_content->timestamp = (gchar *)g_malloc0(MAX_TIME_STAMP_LEN + 1);
+        // generate_ts_rfc3339(msg_meta_content->timestamp, MAX_TIME_STAMP_LEN);
+        msg_meta_content->timestamp = std::chrono::duration_cast<std::chrono::seconds>(p1.time_since_epoch()).count();
         msg_meta_content->cameraId = frame_meta->source_id;
         msg_meta_content->frameId = frame_meta->frame_num;
         QDTLog::info("Num face and person = {} - {}", face_sub_meta_list.size(), mot_sub_meta_list.size());

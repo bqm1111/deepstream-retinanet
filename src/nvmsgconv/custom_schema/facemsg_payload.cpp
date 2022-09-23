@@ -107,6 +107,7 @@ generate_mot_event_message(void *privData, NvDsEventMsgMeta *meta)
 		JsonObject *jObject = json_object_new();
 
 		JsonObject *jBoxObject = json_object_new();
+
 		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
 		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
 		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
@@ -155,7 +156,9 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 
 	// add frame info
 	XFaceMsgMeta *msg_meta_content = (XFaceMsgMeta *)meta->extMsg;
-	json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
+	// json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
+	json_object_set_double_member(rootObj, "timestamp", msg_meta_content->timestamp);
+
 	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
 	json_object_set_int_member(rootObj, "camera_id", msg_meta_content->cameraId);
 
@@ -176,6 +179,8 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
 
 		json_object_set_string_member(jObject, "embedding", msg_sub_meta->otherAttrs);
+
+		json_array_add_object_element(jMotObjectArray, jObject);
 	}
 	json_object_set_array_member(rootObj, "MOT", jMotObjectArray);
 
@@ -198,6 +203,7 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 
 		json_object_set_string_member(jObject, "feature", msg_sub_meta->otherAttrs);
 		json_object_set_string_member(jObject, "staff-id", msg_sub_meta->sensorStr);
+		json_array_add_object_element(jFaceObjectArray, jObject);
 	}
 	json_object_set_array_member(rootObj, "FACE", jFaceObjectArray);
 

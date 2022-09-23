@@ -132,6 +132,7 @@ void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
     g_object_set(m_stream_muxer, "width", muxer_output_width,
                  "height", muxer_output_height,
                  "batch-size", numVideoSrc(),
+                 "buffer-pool-size", 40,
                  "batched-push-timeout", 220000,
                  "live-source", m_live_source,
                  NULL);
