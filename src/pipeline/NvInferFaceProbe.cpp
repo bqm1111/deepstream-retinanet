@@ -622,7 +622,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             // TODO: the info also include input tensor, which is the 3x112x112 input. COuld be use for something.
         }
     }
-
+    
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)

@@ -4,11 +4,11 @@
 GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
 {
     m_pipeline = pipeline;
-    createVideoSinkBin();
-    // createFileSinkBin("out.mkv");
+    // createVideoSinkBin();
+    createFileSinkBin("out.mkv");
     createInferBin();
-    // linkMsgBroker();
-    // setMsgBrokerConfig();
+    linkMsgBroker();
+    setMsgBrokerConfig();
     GstElement *inferbin;
     getMasterBin(inferbin);
     gst_bin_add(GST_BIN(m_pipeline), inferbin);

@@ -31,10 +31,10 @@ int main(int argc, char *argv[])
 
 	FaceApp app;
 	app.loadConfig("../configs/DsApp.conf");
-
 	app.create("face-app");
 	app.setLive(std::stoi(argv[2]));
 	app.addVideoSource(std::string(argv[1]));
+	
 	// app.detect();
 	// app.MOT();
 	// app.detectAndMOT();
@@ -53,29 +53,3 @@ int main(int argc, char *argv[])
 	g_main_loop_unref(loop);
 	return 0;
 }
-// #include "rapidjson/document.h"
-// #include "rapidjson/writer.h"
-// #include "rapidjson/stringbuffer.h"
-// #include <iostream>
-
-// using namespace rapidjson;
-
-// int main()
-// {
-// 	// 1. Parse a JSON string into DOM.
-// 	std::string json = std::string("[{\"distance\":0.5077230334281921,\"code\":\"000000\",\"phone\":\"0123456789\",\"email\":\"000000@example.com\",\"name\":\"Unknown\"}]");
-// 	std::string trim = json.substr(1, json.size() - 2);
-// 	std::cout << trim <<std::endl;
-// 	// const char* json = "{\"project\":\"rapidjson\",\"stars\":\"minh\"}";
-// 	Document d;
-// 	d.Parse(trim.c_str());
-
-// 	// // 2. Modify it by DOM.
-// 	// Value& s = d["stars"];
-// 	// s.SetInt(s.GetInt() + 1);
-
-// 	Value&s = d["distance"];
-// 	std::cout << s.GetDouble() << std::endl;
-
-// 	return 0;
-// }
