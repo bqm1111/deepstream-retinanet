@@ -7,7 +7,7 @@ GstElement *NvInferBinBase::createInferPipeline(GstElement *pipeline)
     // createVideoSinkBin();
     createFileSinkBin("out.mkv");
     createInferBin();
-    linkMsgBroker();
+    // linkMsgBroker();
     setMsgBrokerConfig();
     GstElement *inferbin;
     getMasterBin(inferbin);
@@ -25,7 +25,7 @@ GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
     m_pipeline = pipeline;
     // createVideoSinkBin();
     createFileSinkBin("out.mkv");
-    linkMsgBroker();
+    // linkMsgBroker();
     setMsgBrokerConfig();
 
     attachProbe();

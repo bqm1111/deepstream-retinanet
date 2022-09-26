@@ -553,6 +553,17 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+
+
+            // // request over HTTP/2, using the same connection!
+            // CURLcode res = curl_easy_perform(curl);
+
+            // if (res != CURLE_OK)
+            // {
+            //     fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            //     break;
+            // }
+            // // QDTLog::info("Response string = {}", response_string);
             // std::string response_json = response_string.substr(1, response_string.size() - 2);
             // Document doc;
             // doc.Parse(response_json.c_str());
@@ -561,16 +572,6 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
             // s = doc["code"];
             // face_msg_sub_meta->sensorStr = g_strdup(s.GetString());
             // std::cout << s.GetDouble() << std::endl;
-
-            // request over HTTP/2, using the same connection!
-            CURLcode res = curl_easy_perform(curl);
-
-            if (res != CURLE_OK)
-            {
-                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-                break;
-            }
-            // QDTLog::info("Response string = {}", response_string);
         }
     }
     face_meta.push_back(face_msg_sub_meta);

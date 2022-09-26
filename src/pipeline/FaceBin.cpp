@@ -27,7 +27,7 @@ void NvInferFaceBin::createInferBin()
     // Properties
     g_object_set(m_pgie, "config-file-path", m_configs->pgie_config_path.c_str(), NULL);
     g_object_set(m_pgie, "output-tensor-meta", TRUE, NULL);
-    g_object_set(m_pgie, "batch-size", 1, NULL);
+    g_object_set(m_pgie, "batch-size", 8, NULL); // TODO: WHY????
     g_object_set(aligner, "config-file-path", std::dynamic_pointer_cast<NvInferFaceBinConfig>(m_configs)->aligner_config_path.c_str(), NULL);
 
     g_object_set(m_sgie, "config-file-path", m_configs->sgie_config_path.c_str(), NULL);
@@ -81,7 +81,7 @@ void NvInferFaceBin::createDetectBin()
     // Properties
     g_object_set(m_pgie, "config-file-path", m_configs->pgie_config_path.c_str(), NULL);
     g_object_set(m_pgie, "output-tensor-meta", TRUE, NULL);
-    g_object_set(m_pgie, "batch-size", 1, NULL);
+    g_object_set(m_pgie, "batch-size", 8, NULL); // TODO: WHYY????
 
     gst_bin_add_many(GST_BIN(m_masterBin), m_pgie, NULL);
 
@@ -137,3 +137,4 @@ void NvInferFaceBin::attachProbe()
                       reinterpret_cast<gpointer>(m_tiler), NULL);
     gst_object_unref(osd_sink_pad);
 }
+

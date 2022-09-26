@@ -84,6 +84,7 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
 
         QDTLog::info("Input video path = {}\n", video_path);
         g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
+        g_object_set(m_source[source_id], "is-live", TRUE, NULL);
 
         /* link */
         gst_bin_add_many(
