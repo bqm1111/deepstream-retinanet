@@ -36,7 +36,7 @@
 # properties.
 
 [property]
-batch-size=1
+batch-size=8
 gpu-id=0
 net-scale-factor=0.0039215697906911373
 #0=RGB, 1=BGR
