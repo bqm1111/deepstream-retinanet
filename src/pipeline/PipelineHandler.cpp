@@ -44,6 +44,7 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
         else if (info[2] == std::string("rtsp"))
         {
             m_source.push_back(gst_element_factory_make("rtspsrc", ("rtsp-source-" + std::to_string(source_id)).c_str()));
+
             if (info[1] == "h265")
             {
                 m_demux.push_back(gst_element_factory_make("rtph265depay", ("rtph265depay-" + std::to_string(source_id)).c_str()));
@@ -84,7 +85,6 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
 
         QDTLog::info("Input video path = {}\n", video_path);
         g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
-        g_object_set(m_source[source_id], "is-live", TRUE, NULL);
 
         /* link */
         gst_bin_add_many(

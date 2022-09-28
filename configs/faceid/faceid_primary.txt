@@ -8,7 +8,7 @@ maintain-aspect-ratio=0
 # a must
 symmetric-padding=0
 infer-dims=3;736;1280
-model-engine-file=../../build/model_b8_gpu0_fp16.engine
+model-engine-file=../../build/model_b8_gpu0_fp32.engine
 # force rebuild model everytime
 #model-engine-file=../../build/abc.engine
 #int8-calib-file=calib.table

@@ -350,6 +350,7 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
 
             std::vector<Detection> res;
             nms(res, output, detectionParams.perClassPostclusterThreshold[0]);
+
             /* Iterate final rectangules and attach result into frame's obj_meta_list */
             for (const auto &obj : res)
             {
@@ -556,14 +557,14 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
 
 
             // // request over HTTP/2, using the same connection!
-            // CURLcode res = curl_easy_perform(curl);
+            CURLcode res = curl_easy_perform(curl);
 
-            // if (res != CURLE_OK)
-            // {
-            //     fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            //     break;
-            // }
-            // // QDTLog::info("Response string = {}", response_string);
+            if (res != CURLE_OK)
+            {
+                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+                break;
+            }
+            // QDTLog::info("Response string = {}", response_string);
             // std::string response_json = response_string.substr(1, response_string.size() - 2);
             // Document doc;
             // doc.Parse(response_json.c_str());
@@ -606,7 +607,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                           gpointer user_data)
 {
     user_feature_callback_data_t *callback_data = reinterpret_cast<user_feature_callback_data_t *>(user_data);
-
     /* Find the only output layer */
     NvDsInferLayerInfo *output_layer_info;
     NvDsInferLayerInfo *input_layer_info;
