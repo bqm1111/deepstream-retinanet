@@ -417,21 +417,21 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
                 nvds_add_user_meta_to_obj(obj_meta, user_meta);
                 nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
 
-                NvDsObjEncUsrArgs userData = {0};
-                userData.saveImg = TRUE;
-                userData.attachUsrMeta = TRUE;
-                /* Set if Image scaling Required */
-                userData.scaleImg = FALSE;
-                userData.scaledWidth = 0;
-                userData.scaledHeight = 0;
-                /* Quality */
-                userData.quality = 80;
-                /*Main Function Call */
-                nvds_obj_enc_process((NvDsObjEncCtxHandle)_udata, &userData, ip_surf, obj_meta, frame_meta);
+                // NvDsObjEncUsrArgs userData = {0};
+                // userData.saveImg = TRUE;
+                // userData.attachUsrMeta = TRUE;
+                // /* Set if Image scaling Required */
+                // userData.scaleImg = FALSE;
+                // userData.scaledWidth = 0;
+                // userData.scaledHeight = 0;
+                // /* Quality */
+                // userData.quality = 80;
+                // /*Main Function Call */
+                // nvds_obj_enc_process((NvDsObjEncCtxHandle)_udata, &userData, ip_surf, obj_meta, frame_meta);
             }
         }
     }
-    nvds_obj_enc_finish((NvDsObjEncCtxHandle)_udata);
+    // nvds_obj_enc_finish((NvDsObjEncCtxHandle)_udata);
 
     return GST_PAD_PROBE_OK;
 }

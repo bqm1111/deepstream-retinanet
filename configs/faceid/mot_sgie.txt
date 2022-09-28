@@ -65,7 +65,7 @@ offsets=0.0;0.0;0.0
 force-implicit-batch-dim=1
 batch-size=24
 # 0=FP32 and 1=INT8 and 2=FP16 mode
-network-mode=2
+network-mode=0
 input-object-min-width=0
 input-object-min-height=0
 process-mode=2
