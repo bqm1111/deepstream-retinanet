@@ -7,6 +7,8 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include <nvds_obj_encode.h>
+
 using namespace rapidjson;
 
 class NvInferFaceBinConfig : public NvInferBinConfigBase
@@ -56,6 +58,7 @@ public:
 
     GstElement *aligner = NULL;
     CURL *m_curl;
+    NvDsObjEncCtxHandle m_obj_ctx_handle;
 };
 
 #endif

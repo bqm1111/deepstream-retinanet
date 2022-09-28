@@ -2,8 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <nvdsinfer_custom_impl.h>
-#include "QDTLog.h"
-#include "utils.h"
+#include <nvds_obj_encode.h>
 
 gpointer user_copy_facemark_meta(gpointer data, gpointer user_data)
 {
@@ -300,6 +299,15 @@ GstPadProbeReturn NvInferFaceBin::osd_sink_pad_buffer_probe(GstPad *pad, GstPadP
 GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    GstMapInfo inmap = GST_MAP_INFO_INIT;
+    if (!gst_buffer_map(buf, &inmap, GST_MAP_READ))
+    {
+        QDTLog::error("%s: %d input buffer mapinfo failed", __FILE__, __LINE__);
+        return GST_PAD_PROBE_DROP;
+    }
+    NvBufSurface *ip_surf = (NvBufSurface *)inmap.data;
+    gst_buffer_unmap(buf, &inmap);
+
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
 
     // FIXME: should parse from config file
@@ -408,9 +416,23 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
                 user_meta->base_meta.release_func = (NvDsMetaReleaseFunc)user_release_facemark_data;
                 nvds_add_user_meta_to_obj(obj_meta, user_meta);
                 nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
+
+                NvDsObjEncUsrArgs userData = {0};
+                userData.saveImg = TRUE;
+                userData.attachUsrMeta = TRUE;
+                /* Set if Image scaling Required */
+                userData.scaleImg = FALSE;
+                userData.scaledWidth = 0;
+                userData.scaledHeight = 0;
+                /* Quality */
+                userData.quality = 80;
+                /*Main Function Call */
+                nvds_obj_enc_process((NvDsObjEncCtxHandle)_udata, &userData, ip_surf, obj_meta, frame_meta);
             }
         }
     }
+    nvds_obj_enc_finish((NvDsObjEncCtxHandle)_udata);
+
     return GST_PAD_PROBE_OK;
 }
 
@@ -521,7 +543,7 @@ static void XFace_msg_meta_release_func(gpointer data, gpointer user_data)
     user_meta->user_meta_data = NULL;
 }
 
-void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsEventMsgMeta *> &face_meta, user_feature_callback_data_t *callback_data, NvDsInferLayerInfo *output_layer_info)
+void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsEventMsgMeta *> &face_meta, user_feature_callback_data_t *callback_data, NvDsInferLayerInfo *output_layer_info)
 {
     NvDsEventMsgMeta *face_msg_sub_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
     face_msg_sub_meta->bbox.top = obj_meta->rect_params.top;
@@ -530,9 +552,16 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
     face_msg_sub_meta->bbox.height = obj_meta->rect_params.height;
     face_msg_sub_meta->objClassId = obj_meta->class_id;
 
+    char fileNameString[FILE_NAME_SIZE];
+
+    snprintf(fileNameString, FILE_NAME_SIZE, "crop_img/%d_%d_%s_%dx%d.jpg",
+             frame_meta->frame_num, frame_meta->source_id,
+             obj_meta->obj_label, obj_meta->rect_params.width, obj_meta->rect_params.height);
+
     for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
     {
         NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+        FILE *file;
         if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
         {
             NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
@@ -554,8 +583,7 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-
-
+            
             // // request over HTTP/2, using the same connection!
             CURLcode res = curl_easy_perform(curl);
 
@@ -573,6 +601,16 @@ void getFaceMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::v
             // s = doc["code"];
             // face_msg_sub_meta->sensorStr = g_strdup(s.GetString());
             // std::cout << s.GetDouble() << std::endl;
+        }
+        else if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
+        {
+            // NvDsObjEncOutParams *enc_jpeg_image =
+            //     (NvDsObjEncOutParams *)user_meta->user_meta_data;
+            // /* Write to File */
+            // file = fopen(fileNameString, "wb");
+            // fwrite(enc_jpeg_image->outBuffer, sizeof(uint8_t),
+            //        enc_jpeg_image->outLen, file);
+            // fclose(file);
         }
     }
     face_meta.push_back(face_msg_sub_meta);
@@ -623,7 +661,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             // TODO: the info also include input tensor, which is the 3x112x112 input. COuld be use for something.
         }
     }
-    
+
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
@@ -636,9 +674,9 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
         {
             NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
-            if (FACE_CLASS_ID == obj_meta->class_id)
+            if (obj_meta->class_id == FACE_CLASS_ID)
             {
-                getFaceMetaData(batch_meta, obj_meta, face_sub_meta_list, callback_data, output_layer_info);
+                getFaceMetaData(frame_meta, batch_meta, obj_meta, face_sub_meta_list, callback_data, output_layer_info);
             }
             else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON)
             {

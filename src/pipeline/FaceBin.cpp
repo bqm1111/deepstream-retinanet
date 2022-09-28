@@ -14,7 +14,12 @@ void NvInferFaceBin::createInferBin()
 
     GstPad *pgie_src_pad = gst_element_get_static_pad(m_pgie, "src");
     GST_ASSERT(pgie_src_pad);
-    gst_pad_add_probe(pgie_src_pad, GST_PAD_PROBE_TYPE_BUFFER, this->pgie_src_pad_buffer_probe, nullptr, NULL);
+    m_obj_ctx_handle = nvds_obj_enc_create_context();
+    if (!m_obj_ctx_handle)
+    {
+        QDTLog::error("%s:%d Unable to create context\n", __FILE__, __LINE__);
+    }
+    gst_pad_add_probe(pgie_src_pad, GST_PAD_PROBE_TYPE_BUFFER, this->pgie_src_pad_buffer_probe, (gpointer)m_obj_ctx_handle, NULL);
     aligner = gst_element_factory_make("nvfacealign", "faceid-aligner");
     GST_ASSERT(aligner);
 
@@ -86,7 +91,7 @@ void NvInferFaceBin::createDetectBin()
     // Add ghost pads
     GstPad *pgie_sink_pad = gst_element_get_static_pad(m_pgie, "sink");
     GST_ASSERT(pgie_sink_pad);
-    
+
     GstPad *sink_ghost_pad = gst_ghost_pad_new("sink", pgie_sink_pad);
     GST_ASSERT(sink_ghost_pad);
 
@@ -135,4 +140,3 @@ void NvInferFaceBin::attachProbe()
                       reinterpret_cast<gpointer>(m_tiler), NULL);
     gst_object_unref(osd_sink_pad);
 }
-

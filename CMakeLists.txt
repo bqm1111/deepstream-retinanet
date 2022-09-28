@@ -48,7 +48,9 @@ target_compile_options(${PROJECT_NAME} PUBLIC ${GST_PKG_CFLAGS_OTHER})
 # deepstream
 target_include_directories(${PROJECT_NAME} PUBLIC /opt/nvidia/deepstream/deepstream/sources/includes)
 target_link_directories(${PROJECT_NAME} PUBLIC /opt/nvidia/deepstream/deepstream/lib)
-target_link_libraries(${PROJECT_NAME} -lnvdsgst_meta -lnvds_meta -lnvinfer -lnvinfer_plugin -lnvds_inferutils -lnvds_utils -lm -lnvds_infercustomparser)
+target_link_libraries(${PROJECT_NAME} -lnvbufsurface -lnvbufsurftransform -lnvdsgst_helper -lnvds_batch_jpegenc 
+                                        -lnvdsgst_meta -lnvds_meta -lnvinfer -lnvinfer_plugin -lnvds_inferutils 
+                                        -lnvds_utils -lm -lnvds_infercustomparser)
 # OpenCV
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
