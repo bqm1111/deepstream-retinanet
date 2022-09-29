@@ -166,7 +166,7 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 	JsonArray *jMotObjectArray = json_array_sized_new(msg_meta_content->num_mot_obj);
 	for (size_t i = 0; i < msg_meta_content->num_mot_obj; i++)
 	{
-		NvDsEventMsgMeta *msg_sub_meta = msg_meta_content->mot_meta_list[i];
+		NvDsMOTMsgData *msg_sub_meta = msg_meta_content->mot_meta_list[i];
 
 		JsonObject *jObject = json_object_new();
 
@@ -176,9 +176,9 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
 		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
 		json_object_set_object_member(jObject, "box", jBoxObject);
-		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
+		json_object_set_int_member(jObject, "object_id", msg_sub_meta->track_id);
 
-		json_object_set_string_member(jObject, "embedding", msg_sub_meta->otherAttrs);
+		json_object_set_string_member(jObject, "embedding", msg_sub_meta->embedding);
 
 		json_array_add_object_element(jMotObjectArray, jObject);
 	}
@@ -188,21 +188,22 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 	JsonArray *jFaceObjectArray = json_array_sized_new(msg_meta_content->num_face_obj);
 	for (size_t i = 0; i < msg_meta_content->num_face_obj; i++)
 	{
-		NvDsEventMsgMeta *msg_sub_meta = msg_meta_content->face_meta_list[i];
+		NvDsFaceMsgData *msg_sub_meta = msg_meta_content->face_meta_list[i];
 
 		JsonObject *jObject = json_object_new();
 
-		json_object_set_double_member(jObject, "confidence", msg_sub_meta->confidence);
+		json_object_set_double_member(jObject, "confidence", msg_sub_meta->confidence_score);
 		JsonObject *jBoxObject = json_object_new();
 		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
 		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
 		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
 		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
 		json_object_set_object_member(jObject, "box", jBoxObject);
-		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
 
-		json_object_set_string_member(jObject, "feature", msg_sub_meta->otherAttrs);
-		json_object_set_string_member(jObject, "staff-id", msg_sub_meta->sensorStr);
+		json_object_set_string_member(jObject, "feature", msg_sub_meta->feature);
+		json_object_set_string_member(jObject, "staff_id", msg_sub_meta->staff_id);
+		json_object_set_string_member(jObject, "name", msg_sub_meta->name);
+
 		json_array_add_object_element(jFaceObjectArray, jObject);
 	}
 	json_object_set_array_member(rootObj, "FACE", jFaceObjectArray);

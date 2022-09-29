@@ -1,4 +1,5 @@
 {
     "VTX": ["../streams/4127.avi", "h265", "file"],
-    "VHT": ["../streams/4129.avi", "h265", "file"]
+    "VHT": ["../streams/4129.avi", "h265", "file"],
+    "VTS": ["../streams/4124.avi", "h265", "file"]
 }

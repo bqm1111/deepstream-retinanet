@@ -74,6 +74,8 @@ void FaceApp::init_curl()
     /* wait for pipe connection to confirm*/
     curl_easy_setopt(m_curl, CURLOPT_PIPEWAIT, 1L);
 
+    curl_easy_setopt(m_curl, CURLOPT_TIMEOUT_MS, 100);
+
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, headers);

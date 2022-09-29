@@ -47,7 +47,7 @@ public:
     void link(GstElement *in_elem, GstElement *out_elem);
     void linkMuxer(int muxer_output_width, int muxer_output_height);
     void linkTwoBranch(GstElement *mot_bin, GstElement *face_bin);
-    std::map<std::string, int> m_video_source;
+    std::unordered_map<std::string, int> m_video_source;
     bool m_live_source;
     int numVideoSrc();
 };

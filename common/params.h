@@ -156,6 +156,22 @@ struct EventMsgSubMeta
     NvDsEventMsgMeta **msg_sub_meta_list;
 };
 
+typedef struct NvDsFaceMsgData
+{
+    NvDsRect bbox;
+    gchar *name;
+    gchar *staff_id;
+    double confidence_score;
+    gchar *feature;
+}NvDsFaceMsgData;
+
+typedef struct NvDsMOTMsgData
+{
+    NvDsRect bbox;
+    int track_id;
+    gchar *embedding;
+}NvDsMOTMsgData;
+
 struct XFaceMsgMeta
 {
     double timestamp;
@@ -163,9 +179,10 @@ struct XFaceMsgMeta
     gint cameraId;
     gint num_face_obj;
     gint num_mot_obj;
-    NvDsEventMsgMeta **face_meta_list;
-    NvDsEventMsgMeta **mot_meta_list;
+    NvDsFaceMsgData **face_meta_list;
+    NvDsMOTMsgData **mot_meta_list;
 };
+
 
 typedef struct NvDsMOTMetaData
 {
