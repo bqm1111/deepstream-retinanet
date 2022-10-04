@@ -5,6 +5,10 @@ gchar *b64encode(float *vec, int size)
 {
     return g_base64_encode((const guchar *)vec, size * sizeof(float));
 }
+gchar *b64encode(uint8_t *vec, int size)
+{
+    return g_base64_encode((const guchar *)vec, size * sizeof(uint8_t));
+}
 
 void floatArr2Str(std::string &str, float *arr, int length)
 {

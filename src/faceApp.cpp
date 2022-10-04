@@ -34,7 +34,8 @@ void FaceApp::loadConfig(std::string config_file)
     m_gstparam.tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
     m_gstparam.tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
 
-    m_gstparam.topic = appConf->getProperty(DSAppProperty::KAFKA_TOPIC).toString();
+    m_gstparam.metadata_topic = appConf->getProperty(DSAppProperty::KAFKA_METADATA_TOPIC).toString();
+    m_gstparam.visual_topic = appConf->getProperty(DSAppProperty::KAFKA_VISUAL_TOPIC).toString();
     m_gstparam.connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
     m_gstparam.curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
 

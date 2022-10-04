@@ -66,7 +66,7 @@
 
 #ifndef KAFKA_PROTO_LIB
 #define KAFKA_PROTO_LIB "src/kafka_protocol_adaptor/libnvds_kafka_proto.so"
-#endif 
+#endif
 
 #define POST_TRACK_SCORE 1.0
 
@@ -79,7 +79,8 @@ struct GstAppParam
     int tiler_width;
     int tiler_height;
 
-    std::string topic;
+    std::string metadata_topic;
+    std::string visual_topic;
     std::string connection_str;
     std::string curl_address;
 };
@@ -163,16 +164,30 @@ typedef struct NvDsFaceMsgData
     gchar *staff_id;
     double confidence_score;
     gchar *feature;
-}NvDsFaceMsgData;
+} NvDsFaceMsgData;
 
 typedef struct NvDsMOTMsgData
 {
     NvDsRect bbox;
     int track_id;
     gchar *embedding;
-}NvDsMOTMsgData;
+} NvDsMOTMsgData;
 
-struct XFaceMsgMeta
+typedef struct NvDsVisualMsgData
+{
+    gchar *cropped_face;
+} NvDsVisualMsgData;
+
+struct XFaceVisualMsg
+{
+    double timestamp;
+    gint frameId;
+    gint cameraId;
+    gint num_cropped_face;
+    NvDsVisualMsgData **visual_meta_list;
+};
+
+struct XFaceMetaMsg
 {
     double timestamp;
     gint frameId;
@@ -182,7 +197,6 @@ struct XFaceMsgMeta
     NvDsFaceMsgData **face_meta_list;
     NvDsMOTMsgData **mot_meta_list;
 };
-
 
 typedef struct NvDsMOTMetaData
 {
@@ -196,6 +210,5 @@ struct SinkPerfStruct
     gdouble total_time = 0;
     gdouble num_ticks = 0;
 };
-
 
 #endif

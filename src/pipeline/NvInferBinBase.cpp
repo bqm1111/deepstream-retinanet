@@ -143,7 +143,7 @@ void NvInferBinBase::createFileSinkBin(std::string location)
 
     GstPad *h265parse_srcpad = gst_element_get_static_pad(m_h265parse, "src");
     GstPadLinkReturn pad_link_return = gst_pad_link(h265parse_srcpad, muxer_sinkpad);
-    
+
     if (GST_PAD_LINK_FAILED(pad_link_return))
     {
         gst_printerr("%s:%d could not link h265parse and matroskamux, reason %d\n", __FILE__, __LINE__, pad_link_return);
@@ -168,30 +168,56 @@ void NvInferBinBase::createFileSinkBin(std::string location)
 
 void NvInferBinBase::linkMsgBroker()
 {
-    m_msgconv = gst_element_factory_make("nvmsgconv", std::string("nvmsg-converter" + m_module_name).c_str());
-    m_msgbroker = gst_element_factory_make("nvmsgbroker", std::string("nvmsg-broker" + m_module_name).c_str());
-    m_queue_msg = gst_element_factory_make("queue", std::string("nvtee-queue-msg" + m_module_name).c_str());
+    m_metadata_msgconv = gst_element_factory_make("nvmsgconv", std::string("metadata-nvmsg-converter" + m_module_name).c_str());
+    m_metadata_msgbroker = gst_element_factory_make("nvmsgbroker", std::string("metadata-nvmsg-broker" + m_module_name).c_str());
+    m_queue_metadata_msg = gst_element_factory_make("queue", std::string("metadata-nvtee-queue-msg" + m_module_name).c_str());
 
-    if (!m_msgbroker || !m_msgconv || !m_tee || !m_queue_display || !m_queue_msg)
+    m_visual_msgconv = gst_element_factory_make("nvmsgconv", std::string("visual_nvmsg-converter" + m_module_name).c_str());
+    m_visual_msgbroker = gst_element_factory_make("nvmsgbroker", std::string("visual_nvmsg-broker" + m_module_name).c_str());
+    m_queue_visual_msg = gst_element_factory_make("queue", std::string("visual-nvtee-queue-msg" + m_module_name).c_str());
+
+    if (!m_metadata_msgconv || !m_metadata_msgbroker || !m_queue_metadata_msg ||
+        !m_visual_msgconv || !m_visual_msgbroker || !m_visual_msgbroker)
     {
         g_printerr("%s:%dOne element could not be created. Exiting.\n", __FILE__, __LINE__);
     }
 
-    gst_bin_add_many(GST_BIN(m_pipeline), m_queue_msg, m_msgconv, m_msgbroker, NULL);
+    gst_bin_add_many(GST_BIN(m_pipeline), m_queue_metadata_msg, m_metadata_msgconv, m_metadata_msgbroker,
+                     m_visual_msgconv, m_visual_msgbroker, m_queue_visual_msg, NULL);
 
-    if (!gst_element_link_many(m_queue_msg, m_msgconv, m_msgbroker, NULL))
+    if (!gst_element_link_many(m_queue_metadata_msg, m_metadata_msgconv, m_metadata_msgbroker, NULL))
     {
         g_printerr("%s:%d Elements could not be linked \n", __FILE__, __LINE__);
     }
 
-    GstPad *sink_pad = gst_element_get_static_pad(m_queue_msg, "sink");
-    m_tee_msg_pad = gst_element_get_request_pad(m_tee, "src_%u");
-    if (!m_tee_msg_pad)
+    if (!gst_element_link_many(m_queue_visual_msg, m_visual_msgconv, m_visual_msgbroker, NULL))
+    {
+        g_printerr("%s:%d Elements could not be linked \n", __FILE__, __LINE__);
+    }
+    // Link queue in metadata msgbroker branch
+    GstPad *sink_pad = gst_element_get_static_pad(m_queue_metadata_msg, "sink");
+    m_tee_metadata_msg_pad = gst_element_get_request_pad(m_tee, "src_%u");
+    if (!m_tee_metadata_msg_pad)
     {
         g_printerr("Unable to get request pads\n");
     }
 
-    if (gst_pad_link(m_tee_msg_pad, sink_pad) != GST_PAD_LINK_OK)
+    if (gst_pad_link(m_tee_metadata_msg_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
+
+    // Link queue in visual msgbroker branch
+    sink_pad = gst_element_get_static_pad(m_queue_visual_msg, "sink");
+    m_tee_visual_msg_pad = gst_element_get_request_pad(m_tee, "src_%u");
+    if (!m_tee_visual_msg_pad)
+    {
+        g_printerr("Unable to get request pads\n");
+    }
+
+    if (gst_pad_link(m_tee_visual_msg_pad, sink_pad) != GST_PAD_LINK_OK)
     {
         g_printerr("Unable to link tee and message converter\n");
         gst_object_unref(sink_pad);
@@ -201,7 +227,7 @@ void NvInferBinBase::linkMsgBroker()
 
 void NvInferBinBase::attachProbe()
 {
-    SinkPerfStruct * sink_perf = new SinkPerfStruct;
+    SinkPerfStruct *sink_perf = new SinkPerfStruct;
     GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
     GST_ASSERT(tiler_sink_pad);
     gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
@@ -217,14 +243,32 @@ void NvInferBinBase::attachProbe()
 
 void NvInferBinBase::setMsgBrokerConfig()
 {
-    g_object_set(G_OBJECT(m_msgconv), "config", MSG_CONFIG_PATH, NULL);
-    g_object_set(G_OBJECT(m_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
-    g_object_set(G_OBJECT(m_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
-    g_object_set(G_OBJECT(m_msgconv), "msg2p-newapi", 0, NULL);
-    g_object_set(G_OBJECT(m_msgconv), "frame-interval", 30, NULL);
+    // FACE and MOT Branch
+    g_object_set(G_OBJECT(m_metadata_msgconv), "config", MSG_CONFIG_PATH, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgconv), "frame-interval", 30, NULL);
+    // g_object_set(G_OBJECT(m_metadata_msgconv), "multiple-payloads", TRUE, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgconv), "comp-id", 1, NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "comp-id", 1, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
                  "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_params.metadata_topic.c_str(), NULL);
 
-    g_object_set(G_OBJECT(m_msgbroker), "topic", m_params.topic.c_str(), NULL);
+    // Crop image branch
+    g_object_set(G_OBJECT(m_visual_msgconv), "config", MSG_CONFIG_PATH, NULL);
+    g_object_set(G_OBJECT(m_visual_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
+    g_object_set(G_OBJECT(m_visual_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
+    g_object_set(G_OBJECT(m_visual_msgconv), "msg2p-newapi", 0, NULL);
+    g_object_set(G_OBJECT(m_visual_msgconv), "frame-interval", 30, NULL);
+    // g_object_set(G_OBJECT(m_visual_msgconv), "multiple-payloads", TRUE, NULL);
+
+    g_object_set(G_OBJECT(m_visual_msgconv), "comp-id", 2, NULL);
+
+    g_object_set(G_OBJECT(m_visual_msgbroker), "comp-id", 2, NULL);
+    g_object_set(G_OBJECT(m_visual_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
+                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(m_visual_msgbroker), "topic", m_params.visual_topic.c_str(), NULL);
 }

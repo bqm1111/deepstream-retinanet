@@ -38,7 +38,7 @@ GstPadProbeReturn NvInferBinBase::tiler_sink_pad_buffer_probe(GstPad *pad, GstPa
             // Statistics
             double avg_runtime = sink_perf_struct->total_time / sink_perf_struct->num_ticks / 1e6;
             double avg_fps = 1.0 / avg_runtime;
-            g_print(" %s:%d Tiler Average runtime: %f  Average FPS: %f \n", __FILE__, __LINE__, avg_runtime, avg_fps);
+            // g_print(" %s:%d Tiler Average runtime: %f  Average FPS: %f \n", __FILE__, __LINE__, avg_runtime, avg_fps);
         }
 
         if (nvds_enable_latency_measurement)

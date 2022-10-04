@@ -6,7 +6,8 @@
 enum class DSAppProperty
 {
     FACE_FEATURE_CURL_ADDRESS,
-    KAFKA_TOPIC,
+    KAFKA_METADATA_TOPIC,
+    KAFKA_VISUAL_TOPIC,
     KAFKA_CONNECTION_STR,
     MUXER_OUTPUT_WIDTH,
     MUXER_OUTPUT_HEIGHT,
@@ -22,7 +23,8 @@ private:
     std::map<DSAppProperty, std::string> DsAppDataField_ =
         {
             {DSAppProperty::FACE_FEATURE_CURL_ADDRESS, "FACE_FEATURE_CURL_ADDRESS"},
-            {DSAppProperty::KAFKA_TOPIC, "KAFKA_TOPIC"},
+            {DSAppProperty::KAFKA_METADATA_TOPIC, "KAFKA_METADATA_TOPIC"},
+            {DSAppProperty::KAFKA_VISUAL_TOPIC, "KAFKA_VISUAL_TOPIC"},
             {DSAppProperty::KAFKA_CONNECTION_STR, "KAFKA_CONNECTION_STR"},
             {DSAppProperty::MUXER_OUTPUT_WIDTH, "MUXER_OUTPUT_WIDTH"},
             {DSAppProperty::MUXER_OUTPUT_HEIGHT, "MUXER_OUTPUT_HEIGHT"},

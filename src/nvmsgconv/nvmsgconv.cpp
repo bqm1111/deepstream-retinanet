@@ -122,17 +122,23 @@ nvds_msg2p_generate_multiple(NvDsMsg2pCtx *ctx, NvDsEvent *events, guint eventSi
 	}
 	else if (ctx->payloadType == NVDS_PAYLOAD_CUSTOM)
 	{
-		payloads[*payloadCount] = (NvDsPayload *)g_malloc0(sizeof(NvDsPayload));
-		payloads[*payloadCount]->payload = (gpointer)g_strdup("CUSTOM Schema");
-		payloads[*payloadCount]->payloadSize = strlen((char *)payloads[*payloadCount]->payload) + 1;
-		++(*payloadCount);
+		message = generate_XFace_event_message(ctx->privData, events->metadata);
+		if (message)
+		{
+			len = strlen(message);
+			payloads[*payloadCount] = (NvDsPayload *)g_malloc0(sizeof(NvDsPayload));
+			payloads[*payloadCount]->payload = g_memdup(message, len);
+			payloads[*payloadCount]->payloadSize = len;
+			++(*payloadCount);
+			g_free(message);
+		}
 	}
 	else
 		payloads = NULL;
 
 	return payloads;
 }
-
+//
 NvDsPayload *
 nvds_msg2p_generate(NvDsMsg2pCtx *ctx, NvDsEvent *events, guint size)
 {

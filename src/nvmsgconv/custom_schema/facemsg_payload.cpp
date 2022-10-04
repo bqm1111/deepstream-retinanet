@@ -137,25 +137,15 @@ generate_mot_event_message(void *privData, NvDsEventMsgMeta *meta)
 	return message;
 }
 
-gchar *
-generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
+gchar *generate_XFace_metadata_message(NvDsEventMsgMeta *meta)
 {
 	JsonNode *rootNode;
 	JsonObject *rootObj;
-	JsonObject *embeddingObj;
 	gchar *message;
-
-	uuid_t msgId;
-	gchar msgIdStr[37];
-
-	uuid_generate_random(msgId);
-	uuid_unparse_lower(msgId, msgIdStr);
-
-	// create root obj
 	rootObj = json_object_new();
 
 	// add frame info
-	XFaceMsgMeta *msg_meta_content = (XFaceMsgMeta *)meta->extMsg;
+	XFaceMetaMsg *msg_meta_content = (XFaceMetaMsg *)meta->extMsg;
 	// json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
 	json_object_set_double_member(rootObj, "timestamp", msg_meta_content->timestamp);
 
@@ -216,6 +206,63 @@ generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 	message = json_to_string(rootNode, TRUE);
 	json_node_free(rootNode);
 	json_object_unref(rootObj);
+	return message;
+}
 
+gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
+{
+	JsonNode *rootNode;
+	JsonObject *rootObj;
+	gchar *message;
+	rootObj = json_object_new();
+
+	// add frame info
+	XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)meta->extMsg;
+	// json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
+	json_object_set_double_member(rootObj, "timestamp", msg_meta_content->timestamp);
+
+	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
+	json_object_set_int_member(rootObj, "camera_id", msg_meta_content->cameraId);
+
+	// add MOT objects
+	JsonArray *jVisualObjectArray = json_array_sized_new(msg_meta_content->num_cropped_face);
+	for (size_t i = 0; i < msg_meta_content->num_cropped_face; i++)
+	{
+		NvDsVisualMsgData *msg_sub_meta = msg_meta_content->visual_meta_list[i];
+
+		JsonObject *jObject = json_object_new();
+
+		JsonObject *jBoxObject = json_object_new();
+		json_object_set_string_member(jObject, "encoded_face_img", msg_sub_meta->cropped_face);
+		json_array_add_object_element(jVisualObjectArray, jObject);
+	}
+	json_object_set_array_member(rootObj, "cropped_face", jVisualObjectArray);
+
+	// create root node
+	rootNode = json_node_new(JSON_NODE_OBJECT);
+	json_node_set_object(rootNode, rootObj);
+
+	// create message
+	message = json_to_string(rootNode, TRUE);
+	json_node_free(rootNode);
+	json_object_unref(rootObj);
+	return message;
+}
+
+gchar *
+generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
+{
+	gchar *message;
+	switch (meta->componentId)
+	{
+	case 1:
+		message = generate_XFace_metadata_message(meta);
+		break;
+	case 2:
+		message = generate_XFace_visual_message(meta);
+		break;
+	default:
+		break;
+	}
 	return message;
 }

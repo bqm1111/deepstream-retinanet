@@ -40,11 +40,16 @@ public:
     // common elements for the rest of the pipeline
     GstElement *m_tiler = NULL;
     GstElement *m_convert = NULL;
-    GstElement *m_msgconv = NULL;
-    GstElement *m_msgbroker = NULL;
+    GstElement *m_metadata_msgconv = NULL;
+    GstElement *m_metadata_msgbroker = NULL;
+    GstElement *m_visual_msgconv = NULL;
+    GstElement *m_visual_msgbroker = NULL;
+
     GstElement *m_tee = NULL;
     GstElement *m_queue_display = NULL;
-    GstElement *m_queue_msg = NULL;
+    GstElement *m_queue_metadata_msg = NULL;
+    GstElement *m_queue_visual_msg = NULL;
+
     GstElement *m_osd = NULL;
     GstElement *m_file_convert = NULL;
     GstElement *m_capsfilter = NULL;
@@ -53,8 +58,10 @@ public:
     GstElement *m_file_muxer = NULL;
     GstElement *m_sink = NULL;
 
-    GstPad *m_tee_msg_pad;
     GstPad *m_tee_display_pad;
+    GstPad *m_tee_metadata_msg_pad;
+    GstPad *m_tee_visual_msg_pad;
+
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
