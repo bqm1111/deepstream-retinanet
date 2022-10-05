@@ -103,7 +103,7 @@ void FaceApp::detect()
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
     face_bin.setParam(m_gstparam);
-    face_bin.acquireCurl(m_curl);
+    face_bin.acquireFaceUserData(m_curl, m_video_source_name);
     GstElement *inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
 
     if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
@@ -159,7 +159,7 @@ void FaceApp::detectAndMOT()
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
     face_bin.setParam(m_gstparam);
-    face_bin.acquireCurl(m_curl);
+    face_bin.acquireFaceUserData(m_curl, m_video_source_name);
     GstElement *face_inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
 
     m_pipeline.linkTwoBranch(mot_inferbin, face_inferbin);
@@ -191,7 +191,7 @@ void FaceApp::sequentialDetectAndMOT()
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
     face_bin.setParam(m_gstparam);
-    face_bin.acquireCurl(m_curl);
+    face_bin.acquireFaceUserData(m_curl, m_video_source_name);
     GstElement *face_inferbin;
     face_bin.createInferBin();
     face_bin.getMasterBin(face_inferbin);

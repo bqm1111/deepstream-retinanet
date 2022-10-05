@@ -8,68 +8,147 @@
 #include "custom_schema.h"
 #include "params.h"
 
-static JsonObject *
-generate_object_object(void *privData, NvDsEventMsgMeta *meta)
-{
-	JsonObject *objectObj;
-	JsonObject *jobject;
-	guint i;
-	gchar tracking_id[64];
-
-	// object object
-	objectObj = json_object_new();
-	if (snprintf(tracking_id, sizeof(tracking_id), "%lu", meta->trackingId) >= (int)sizeof(tracking_id))
-		g_warning("Not enough space to copy trackingId");
-	// json_object_set_string_member(objectObj, "id", tracking_id);
-
-	switch (meta->objType)
-	{
-	}
-
-	// bbox sub object
-	jobject = json_object_new();
-	json_object_set_int_member(jobject, "topleftx", meta->bbox.left);
-	json_object_set_int_member(jobject, "toplefty", meta->bbox.top);
-	json_object_set_int_member(jobject, "bottomrightx", meta->bbox.left + meta->bbox.width);
-	json_object_set_int_member(jobject, "bottomrighty", meta->bbox.top + meta->bbox.height);
-	json_object_set_object_member(objectObj, "bbox", jobject);
-
-	jobject = json_object_new();
-	if (meta->extMsgSize > 0)
-	{
-		FaceEventMsgData *dsObj = (FaceEventMsgData *)meta->extMsg;
-		if (dsObj)
-		{
-			json_object_set_string_member(jobject, "feature", (gchar *)dsObj->feature);
-		}
-	}
-	json_object_set_object_member(objectObj, "feature", jobject);
-	return objectObj;
-}
-
-gchar *generate_face_event_message(void *privData, NvDsEventMsgMeta *meta)
+gchar *generate_face_event_message(NvDsEventMsgMeta *meta)
 {
 	JsonNode *rootNode;
 	JsonObject *rootObj;
-	JsonObject *objectObj;
+	JsonObject *propObj;
+	JsonObject *tsObj;
+	JsonObject *cameraIdObj;
+	JsonObject *frameIdObj;
+	JsonObject *croppedFaceObj;
+
 	gchar *message;
-
-	uuid_t msgId;
-	gchar msgIdStr[37];
-
-	uuid_generate_random(msgId);
-	uuid_unparse_lower(msgId, msgIdStr);
-
-	objectObj = generate_object_object(privData, meta);
-
-	// root object
 	rootObj = json_object_new();
-	json_object_set_object_member(rootObj, "object", objectObj);
-	//
+	propObj = json_object_new();
+	tsObj = json_object_new();
+	cameraIdObj = json_object_new();
+	frameIdObj = json_object_new();
+	croppedFaceObj = json_object_new();
+
+	// add frame info
+	NvDsFaceMsgData *msg_meta_content = (NvDsFaceMsgData *)meta->extMsg;
+	// json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
+	json_object_set_string_member(rootObj, "title", g_strdup("FaceMeta"));
+	json_object_set_string_member(rootObj, "description", g_strdup("Metadata of face detected from video sources"));
+	json_object_set_string_member(rootObj, "type", g_strdup("object"));
+
+
+	// Required
+	JsonArray *jFacePropRequired = json_array_sized_new(4);
+	json_array_add_string_element(jFacePropRequired, g_strdup("timestamp"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("camera_id"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("frame_id"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("cropped_image"));
+
+	json_object_set_array_member(propObj, "required", jFacePropRequired);
+
+	// timestamp
+	json_object_set_string_member(tsObj, "description", g_strdup("Time stamp of the image that this event blong to"));
+	json_object_set_string_member(tsObj, "type", g_strdup("double"));
+	json_object_set_double_member(tsObj, "value", msg_meta_content->timestamp);
+
+	json_object_set_object_member(propObj, "timestamp", tsObj);
+
+	// Camera_id
+	json_object_set_string_member(cameraIdObj, "description", g_strdup("Camera_id of the image that this event blong to"));
+	json_object_set_string_member(cameraIdObj, "type", g_strdup("string"));
+	json_object_set_string_member(cameraIdObj, "value", g_strdup(msg_meta_content->cameraId));
+	json_object_set_object_member(propObj, "camera_id", cameraIdObj);
+
+	// Frame_id
+	json_object_set_string_member(frameIdObj, "description", g_strdup("Frame_id of the image that this event blong to"));
+	json_object_set_string_member(frameIdObj, "type", g_strdup("integer"));
+	json_object_set_int_member(frameIdObj, "value", msg_meta_content->frameId);
+	json_object_set_object_member(propObj, "frame_id", frameIdObj);
+
+	// Cropped_image
+	json_object_set_string_member(croppedFaceObj, "type", g_strdup("object"));
+	JsonObject *facePropObj;
+	JsonObject *jObj;
+	facePropObj = json_object_new();
+	// Required
+	jFacePropRequired = json_array_sized_new(9);
+	json_array_add_string_element(jFacePropRequired, g_strdup("x"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("y"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("w"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("h"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("confidence_score"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("name"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("staff_id"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("feature"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("encoded_img"));
+	json_object_set_array_member(facePropObj, "required", jFacePropRequired);
+
+	// x
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "top left x coordinate of face image");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.top);
+	json_object_set_object_member(facePropObj, "x", jObj);
+	// y
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "top left y coordinate of face image");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.left);
+	json_object_set_object_member(facePropObj, "y", jObj);
+	// w
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "width of face image");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.width);
+	json_object_set_object_member(facePropObj, "w", jObj);
+	// h
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "height of face image");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.height);
+	json_object_set_object_member(facePropObj, "h", jObj);
+	// confidence_score
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "confidence score of name of the person appeared on the face image");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->confidence_score);
+	json_object_set_object_member(facePropObj, "confidence_score", jObj);
+
+	// name
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "name of the person appeared on the face image");
+	json_object_set_string_member(jObj, "type", "string");
+	json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->name));
+	json_object_set_object_member(facePropObj, "name", jObj);
+	// staff_id
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "staff_id of the person appeared on the face image");
+	json_object_set_string_member(jObj, "type", "string");
+	json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->staff_id));
+	json_object_set_object_member(facePropObj, "staff_id", jObj);
+
+	// feature
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "vector feature of face in the image");
+	json_object_set_string_member(jObj, "type", "bytes");
+	json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->feature));
+	json_object_set_object_member(facePropObj, "feature", jObj);
+
+	// encoded_img
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "jpeg encoded image of face");
+	json_object_set_string_member(jObj, "type", "bytes");
+	json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->encoded_img));
+	json_object_set_object_member(facePropObj, "encoded_img", jObj);
+
+	json_object_set_object_member(croppedFaceObj, "properties", facePropObj);
+	json_object_set_object_member(propObj, "cropped_image", croppedFaceObj);
+	json_object_set_object_member(rootObj, "properties", propObj);
+
+	// create root node
 	rootNode = json_node_new(JSON_NODE_OBJECT);
 	json_node_set_object(rootNode, rootObj);
 
+	// create message
 	message = json_to_string(rootNode, TRUE);
+
 	json_node_free(rootNode);
 	json_object_unref(rootObj);
 
@@ -77,126 +156,116 @@ gchar *generate_face_event_message(void *privData, NvDsEventMsgMeta *meta)
 }
 
 gchar *
-generate_mot_event_message(void *privData, NvDsEventMsgMeta *meta)
+generate_mot_event_message(NvDsEventMsgMeta *meta)
 {
 	JsonNode *rootNode;
 	JsonObject *rootObj;
-	JsonObject *embeddingObj;
-	gchar *message;
+	JsonObject *propObj;
+	JsonObject *tsObj;
+	JsonObject *cameraIdObj;
+	JsonObject *frameIdObj;
+	JsonObject *personBoxObj;
 
-	uuid_t msgId;
-	gchar msgIdStr[37];
-
-	uuid_generate_random(msgId);
-	uuid_unparse_lower(msgId, msgIdStr);
-
-	// create root obj
-	rootObj = json_object_new();
-
-	// add frame info
-	EventMsgSubMeta *msg_meta_content = (EventMsgSubMeta *)meta->extMsg;
-	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
-	json_object_set_int_member(rootObj, "stream_id", msg_meta_content->sensorId);
-
-	// add objects
-	JsonArray *jObjectArray = json_array_sized_new(msg_meta_content->num_msg_sub_meta);
-	for (size_t i = 0; i < msg_meta_content->num_msg_sub_meta; i++)
-	{
-		NvDsEventMsgMeta *msg_sub_meta = msg_meta_content->msg_sub_meta_list[i];
-
-		JsonObject *jObject = json_object_new();
-
-		JsonObject *jBoxObject = json_object_new();
-
-		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
-		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
-		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
-		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
-		json_object_set_object_member(jObject, "box", jBoxObject);
-		json_object_set_int_member(jObject, "object_id", msg_sub_meta->trackingId);
-
-		JsonArray *jObjectEmbedding = json_array_sized_new(msg_sub_meta->objSignature.size);
-		for (size_t j = 0; j < msg_sub_meta->objSignature.size; j++)
-			json_array_add_double_element(
-				jObjectEmbedding, msg_sub_meta->objSignature.signature[j]);
-		json_object_set_array_member(jObject, "embedding", jObjectEmbedding);
-
-		json_array_add_object_element(jObjectArray, jObject);
-	}
-	json_object_set_array_member(rootObj, "MOT", jObjectArray);
-
-	// create root node
-	rootNode = json_node_new(JSON_NODE_OBJECT);
-	json_node_set_object(rootNode, rootObj);
-
-	// create message
-	message = json_to_string(rootNode, TRUE);
-	json_node_free(rootNode);
-	json_object_unref(rootObj);
-
-	return message;
-}
-
-gchar *generate_XFace_metadata_message(NvDsEventMsgMeta *meta)
-{
-	JsonNode *rootNode;
-	JsonObject *rootObj;
 	gchar *message;
 	rootObj = json_object_new();
+	propObj = json_object_new();
+	tsObj = json_object_new();
+	cameraIdObj = json_object_new();
+	frameIdObj = json_object_new();
+	personBoxObj = json_object_new();
 
 	// add frame info
-	XFaceMetaMsg *msg_meta_content = (XFaceMetaMsg *)meta->extMsg;
+	NvDsMOTMsgData *msg_meta_content = (NvDsMOTMsgData *)meta->extMsg;
 	// json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
-	json_object_set_double_member(rootObj, "timestamp", msg_meta_content->timestamp);
+	json_object_set_string_member(rootObj, "title", g_strdup("MOTMeta"));
+	json_object_set_string_member(rootObj, "description", g_strdup("Metadata of MOT module"));
+	json_object_set_string_member(rootObj, "type", g_strdup("object"));
 
-	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
-	json_object_set_int_member(rootObj, "camera_id", msg_meta_content->cameraId);
 
-	// add MOT objects
-	JsonArray *jMotObjectArray = json_array_sized_new(msg_meta_content->num_mot_obj);
-	for (size_t i = 0; i < msg_meta_content->num_mot_obj; i++)
-	{
-		NvDsMOTMsgData *msg_sub_meta = msg_meta_content->mot_meta_list[i];
+	// Required
+	JsonArray *jFacePropRequired = json_array_sized_new(4);
+	json_array_add_string_element(jFacePropRequired, g_strdup("timestamp"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("camera_id"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("frame_id"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("personBox"));
 
-		JsonObject *jObject = json_object_new();
+	json_object_set_array_member(propObj, "required", jFacePropRequired);
 
-		JsonObject *jBoxObject = json_object_new();
-		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
-		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
-		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
-		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
-		json_object_set_object_member(jObject, "box", jBoxObject);
-		json_object_set_int_member(jObject, "object_id", msg_sub_meta->track_id);
+	// timestamp
+	json_object_set_string_member(tsObj, "description", g_strdup("Time stamp of the image that this event blong to"));
+	json_object_set_string_member(tsObj, "type", g_strdup("double"));
+	json_object_set_double_member(tsObj, "value", msg_meta_content->timestamp);
 
-		json_object_set_string_member(jObject, "embedding", msg_sub_meta->embedding);
+	json_object_set_object_member(propObj, "timestamp", tsObj);
 
-		json_array_add_object_element(jMotObjectArray, jObject);
-	}
-	json_object_set_array_member(rootObj, "MOT", jMotObjectArray);
+	// Camera_id
+	json_object_set_string_member(cameraIdObj, "description", g_strdup("Camera_id of the image that this event blong to"));
+	json_object_set_string_member(cameraIdObj, "type", g_strdup("string"));
+	json_object_set_string_member(cameraIdObj, "value", g_strdup(msg_meta_content->cameraId));
+	json_object_set_object_member(propObj, "camera_id", cameraIdObj);
 
-	// add FACE objects
-	JsonArray *jFaceObjectArray = json_array_sized_new(msg_meta_content->num_face_obj);
-	for (size_t i = 0; i < msg_meta_content->num_face_obj; i++)
-	{
-		NvDsFaceMsgData *msg_sub_meta = msg_meta_content->face_meta_list[i];
+	// Frame_id
+	json_object_set_string_member(frameIdObj, "description", g_strdup("Frame_id of the image that this event blong to"));
+	json_object_set_string_member(frameIdObj, "type", g_strdup("integer"));
+	json_object_set_int_member(frameIdObj, "value", msg_meta_content->frameId);
+	json_object_set_object_member(propObj, "frame_id", frameIdObj);
 
-		JsonObject *jObject = json_object_new();
+	// Cropped_image
+	json_object_set_string_member(personBoxObj, "type", g_strdup("object"));
+	JsonObject *mainPersonBoxPropObj;
+	JsonObject *jObj;
+	mainPersonBoxPropObj = json_object_new();
+	// Required
+	jFacePropRequired = json_array_sized_new(6);
+	json_array_add_string_element(jFacePropRequired, g_strdup("x"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("y"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("w"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("h"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("track_id"));
+	json_array_add_string_element(jFacePropRequired, g_strdup("embedding"));
+	json_object_set_array_member(mainPersonBoxPropObj, "required", jFacePropRequired);
 
-		json_object_set_double_member(jObject, "confidence", msg_sub_meta->confidence_score);
-		JsonObject *jBoxObject = json_object_new();
-		json_object_set_double_member(jBoxObject, "x", msg_sub_meta->bbox.left);
-		json_object_set_double_member(jBoxObject, "y", msg_sub_meta->bbox.top);
-		json_object_set_double_member(jBoxObject, "w", msg_sub_meta->bbox.width);
-		json_object_set_double_member(jBoxObject, "h", msg_sub_meta->bbox.height);
-		json_object_set_object_member(jObject, "box", jBoxObject);
+	// x
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "top left x coordinate of personBox");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.top);
+	json_object_set_object_member(mainPersonBoxPropObj, "x", jObj);
+	// y
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "top left y coordinate of personBox");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.left);
+	json_object_set_object_member(mainPersonBoxPropObj, "y", jObj);
+	// w
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "width of personBox");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.width);
+	json_object_set_object_member(mainPersonBoxPropObj, "w", jObj);
+	// h
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "height of personBox");
+	json_object_set_string_member(jObj, "type", "float");
+	json_object_set_double_member(jObj, "value", msg_meta_content->bbox.height);
+	json_object_set_object_member(mainPersonBoxPropObj, "h", jObj);
+	// track_id
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "track_id of personBox");
+	json_object_set_string_member(jObj, "type", "integer");
+	json_object_set_int_member(jObj, "value", msg_meta_content->track_id);
+	json_object_set_object_member(mainPersonBoxPropObj, "track_id", jObj);
 
-		json_object_set_string_member(jObject, "feature", msg_sub_meta->feature);
-		json_object_set_string_member(jObject, "staff_id", msg_sub_meta->staff_id);
-		json_object_set_string_member(jObject, "name", msg_sub_meta->name);
+	// embedding
+	jObj = json_object_new();
+	json_object_set_string_member(jObj, "description", "vector embedding of personBox");
+	json_object_set_string_member(jObj, "type", "bytes");
+	json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->embedding));
+	json_object_set_object_member(mainPersonBoxPropObj, "embedding", jObj);
 
-		json_array_add_object_element(jFaceObjectArray, jObject);
-	}
-	json_object_set_array_member(rootObj, "FACE", jFaceObjectArray);
+	json_object_set_object_member(personBoxObj, "properties", mainPersonBoxPropObj);
+	json_object_set_object_member(propObj, "personBox", personBoxObj);
+	json_object_set_object_member(rootObj, "properties", propObj);
 
 	// create root node
 	rootNode = json_node_new(JSON_NODE_OBJECT);
@@ -204,46 +273,7 @@ gchar *generate_XFace_metadata_message(NvDsEventMsgMeta *meta)
 
 	// create message
 	message = json_to_string(rootNode, TRUE);
-	json_node_free(rootNode);
-	json_object_unref(rootObj);
-	return message;
-}
 
-gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
-{
-	JsonNode *rootNode;
-	JsonObject *rootObj;
-	gchar *message;
-	rootObj = json_object_new();
-
-	// add frame info
-	XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)meta->extMsg;
-	// json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
-	json_object_set_double_member(rootObj, "timestamp", msg_meta_content->timestamp);
-
-	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
-	json_object_set_int_member(rootObj, "camera_id", msg_meta_content->cameraId);
-
-	// add MOT objects
-	JsonArray *jVisualObjectArray = json_array_sized_new(msg_meta_content->num_cropped_face);
-	for (size_t i = 0; i < msg_meta_content->num_cropped_face; i++)
-	{
-		NvDsVisualMsgData *msg_sub_meta = msg_meta_content->visual_meta_list[i];
-
-		JsonObject *jObject = json_object_new();
-
-		JsonObject *jBoxObject = json_object_new();
-		json_object_set_string_member(jObject, "encoded_face_img", msg_sub_meta->cropped_face);
-		json_array_add_object_element(jVisualObjectArray, jObject);
-	}
-	json_object_set_array_member(rootObj, "cropped_face", jVisualObjectArray);
-
-	// create root node
-	rootNode = json_node_new(JSON_NODE_OBJECT);
-	json_node_set_object(rootNode, rootObj);
-
-	// create message
-	message = json_to_string(rootNode, TRUE);
 	json_node_free(rootNode);
 	json_object_unref(rootObj);
 	return message;
@@ -253,13 +283,13 @@ gchar *
 generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 {
 	gchar *message;
-	switch (meta->componentId)
+	switch (meta->objClassId)
 	{
-	case 1:
-		message = generate_XFace_metadata_message(meta);
+	case FACE_CLASS_ID:
+		message = generate_face_event_message(meta);
 		break;
-	case 2:
-		message = generate_XFace_visual_message(meta);
+	case PGIE_CLASS_ID_PERSON:
+		message = generate_mot_event_message(meta);
 		break;
 	default:
 		break;

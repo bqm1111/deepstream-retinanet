@@ -159,15 +159,22 @@ struct EventMsgSubMeta
 
 typedef struct NvDsFaceMsgData
 {
+    double timestamp;
+    gint frameId;
+    gchar* cameraId;
     NvDsRect bbox;
+    double confidence_score;
     gchar *name;
     gchar *staff_id;
-    double confidence_score;
     gchar *feature;
+    gchar *encoded_img;
 } NvDsFaceMsgData;
 
 typedef struct NvDsMOTMsgData
 {
+    double timestamp;
+    gint frameId;
+    gchar* cameraId;
     NvDsRect bbox;
     int track_id;
     gchar *embedding;

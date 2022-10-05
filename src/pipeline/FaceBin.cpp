@@ -39,8 +39,9 @@ void NvInferFaceBin::createInferBin()
     g_object_set(m_sgie, "input-tensor-meta", TRUE, NULL);
     g_object_set(m_sgie, "output-tensor-meta", TRUE, NULL);
 
-    user_feature_callback_data_t *callback_data = new user_feature_callback_data_t;
+    face_user_data *callback_data = new face_user_data;
     callback_data->curl = m_curl;
+    callback_data->video_source_name = m_video_source_name;
     gst_nvinfer_raw_output_generated_callback out_callback = this->sgie_output_callback;
     g_object_set(m_sgie, "raw-output-generated-callback", out_callback, NULL);
     g_object_set(m_sgie, "raw-output-generated-userdata", reinterpret_cast<void *>(callback_data), NULL);
@@ -108,9 +109,10 @@ void NvInferFaceBin::createDetectBin()
     gst_object_unref(pgie_src_pad);
 }
 
-void NvInferFaceBin::acquireCurl(CURL *curl)
+void NvInferFaceBin::acquireFaceUserData(CURL *curl, std::vector<std::string> video_source_list)
 {
     m_curl = curl;
+    m_video_source_name = video_source_list;
 }
 
 void NvInferFaceBin::setMsgBrokerConfig()

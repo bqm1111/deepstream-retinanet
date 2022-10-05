@@ -91,7 +91,6 @@ nvds_msg2p_generate_multiple(NvDsMsg2pCtx *ctx, NvDsEvent *events, guint eventSi
 	*payloadCount = 0;
 	// Set how many payloads are being sent back to the plugin
 	payloads = (NvDsPayload **)g_malloc0(sizeof(NvDsPayload *) * 1);
-
 	if (ctx->payloadType == NVDS_PAYLOAD_DEEPSTREAM)
 	{
 		message = generate_event_message(ctx->privData, events->metadata);
