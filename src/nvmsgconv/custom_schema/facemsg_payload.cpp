@@ -33,7 +33,6 @@ gchar *generate_face_event_message(NvDsEventMsgMeta *meta)
 	json_object_set_string_member(rootObj, "description", g_strdup("Metadata of face detected from video sources"));
 	json_object_set_string_member(rootObj, "type", g_strdup("object"));
 
-
 	// Required
 	JsonArray *jFacePropRequired = json_array_sized_new(4);
 	json_array_add_string_element(jFacePropRequired, g_strdup("timestamp"));
@@ -126,7 +125,7 @@ gchar *generate_face_event_message(NvDsEventMsgMeta *meta)
 
 	// feature
 	jObj = json_object_new();
-	json_object_set_string_member(jObj, "description", "vector feature of face in the image");
+	json_object_set_string_member(jObj, "description", "vector feature of face image");
 	json_object_set_string_member(jObj, "type", "bytes");
 	json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->feature));
 	json_object_set_object_member(facePropObj, "feature", jObj);
@@ -180,7 +179,6 @@ generate_mot_event_message(NvDsEventMsgMeta *meta)
 	json_object_set_string_member(rootObj, "title", g_strdup("MOTMeta"));
 	json_object_set_string_member(rootObj, "description", g_strdup("Metadata of MOT module"));
 	json_object_set_string_member(rootObj, "type", g_strdup("object"));
-
 
 	// Required
 	JsonArray *jFacePropRequired = json_array_sized_new(4);
@@ -278,21 +276,59 @@ generate_mot_event_message(NvDsEventMsgMeta *meta)
 	json_object_unref(rootObj);
 	return message;
 }
+gchar *generate_visual_event_message(NvDsEventMsgMeta *meta)
+{
+	// JsonNode *rootNode;
+	// JsonObject *rootObj;
+	// gchar *message;
+	// rootObj = json_object_new();
+
+	// // add frame info
+	// json_object_set_string_member(rootObj, "timestamp", g_strdup("Something here"));
+
+
+	// // create root node
+	// rootNode = json_node_new(JSON_NODE_OBJECT);
+	// json_node_set_object(rootNode, rootObj);
+
+	// // create message
+	// message = json_to_string(rootNode, TRUE);
+	// json_node_free(rootNode);
+	// json_object_unref(rootObj);
+	return g_strdup("message");
+}
 
 gchar *
 generate_XFace_event_message(void *privData, NvDsEventMsgMeta *meta)
 {
 	gchar *message;
-	switch (meta->objClassId)
+
+	switch (meta->componentId)
 	{
-	case FACE_CLASS_ID:
-		message = generate_face_event_message(meta);
+	case 1:
+	{
+		switch (meta->objClassId)
+		{
+		case FACE_CLASS_ID:
+			message = generate_face_event_message(meta);
+			break;
+		case PGIE_CLASS_ID_PERSON:
+			message = generate_mot_event_message(meta);
+			break;
+		default:
+			break;
+		}
 		break;
-	case PGIE_CLASS_ID_PERSON:
-		message = generate_mot_event_message(meta);
+	}
+	case 2:
+	{
+		message = generate_visual_event_message(meta);
 		break;
+	}
+
 	default:
 		break;
 	}
+
 	return message;
 }

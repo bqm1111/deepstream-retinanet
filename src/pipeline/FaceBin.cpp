@@ -89,7 +89,7 @@ void NvInferFaceBin::createDetectBin()
     g_object_set(m_pgie, "output-tensor-meta", TRUE, NULL);
 
     gst_bin_add_many(GST_BIN(m_masterBin), m_pgie, NULL);
-
+    
     // Add ghost pads
     GstPad *pgie_sink_pad = gst_element_get_static_pad(m_pgie, "sink");
     GST_ASSERT(pgie_sink_pad);

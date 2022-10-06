@@ -3,7 +3,8 @@
 #include <cmath>
 #include <nvdsinfer_custom_impl.h>
 #include <nvds_obj_encode.h>
-
+#include <nvbufsurftransform.h>
+#include <nvbufsurface.h>
 gpointer user_copy_facemark_meta(gpointer data, gpointer user_data)
 {
     NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(data);
@@ -442,7 +443,6 @@ static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void 
     return size * nmemb;
 }
 
-
 static gpointer XFace_msg_face_copy_func(gpointer data, gpointer user_data)
 {
     NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
@@ -453,7 +453,7 @@ static gpointer XFace_msg_face_copy_func(gpointer data, gpointer user_data)
     dstMeta->extMsg = g_malloc0(sizeof(NvDsFaceMsgData));
     NvDsFaceMsgData *srcExtMsg = (NvDsFaceMsgData *)srcMeta->extMsg;
     NvDsFaceMsgData *dstExtMsg = (NvDsFaceMsgData *)dstMeta->extMsg;
-
+    dstMeta->componentId = srcMeta->componentId;
     dstExtMsg->cameraId = g_strdup(srcExtMsg->cameraId);
     dstExtMsg->frameId = srcExtMsg->frameId;
     dstExtMsg->timestamp = srcExtMsg->timestamp;
@@ -522,6 +522,7 @@ static gpointer XFace_msg_mot_copy_func(gpointer data, gpointer user_data)
     NvDsMOTMsgData *srcExtMsg = (NvDsMOTMsgData *)srcMeta->extMsg;
     NvDsMOTMsgData *dstExtMsg = (NvDsMOTMsgData *)dstMeta->extMsg;
 
+    dstMeta->componentId = srcMeta->componentId;
     dstExtMsg->cameraId = g_strdup(srcExtMsg->cameraId);
     dstExtMsg->frameId = srcExtMsg->frameId;
     dstExtMsg->timestamp = srcExtMsg->timestamp;
@@ -555,6 +556,35 @@ static void XFace_msg_mot_release_func(gpointer data, gpointer user_data)
         g_free(srcMeta->extMsg);
 
         // free extMsgSize
+        srcMeta->extMsgSize = 0;
+    }
+    g_free(user_meta->user_meta_data);
+    user_meta->user_meta_data = NULL;
+}
+
+static gpointer XFace_msg_visual_copy_func(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
+    NvDsEventMsgMeta *dstMeta = NULL;
+
+    dstMeta = (NvDsEventMsgMeta *)g_memdup(srcMeta, sizeof(NvDsEventMsgMeta));
+
+    dstMeta->extMsg = g_strdup((gchar*)srcMeta->extMsg);
+    dstMeta->componentId = srcMeta->componentId;
+    dstMeta->extMsgSize = srcMeta->extMsgSize;
+    return dstMeta;
+}
+
+static void XFace_msg_visual_release_func(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
+
+    if (srcMeta->extMsgSize > 0)
+    {
+        if(srcMeta->extMsg)
+            g_free(srcMeta->extMsg);
         srcMeta->extMsgSize = 0;
     }
     g_free(user_meta->user_meta_data);
@@ -600,35 +630,26 @@ void sendFaceMsg(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjec
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
 
-            // // request over HTTP/2, using the same connection!
-            // CURLcode res = curl_easy_perform(curl);
+            // request over HTTP/2, using the same connection!
+            CURLcode res = curl_easy_perform(curl);
 
-            // switch (res)
-            // {
-            // case CURLE_OPERATION_TIMEDOUT:
-            //     face_msg_sub_meta->confidence_score = 0;
-            //     face_msg_sub_meta->staff_id = g_strdup("236573");
-            //     face_msg_sub_meta->name= g_strdup("Unknown");
-
-            //     QDTLog::warn("Curl Timed Out. Vectordb server is broken");
-            //     continue;
-            //     break;
-            // case CURLE_OK:
-            //     QDTLog::info("Response string = {}", response_string);
-            //     break;
-            // default:
-            //     QDTLog::error("curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            //     break;
-            // }
-            // std::string response_json = response_string.substr(1, response_string.size() - 2);
-            // Document doc;
-            // doc.Parse(response_json.c_str());
-            // Value &s = doc["distance"];
-            // face_msg_sub_meta->confidence_score = s.GetDouble();
-            // s = doc["code"];
-            // face_msg_sub_meta->staff_id = g_strdup(s.GetString());
-            // s = doc["name"];
-            // face_msg_sub_meta->name = g_strdup(s.GetString());
+            if (res != CURLE_OK)
+            {
+                QDTLog::error("Vectordb server is broken: {}\n", curl_easy_strerror(res));
+            }
+            else
+            {
+                // QDTLog::info("Response string = {}", response_string);
+                std::string response_json = response_string.substr(1, response_string.size() - 2);
+                Document doc;
+                doc.Parse(response_json.c_str());
+                Value &s = doc["distance"];
+                face_msg_meta->confidence_score = s.GetDouble();
+                s = doc["code"];
+                face_msg_meta->staff_id = g_strdup(s.GetString());
+                s = doc["name"];
+                face_msg_meta->name = g_strdup(s.GetString());
+            }
         }
         else if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
         {
@@ -648,7 +669,7 @@ void sendFaceMsg(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjec
     face_event_msg->objClassId = FACE_CLASS_ID;
     face_event_msg->extMsg = (void *)face_msg_meta;
     face_event_msg->extMsgSize = sizeof(NvDsFaceMsgData);
-    // face_event_msg->componentId = 1;
+    face_event_msg->componentId = 1;
 
     // Pack EventMsgMeta into UserMeta
     NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
@@ -691,6 +712,7 @@ void sendMOTMsg(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObject
     mot_event_msg->objClassId = PGIE_CLASS_ID_PERSON;
     mot_event_msg->extMsg = (void *)mot_msg_meta;
     mot_event_msg->extMsgSize = sizeof(NvDsMOTMsgData);
+    mot_event_msg->componentId = 1;
 
     // Pack EventMsgMeta into UserMeta
     NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
@@ -700,6 +722,45 @@ void sendMOTMsg(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObject
         user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
         user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_mot_copy_func;
         user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_mot_release_func;
+
+        nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
+    }
+}
+
+void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDsFrameMeta *frame_meta, face_user_data *callback_data)
+{
+    gint frame_width = (gint)surface->surfaceList[frame_meta->batch_id].width;
+    gint frame_height = (gint)surface->surfaceList[frame_meta->batch_id].height;
+    void *frame_data = surface->surfaceList[frame_meta->batch_id].mappedAddr.addr[0];
+    size_t frame_step = surface->surfaceList[frame_meta->batch_id].pitch;
+
+    cv::Mat frame = cv::Mat(frame_height, frame_width, CV_8UC4, frame_data, frame_step);
+    cv::Mat bgr_frame;
+    cv::cvtColor(frame, bgr_frame, cv::COLOR_RGBA2RGB);
+    char filename[64];
+    snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
+    // cv::imwrite(filename, bgr_frame);
+    cv::resize(bgr_frame, bgr_frame, cv::Size(1280, 720));
+    std::vector<int> encode_param;
+    std::vector<uchar> encoded_buf;
+    encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
+    encode_param.push_back(80);
+    cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
+    QDTLog::info("buffer size = {}", encoded_buf.size());
+
+    NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+    visual_event_msg->extMsg = g_strdup(b64encode((uint8_t*)encoded_buf.data(), encoded_buf.size()));
+    visual_event_msg->extMsgSize = encoded_buf.size() * sizeof(uchar);
+    visual_event_msg->componentId = 2;
+    
+    // Pack EventMsgMeta into UserMeta
+    NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
+    if (user_event_visual)
+    {
+        user_event_visual->user_meta_data = (void *)visual_event_msg;
+        user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
+        user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_visual_copy_func;
+        user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_visual_release_func;
 
         nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
     }
@@ -730,6 +791,18 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         }
     }
 
+    GstMapInfo in_map_info;
+    NvBufSurface *surface = NULL;
+    memset(&in_map_info, 0, sizeof(in_map_info));
+    if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
+    {
+        QDTLog::error("Error: Failed to map gst buffer\n");
+        gst_buffer_unmap(buf, &in_map_info);
+    }
+    surface = (NvBufSurface *)in_map_info.data;
+    NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
+    NvBufSurfaceSyncForCpu(surface, -1, -1);
+
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
@@ -752,8 +825,12 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                 sendMOTMsg(frame_meta, batch_meta, obj_meta, callback_data);
             }
         }
+        // sendFullFrame(surface, batch_meta, frame_meta, callback_data);
     }
     callback_data->tensor_count++;
+
+    NvBufSurfaceUnMap(surface, -1, -1);
+    gst_buffer_unmap(buf, &in_map_info);
 }
 
 GstPadProbeReturn NvInferFaceBin::tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
