@@ -231,13 +231,13 @@ void NvInferBinBase::attachProbe()
     GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
     GST_ASSERT(tiler_sink_pad);
     gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
-                      sink_perf, NULL);
+                      m_user_callback_data, NULL);
     g_object_unref(tiler_sink_pad);
 
     GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
     GST_ASSERT(osd_sink_pad);
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
-                      reinterpret_cast<gpointer>(m_tiler), NULL);
+                      reinterpret_cast<gpointer>(sink_perf), NULL);
     gst_object_unref(osd_sink_pad);
 }
 

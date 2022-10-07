@@ -128,15 +128,28 @@ void AppPipeline::setLiveSource(bool is_live)
 
 void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 {
-    QDTLog::info("live source = {}", m_live_source);
     m_stream_muxer = gst_element_factory_make("nvstreammux", "streammuxer");
     g_object_set(m_stream_muxer, "width", muxer_output_width,
                  "height", muxer_output_height,
                  "batch-size", numVideoSrc(),
                  "buffer-pool-size", 40,
+                 "nvbuf-memory-type", 3,
                  "batched-push-timeout", 220000,
                  "live-source", m_live_source,
                  NULL);
+
+    // m_video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
+    // m_capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
+    // GST_ASSERT(m_capsfilter);
+    // GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)RGBA");
+    // GST_ASSERT(caps);
+    // g_object_set(G_OBJECT(m_capsfilter), "caps", caps, NULL);
+
+    // gst_bin_add_many(GST_BIN(m_pipeline), m_stream_muxer, m_video_convert, m_capsfilter, NULL);
+    // if(!gst_element_link_many(m_stream_muxer, m_video_convert, m_capsfilter))
+    // {
+    //     QDTLog::error("{}:{}Cant link element", __FILE__, __LINE__);
+    // }
     gst_bin_add(GST_BIN(m_pipeline), m_stream_muxer);
 
     for (int i = 0; i < numVideoSrc(); i++)

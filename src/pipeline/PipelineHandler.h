@@ -37,6 +37,8 @@ public:
     std::vector<GstElement *> m_decoder;
 
     GstElement *m_stream_muxer = NULL;
+    GstElement *m_video_convert = NULL;
+    GstElement *m_capsfilter = NULL;
     GstElement *m_tee_app = NULL;
     GstElement *m_queue_mot = NULL;
     GstElement *m_queue_face = NULL;

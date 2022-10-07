@@ -3,6 +3,8 @@
 #include <cmath>
 #include <nvdsinfer_custom_impl.h>
 #include <nvds_obj_encode.h>
+#include <nvbufsurface.h>
+#include <nvbufsurftransform.h>
 
 gpointer user_copy_facemark_meta(gpointer data, gpointer user_data)
 {
@@ -452,7 +454,7 @@ static gpointer XFace_msg_meta_copy_func(gpointer data, gpointer user_data)
     dstMeta->extMsg = g_malloc0(sizeof(XFaceMetaMsg));
     XFaceMetaMsg *srcExtMsg = (XFaceMetaMsg *)srcMeta->extMsg;
     XFaceMetaMsg *dstExtMsg = (XFaceMetaMsg *)dstMeta->extMsg;
-    
+
     dstMeta->componentId = srcMeta->componentId;
     dstExtMsg->cameraId = g_strdup(srcExtMsg->cameraId);
     dstExtMsg->sessionId = g_strdup(srcExtMsg->sessionId);
@@ -546,66 +548,6 @@ static void XFace_msg_meta_release_func(gpointer data, gpointer user_data)
     g_free(user_meta->user_meta_data);
     user_meta->user_meta_data = NULL;
 }
-static gpointer XFace_msg_visual_copy_func(gpointer data, gpointer user_data)
-{
-    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
-    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
-    NvDsEventMsgMeta *dstMeta = NULL;
-
-    dstMeta = (NvDsEventMsgMeta *)g_memdup(srcMeta, sizeof(NvDsEventMsgMeta));
-    dstMeta->extMsg = g_malloc0(sizeof(XFaceVisualMsg));
-    XFaceVisualMsg *srcExtMsg = (XFaceVisualMsg *)srcMeta->extMsg;
-    XFaceVisualMsg *dstExtMsg = (XFaceVisualMsg *)dstMeta->extMsg;
-
-    dstMeta->componentId = srcMeta->componentId;
-    dstExtMsg->cameraId = srcExtMsg->cameraId;
-    dstExtMsg->frameId = srcExtMsg->frameId;
-    dstExtMsg->timestamp = srcExtMsg->timestamp;
-    dstExtMsg->num_cropped_face = srcExtMsg->num_cropped_face;
-
-    dstExtMsg->visual_meta_list = (NvDsVisualMsgData **)g_malloc0(dstExtMsg->num_cropped_face * sizeof(NvDsVisualMsgData *));
-
-    // Copy Face
-    for (int i = 0; i < dstExtMsg->num_cropped_face; i++)
-    {
-        NvDsVisualMsgData *msg_sub_meta = (NvDsVisualMsgData *)g_malloc0(sizeof(NvDsVisualMsgData));
-        msg_sub_meta->cropped_face = g_strdup(srcExtMsg->visual_meta_list[i]->cropped_face); // encoded cropped face
-        dstExtMsg->visual_meta_list[i] = msg_sub_meta;
-    }
-    dstMeta->extMsgSize = srcMeta->extMsgSize;
-    return dstMeta;
-}
-
-static void XFace_msg_visual_release_func(gpointer data, gpointer user_data)
-{
-    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
-    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
-
-    if (srcMeta->extMsgSize > 0)
-    {
-        // free extMsg content
-        XFaceVisualMsg *srcExtMsg = (XFaceVisualMsg *)srcMeta->extMsg;
-        // Delete visual data
-        for (int i = 0; i < srcExtMsg->num_cropped_face; i++)
-        {
-            NvDsVisualMsgData *msg_sub_meta = srcExtMsg->visual_meta_list[i];
-            g_free(msg_sub_meta->cropped_face);
-            g_free(msg_sub_meta);
-        }
-
-        g_free(srcExtMsg->visual_meta_list);
-
-        srcExtMsg->num_cropped_face = 0;
-        // free extMsg
-        g_free(srcMeta->extMsg);
-
-        // free extMsgSize
-        srcMeta->extMsgSize = 0;
-    }
-    g_free(user_meta->user_meta_data);
-    user_meta->user_meta_data = NULL;
-}
-
 void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsFaceMsgData *> &face_meta_list,
                      user_callback_data *callback_data, NvDsInferLayerInfo *output_layer_info)
 {
@@ -614,7 +556,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
     face_msg_sub_meta->bbox.left = obj_meta->rect_params.left;
     face_msg_sub_meta->bbox.width = obj_meta->rect_params.width;
     face_msg_sub_meta->bbox.height = obj_meta->rect_params.height;
-    
+
     std::string fileNameString = "crop_img/" + std::to_string(frame_meta->frame_num) + "_" + std::to_string(frame_meta->source_id) +
                                  "_" + std::to_string((int)obj_meta->rect_params.width) + "x" + std::to_string((int)obj_meta->rect_params.height) + ".jpg";
 
@@ -687,6 +629,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
     face_meta_list.push_back(face_msg_sub_meta);
 }
 
+
 void getMOTMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsMOTMsgData *> &mot_meta_list)
 {
     NvDsMOTMsgData *mot_msg_sub_meta = (NvDsMOTMsgData *)g_malloc0(sizeof(NvDsMOTMsgData));
@@ -732,7 +675,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             // TODO: the info also include input tensor, which is the 3x112x112 input. COuld be use for something.
         }
     }
-
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
@@ -741,7 +683,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
 
         std::vector<NvDsFaceMsgData *> face_sub_meta_list;
         std::vector<NvDsMOTMsgData *> mot_sub_meta_list;
-        std::vector<NvDsVisualMsgData *> visual_sub_meta_list;
 
         for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
         {
@@ -755,6 +696,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                 getMOTMetaData(batch_meta, obj_meta, mot_sub_meta_list);
             }
         }
+        // sendFullFrame(surface, batch_meta, frame_meta, callback_data);
 
         const auto p1 = std::chrono::system_clock::now();
 
@@ -795,33 +737,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             nvds_add_user_meta_to_frame(frame_meta, user_event_meta);
         }
 
-        // // ===================================== XFace VisualData sent to Kafka =====================================
-        // XFaceVisualMsg *visual_msg_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
-        // // Get Visual meta
-        // visual_msg_content->num_cropped_face = visual_sub_meta_list.size();
-        // visual_msg_content->visual_meta_list = (NvDsVisualMsgData **)g_malloc0(visual_sub_meta_list.size() * sizeof(NvDsVisualMsgData *));
-        // memcpy(visual_msg_content->visual_meta_list, visual_sub_meta_list.data(), visual_sub_meta_list.size() * sizeof(NvDsVisualMsgData *));
-
-        // visual_msg_content->timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(p1.time_since_epoch()).count();
-        // visual_msg_content->cameraId = frame_meta->source_id;
-        // visual_msg_content->frameId = frame_meta->frame_num;
-
-        // NvDsEventMsgMeta *visual_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-        // visual_msg->extMsg = (void *)visual_msg_content;
-        // visual_msg->extMsgSize = sizeof(XFaceVisualMsg);
-        // visual_msg->componentId = 2;
-
-        // // Pack EventMsgMeta into UserMeta
-        // NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
-        // if (user_event_visual)
-        // {
-        //     user_event_visual->user_meta_data = (void *)visual_msg;
-        //     user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
-        //     user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_visual_copy_func;
-        //     user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_visual_release_func;
-
-        //     nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
-        // }
     }
     callback_data->tensor_count++;
 }

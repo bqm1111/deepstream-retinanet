@@ -112,14 +112,10 @@ void NvInferFaceBin::createDetectBin()
 
     gst_element_add_pad(m_masterBin, sink_ghost_pad);
     gst_element_add_pad(m_masterBin, src_ghost_pad);
-    //
+
     gst_object_unref(pgie_src_pad);
 }
 
-void NvInferFaceBin::acquireUserData(user_callback_data *callback_data)
-{
-    m_user_callback_data = callback_data;
-}
 
 void NvInferFaceBin::setMsgBrokerConfig()
 {

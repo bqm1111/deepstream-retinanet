@@ -5,7 +5,7 @@ FaceApp::FaceApp()
 {
     m_config = new ConfigManager();
     m_user_callback_data = new user_callback_data();
-    m_user_callback_data->session_id = (gchar*)malloc(SESSION_ID_LENGTH);
+    m_user_callback_data->session_id = (gchar *)malloc(SESSION_ID_LENGTH);
     uuid_t uuid;
     uuid_generate_random(uuid);
     uuid_unparse_lower(uuid, m_user_callback_data->session_id);
@@ -66,7 +66,7 @@ void FaceApp::addVideoSource(std::string list_video_src_file)
 void FaceApp::init_curl()
 {
     m_user_callback_data->curl = curl_easy_init();
-    CURL * m_curl = m_user_callback_data->curl;
+    CURL *m_curl = m_user_callback_data->curl;
     assert(m_curl);
 
     /* copy from postman */
@@ -209,10 +209,19 @@ void FaceApp::sequentialDetectAndMOT()
     NvInferBinBase bin;
     bin.setParam(m_gstparam);
     bin.acquireTrackerList(m_tracker_list);
+    bin.acquireUserData(m_user_callback_data);
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
 
-    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, NULL);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
+    GstElement *m_video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
+    g_object_set(G_OBJECT(m_video_convert), "nvbuf-memory-type", 3, NULL);
+    GstElement *m_capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
+    GST_ASSERT(m_capsfilter);
+    GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)RGBA");
+    GST_ASSERT(caps);
+    g_object_set(G_OBJECT(m_capsfilter), "caps", caps, NULL);
+
+    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, m_video_convert, m_capsfilter, NULL);
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, mot_inferbin, face_inferbin, m_video_convert, m_capsfilter, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }

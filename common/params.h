@@ -191,18 +191,16 @@ typedef struct NvDsMOTMsgData
     gchar *embedding;
 } NvDsMOTMsgData;
 
-typedef struct NvDsVisualMsgData
-{
-    gchar *cropped_face;
-} NvDsVisualMsgData;
-
 struct XFaceVisualMsg
 {
     double timestamp;
     gint frameId;
-    gint cameraId;
-    gint num_cropped_face;
-    NvDsVisualMsgData **visual_meta_list;
+    gchar* cameraId;
+    gchar* sessionId;
+    gchar* full_img;
+    gint width;
+    gint height;
+    gint num_channel;
 };
 
 struct XFaceMetaMsg

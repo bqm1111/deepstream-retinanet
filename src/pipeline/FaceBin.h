@@ -32,7 +32,6 @@ public:
 
     void createInferBin() override;
     void createDetectBin();
-    void acquireUserData(user_callback_data * callback_data);
     void setMsgBrokerConfig() override;
     void attachProbe() override;
     static void sgie_output_callback(GstBuffer *buf,
@@ -47,8 +46,6 @@ public:
     // static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
     GstElement *aligner = NULL;
-    user_callback_data *m_user_callback_data;
-
     NvDsObjEncCtxHandle m_obj_ctx_handle;
 };
 
