@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "ConfigManager.h"
 #include "DeepStreamAppConfig.h"
+#include <uuid.h>
 
 class FaceApp
 {
@@ -30,10 +31,10 @@ public:
     GstAppParam m_gstparam;
     AppPipeline m_pipeline;
     MOTTrackerList *m_tracker_list = nullptr;
-    CURL *m_curl;
 
 private:
     ConfigManager *m_config;
+    user_callback_data *m_user_callback_data;
     void init_curl();
     void free_curl();
 };

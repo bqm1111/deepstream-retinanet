@@ -10,7 +10,7 @@
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 #include <chrono>
-
+#include <curl/curl.h>
 #ifndef NVDS_OBJ_USER_META_MOT
 #define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
 #endif
@@ -69,6 +69,23 @@
 #endif
 
 #define POST_TRACK_SCORE 1.0
+#define SESSION_ID_LENGTH 37
+
+struct user_callback_data
+{
+    user_callback_data(){}
+    user_callback_data (const user_callback_data &callback_data)
+    {
+        tensor_count = callback_data.tensor_count;
+        curl = callback_data.curl;
+        session_id = callback_data.session_id;
+        video_name = callback_data.video_name;
+    }
+    int tensor_count = 0;
+    CURL *curl;
+    gchar* session_id;
+    std::vector<std::string> video_name;
+};
 
 struct GstAppParam
 {
@@ -164,6 +181,7 @@ typedef struct NvDsFaceMsgData
     gchar *staff_id;
     double confidence_score;
     gchar *feature;
+    gchar *encoded_img;
 } NvDsFaceMsgData;
 
 typedef struct NvDsMOTMsgData
@@ -191,7 +209,8 @@ struct XFaceMetaMsg
 {
     double timestamp;
     gint frameId;
-    gint cameraId;
+    gchar* sessionId;
+    gchar* cameraId;
     gint num_face_obj;
     gint num_mot_obj;
     NvDsFaceMsgData **face_meta_list;

@@ -29,6 +29,9 @@ ${PROJECT_SOURCE_DIR}/src/deepsort
 ${PROJECT_SOURCE_DIR}/src/mot
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
+pkg_check_modules(Uuid REQUIRED IMPORTED_TARGET uuid)
+include_directories(${Uuid_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${Uuid_LIBRARIES})
 
 # cuda
 find_package(CUDA REQUIRED)

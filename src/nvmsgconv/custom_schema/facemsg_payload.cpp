@@ -150,7 +150,8 @@ gchar *generate_XFace_metadata_message(NvDsEventMsgMeta *meta)
 	json_object_set_double_member(rootObj, "timestamp", msg_meta_content->timestamp);
 
 	json_object_set_int_member(rootObj, "frame_number", msg_meta_content->frameId);
-	json_object_set_int_member(rootObj, "camera_id", msg_meta_content->cameraId);
+	json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
+	json_object_set_string_member(rootObj, "session_id", g_strdup(msg_meta_content->sessionId));
 
 	// add MOT objects
 	JsonArray *jMotObjectArray = json_array_sized_new(msg_meta_content->num_mot_obj);
@@ -191,6 +192,7 @@ gchar *generate_XFace_metadata_message(NvDsEventMsgMeta *meta)
 		json_object_set_object_member(jObject, "box", jBoxObject);
 
 		json_object_set_string_member(jObject, "feature", msg_sub_meta->feature);
+		json_object_set_string_member(jObject, "encoded_img", msg_sub_meta->encoded_img);
 		json_object_set_string_member(jObject, "staff_id", msg_sub_meta->staff_id);
 		json_object_set_string_member(jObject, "name", msg_sub_meta->name);
 

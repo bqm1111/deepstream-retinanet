@@ -4,12 +4,19 @@
 FaceApp::FaceApp()
 {
     m_config = new ConfigManager();
+    m_user_callback_data = new user_callback_data();
+    m_user_callback_data->session_id = (gchar*)malloc(SESSION_ID_LENGTH);
+    uuid_t uuid;
+    uuid_generate_random(uuid);
+    uuid_unparse_lower(uuid, m_user_callback_data->session_id);
 }
 
 FaceApp::~FaceApp()
 {
     delete m_config;
     free_curl();
+    free(m_user_callback_data->session_id);
+    delete m_user_callback_data;
     // printf("tracker list = %p\n", m_tracker_list->trackers);
     // if (m_tracker_list->trackers != NULL)
     // {
@@ -52,12 +59,14 @@ void FaceApp::addVideoSource(std::string list_video_src_file)
     parseJson(list_video_src_file, m_video_source_name, m_video_source_info);
     m_pipeline.add_video_source(m_video_source_info, m_video_source_name);
     m_pipeline.linkMuxer(m_gstparam.muxer_output_width, m_gstparam.muxer_output_height);
+    m_user_callback_data->video_name = m_video_source_name;
     QDTLog::info("Num video source = {}", m_video_source_info.size());
 }
 
 void FaceApp::init_curl()
 {
-    m_curl = curl_easy_init();
+    m_user_callback_data->curl = curl_easy_init();
+    CURL * m_curl = m_user_callback_data->curl;
     assert(m_curl);
 
     /* copy from postman */
@@ -84,7 +93,7 @@ void FaceApp::init_curl()
 
 void FaceApp::free_curl()
 {
-    curl_easy_cleanup(m_curl);
+    curl_easy_cleanup(m_user_callback_data->curl);
 }
 
 GstElement *FaceApp::getPipeline()
@@ -103,7 +112,7 @@ void FaceApp::detect()
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
     face_bin.setParam(m_gstparam);
-    face_bin.acquireCurl(m_curl);
+    face_bin.acquireUserData(m_user_callback_data);
     GstElement *inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
 
     if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
@@ -159,7 +168,7 @@ void FaceApp::detectAndMOT()
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
     face_bin.setParam(m_gstparam);
-    face_bin.acquireCurl(m_curl);
+    face_bin.acquireUserData(m_user_callback_data);
     GstElement *face_inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
 
     m_pipeline.linkTwoBranch(mot_inferbin, face_inferbin);
@@ -191,7 +200,7 @@ void FaceApp::sequentialDetectAndMOT()
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
     face_bin.setParam(m_gstparam);
-    face_bin.acquireCurl(m_curl);
+    face_bin.acquireUserData(m_user_callback_data);
     GstElement *face_inferbin;
     face_bin.createInferBin();
     face_bin.getMasterBin(face_inferbin);
