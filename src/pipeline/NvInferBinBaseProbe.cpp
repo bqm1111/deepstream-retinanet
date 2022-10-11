@@ -114,7 +114,7 @@ static void sendFullFrameMsg(NvBufSurface *surface, NvDsBatchMeta *batch_meta, N
     std::vector<uchar> encoded_buf;
     encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
     encode_param.push_back(80);
-    cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
+    // cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
     // QDTLog::info("buffer size = {}", encoded_buf.size());
     const auto p1 = std::chrono::system_clock::now();
 

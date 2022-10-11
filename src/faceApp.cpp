@@ -46,6 +46,7 @@ void FaceApp::loadConfig(std::string config_file)
     m_gstparam.connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
     m_gstparam.curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
 
+    m_pipeline.m_params = m_gstparam;
     init_curl();
 }
 
@@ -211,7 +212,7 @@ void FaceApp::sequentialDetectAndMOT()
     bin.acquireTrackerList(m_tracker_list);
     bin.acquireUserData(m_user_callback_data);
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
-
+    
     GstElement *m_video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
     g_object_set(G_OBJECT(m_video_convert), "nvbuf-memory-type", 3, NULL);
     GstElement *m_capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());

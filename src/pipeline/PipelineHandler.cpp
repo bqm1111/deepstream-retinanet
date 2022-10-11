@@ -20,6 +20,105 @@ int AppPipeline::numVideoSrc()
 {
     return m_video_source.size();
 }
+static gpointer XFace_msg_visual_copy_func(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
+    NvDsEventMsgMeta *dstMeta = NULL;
+
+    dstMeta = (NvDsEventMsgMeta *)g_memdup(srcMeta, sizeof(NvDsEventMsgMeta));
+    dstMeta->componentId = srcMeta->componentId;
+
+    dstMeta->extMsg = g_malloc0(sizeof(XFaceVisualMsg));
+    XFaceVisualMsg *srcExtMsg = (XFaceVisualMsg *)srcMeta->extMsg;
+    XFaceVisualMsg *dstExtMsg = (XFaceVisualMsg *)dstMeta->extMsg;
+    dstExtMsg->frameId = srcExtMsg->frameId;
+    dstExtMsg->timestamp = srcExtMsg->timestamp;
+    dstExtMsg->width = srcExtMsg->width;
+    dstExtMsg->height = srcExtMsg->height;
+    dstExtMsg->num_channel = srcExtMsg->num_channel;
+    dstExtMsg->cameraId = g_strdup(srcExtMsg->cameraId);
+    dstExtMsg->sessionId = g_strdup(srcExtMsg->sessionId);
+    dstExtMsg->full_img = g_strdup(srcExtMsg->full_img);
+
+    dstMeta->extMsgSize = srcMeta->extMsgSize;
+    return dstMeta;
+}
+
+static void XFace_msg_visual_release_func(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
+
+    if (srcMeta->extMsgSize > 0)
+    {
+        XFaceVisualMsg *srcExtMsg = (XFaceVisualMsg *)srcMeta->extMsg;
+        g_free(srcExtMsg->cameraId);
+        g_free(srcExtMsg->sessionId);
+        g_free(srcExtMsg->full_img);
+
+        srcMeta->extMsgSize = 0;
+    }
+    g_free(user_meta->user_meta_data);
+    user_meta->user_meta_data = NULL;
+}
+
+static GstPadProbeReturn jpegenc_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+{
+    QDTLog::info("Get here my friends");
+    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    GST_ASSERT(buf);
+    if (!buf)
+    {
+        return GST_PAD_PROBE_OK;
+    }
+    GstMapInfo in_map_info;
+    
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
+
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+    {
+        NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+        const auto p1 = std::chrono::system_clock::now();
+        cv::Mat frame = cv::Mat(frame_meta->source_frame_height, frame_meta->source_frame_width, CV_8UC3, in_map_info.data);
+        cv::resize(frame, frame, cv::Size(1280, 720));
+        std::vector<int> encode_param;
+        std::vector<uchar> encoded_buf;
+        encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
+        encode_param.push_back(80);
+        // cv::imencode(".jpg", frame, encoded_buf, encode_param);
+
+        XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
+        msg_meta_content->timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(p1.time_since_epoch()).count();
+        msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
+        msg_meta_content->frameId = frame_meta->frame_num;
+        msg_meta_content->sessionId = g_strdup(callback_data->session_id);
+        msg_meta_content->full_img = g_strdup(b64encode((uint8_t *)in_map_info.data, in_map_info.size));
+        msg_meta_content->width = 0;
+        msg_meta_content->height = 0;
+        msg_meta_content->num_channel = 3;
+
+        NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+        visual_event_msg->extMsg = (void *)msg_meta_content;
+        visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
+        visual_event_msg->componentId = 2;
+
+        // Pack EventMsgMeta into UserMeta
+        NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
+        if (user_event_visual)
+        {
+            user_event_visual->user_meta_data = (void *)visual_event_msg;
+            user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
+            user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_visual_copy_func;
+            user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_visual_release_func;
+
+            nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
+        }
+    }
+
+    return GST_PAD_PROBE_OK;
+}
 
 void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_info, std::vector<std::string> video_name)
 {
@@ -83,7 +182,6 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
         m_decoder.push_back(gst_element_factory_make("nvv4l2decoder", ("decoder-" + std::to_string(source_id)).c_str()));
         GST_ASSERT(m_decoder[source_id]);
 
-        QDTLog::info("Input video path = {}\n", video_path);
         g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
 
         /* link */
@@ -111,11 +209,80 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
                 throw std::runtime_error("");
             }
         }
-        if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], NULL))
+        //
+        m_tee_split_src.push_back(gst_element_factory_make("tee", ("tee-split-visual" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_tee_split_src[source_id]);
+        m_queue_tee_visual.push_back(gst_element_factory_make("queue", ("nvtee-queue-visual" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_queue_tee_visual[source_id]);
+        m_queue_tee_infer.push_back(gst_element_factory_make("queue", ("nvtee-queue-infer" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_queue_tee_infer[source_id]);
+        m_nvjpeg_encode.push_back(gst_element_factory_make("jpegenc", ("nvJpegenc" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_nvjpeg_encode[source_id]);
+        GstPad *jpegenc_src_pad = gst_element_get_static_pad(m_nvjpeg_encode[source_id], "src");
+        GST_ASSERT(jpegenc_src_pad);
+        gst_pad_add_probe(jpegenc_src_pad, GST_PAD_PROBE_TYPE_BUFFER, jpegenc_src_pad_buffer_probe, nullptr, NULL);
+        gst_object_unref(jpegenc_src_pad);
+        m_msgconv.push_back(gst_element_factory_make("nvmsgconv", ("nvmsgconv" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_msgconv[source_id]);
+        m_msgbroker.push_back(gst_element_factory_make("nvmsgbroker", ("nvmsgbroker" + std::to_string(source_id)).c_str()));
+        GST_ASSERT(m_msgbroker[source_id]);
+        gst_bin_add_many(
+            GST_BIN(m_pipeline), m_tee_split_src[source_id], m_queue_tee_visual[source_id],
+            m_queue_tee_infer[source_id], m_nvjpeg_encode[source_id], m_msgconv[source_id], m_msgbroker[source_id], NULL);
+
+        if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], m_tee_split_src[source_id], NULL))
         {
             gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
             throw std::runtime_error("");
         }
+        if (!gst_element_link_many(m_queue_tee_visual[source_id],m_nvjpeg_encode[source_id], m_msgconv[source_id], m_msgbroker[source_id], NULL))
+        {
+            gst_printerr("%s:%d Could not link elements\n", __FILE__, __LINE__);
+        }
+
+        GstPad *sink_pad = gst_element_get_static_pad(m_queue_tee_visual[source_id], "sink");
+        m_tee_visual_pad.push_back(gst_element_get_request_pad(m_tee_split_src[source_id], "src_%u"));
+        if (!m_tee_visual_pad[source_id])
+        {
+            g_printerr("%s:%d Unable to get request pads\n", __FILE__, __LINE__);
+        }
+
+        if (gst_pad_link(m_tee_visual_pad[source_id], sink_pad) != GST_PAD_LINK_OK)
+        {
+            g_printerr("Unable to link tee and message converter\n");
+            gst_object_unref(sink_pad);
+        }
+
+        gst_object_unref(sink_pad);
+
+        sink_pad = gst_element_get_static_pad(m_queue_tee_infer[source_id], "sink");
+        m_tee_infer_pad.push_back(gst_element_get_request_pad(m_tee_split_src[source_id], "src_%u"));
+        if (!m_tee_infer_pad[source_id])
+        {
+            g_printerr("%s:%d Unable to get request pads\n", __FILE__, __LINE__);
+        }
+
+        if (gst_pad_link(m_tee_infer_pad[source_id], sink_pad) != GST_PAD_LINK_OK)
+        {
+            g_printerr("Unable to link tee and message converter\n");
+            gst_object_unref(sink_pad);
+        }
+
+        gst_object_unref(sink_pad);
+
+        g_object_set(G_OBJECT(m_msgconv[source_id]), "config", MSG_CONFIG_PATH, NULL);
+        g_object_set(G_OBJECT(m_msgconv[source_id]), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
+        g_object_set(G_OBJECT(m_msgconv[source_id]), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
+        g_object_set(G_OBJECT(m_msgconv[source_id]), "msg2p-newapi", 0, NULL);
+        g_object_set(G_OBJECT(m_msgconv[source_id]), "frame-interval", 30, NULL);
+        // g_object_set(G_OBJECT(m_visual_msgconv), "multiple-payloads", TRUE, NULL);
+
+        g_object_set(G_OBJECT(m_msgconv[source_id]), "comp-id", 2, NULL);
+
+        g_object_set(G_OBJECT(m_msgbroker[source_id]), "comp-id", 2, NULL);
+        g_object_set(G_OBJECT(m_msgbroker[source_id]), "proto-lib", KAFKA_PROTO_LIB,
+                     "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+        g_object_set(G_OBJECT(m_msgbroker[source_id]), "topic", m_params.visual_topic.c_str(), NULL);
 
         cnt++;
     }
@@ -154,7 +321,7 @@ void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 
     for (int i = 0; i < numVideoSrc(); i++)
     {
-        GstPad *decoder_srcpad = gst_element_get_static_pad(m_decoder[i], "src");
+        GstPad *decoder_srcpad = gst_element_get_static_pad(m_queue_tee_infer[i], "src");
         GST_ASSERT(decoder_srcpad);
 
         GstPad *muxer_sinkpad = gst_element_get_request_pad(m_stream_muxer, ("sink_" + std::to_string(i)).c_str());

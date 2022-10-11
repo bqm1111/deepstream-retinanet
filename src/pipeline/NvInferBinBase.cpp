@@ -137,7 +137,7 @@ void NvInferBinBase::createFileSinkBin(std::string location)
     {
         gst_printerr("%s:%dCould not link elements\n", __FILE__, __LINE__);
     }
-
+    
     GstPad *muxer_sinkpad = gst_element_get_request_pad(m_file_muxer, "video_0");
     GST_ASSERT(muxer_sinkpad);
 
@@ -149,7 +149,7 @@ void NvInferBinBase::createFileSinkBin(std::string location)
         gst_printerr("%s:%d could not link h265parse and matroskamux, reason %d\n", __FILE__, __LINE__, pad_link_return);
         throw std::runtime_error("");
     }
-
+    
     GstPad *sink_pad = gst_element_get_static_pad(m_queue_display, "sink");
     m_tee_display_pad = gst_element_get_request_pad(m_tee, "src_%u");
     if (!m_tee_display_pad)
