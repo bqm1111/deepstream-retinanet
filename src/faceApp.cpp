@@ -16,6 +16,7 @@ FaceApp::~FaceApp()
     delete m_config;
     free_curl();
     free(m_user_callback_data->session_id);
+    delete m_user_callback_data->kafka_producer;
     delete m_user_callback_data;
     // printf("tracker list = %p\n", m_tracker_list->trackers);
     // if (m_tracker_list->trackers != NULL)
@@ -48,6 +49,10 @@ void FaceApp::loadConfig(std::string config_file)
 
     m_pipeline.m_params = m_gstparam;
     init_curl();
+    m_user_callback_data->kafka_producer = new KafkaProducer();
+    m_user_callback_data->kafka_producer->init(std::string("172.21.100.154:9092"));
+    m_pipeline.m_producer = m_user_callback_data->kafka_producer->producer;
+
 }
 
 void FaceApp::create(std::string name)

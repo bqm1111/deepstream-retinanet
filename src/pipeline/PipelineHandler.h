@@ -16,6 +16,7 @@
 #include "common.h"
 #include "params.h"
 #include "utils.h"
+#include "kafka_producer.h"
 #if __has_include(<filesystem>)
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -63,6 +64,7 @@ public:
     std::unordered_map<std::string, int> m_video_source;
     bool m_live_source;
     int numVideoSrc();
+    RdKafka::Producer* m_producer;
 };
 
 #endif

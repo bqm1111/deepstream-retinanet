@@ -69,5 +69,9 @@ target_link_libraries(${PROJECT_NAME} ${JSON-GLIB_LIBRARIES})
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 target_include_directories(${PROJECT_NAME} PUBLIC ${EIGEN3_INCLUDE_DIR})
 
+# librdkafka
+target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/librdkafka)
+target_link_libraries(${PROJECT_NAME} -lrdkafka++)
+
 # Subdirectory
 add_subdirectory(src)

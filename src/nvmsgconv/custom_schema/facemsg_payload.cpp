@@ -64,7 +64,7 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
 	json_object_set_string_member(jObj, "description", g_strdup("session_id of this frame"));
 	json_object_set_string_member(jObj, "type", g_strdup("string"));
 	json_object_set_string_member(jObj, "value", msg_meta_content->sessionId);
-	json_object_set_object_member(propObj, "frame_id", jObj);
+	json_object_set_object_member(propObj, "session_id", jObj);
 
 	// FACE
 	JsonObject *faceArrObj = json_object_new();
@@ -223,7 +223,7 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
 
 		// feature
 		jObj = json_object_new();
-		json_object_set_string_member(jObj, "description", "vector embedding of face image");
+		json_object_set_string_member(jObj, "description", "vector embedding of this personBox");
 		json_object_set_string_member(jObj, "type", "bytes");
 		json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->mot_meta_list[i]->embedding));
 		json_object_set_object_member(motObj, "embedding", jObj);

@@ -1,5 +1,7 @@
 #include "PipelineHandler.h"
 #include "QDTLog.h"
+#include <json-glib/json-glib.h>
+#include <librdkafka/rdkafkacpp.h>
 
 AppPipeline::~AppPipeline()
 {
@@ -62,10 +64,107 @@ static void XFace_msg_visual_release_func(gpointer data, gpointer user_data)
     g_free(user_meta->user_meta_data);
     user_meta->user_meta_data = NULL;
 }
+static gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
+{
+    JsonNode *rootNode;
+    JsonObject *rootObj;
+    JsonObject *propObj;
+    JsonObject *jObj;
+
+    gchar *message;
+    rootObj = json_object_new();
+    propObj = json_object_new();
+
+    // add frame info
+    XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)meta->extMsg;
+    // json_object_set_string_member(rootObj, "timestamp", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "title", g_strdup("HDImage"));
+    json_object_set_string_member(rootObj, "description", g_strdup("HDImage of each frame from video sources"));
+    json_object_set_string_member(rootObj, "type", g_strdup("object"));
+
+    // Required
+    JsonArray *jVisualPropRequired = json_array_sized_new(8);
+    json_array_add_string_element(jVisualPropRequired, g_strdup("timestamp"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("camera_id"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("frame_id"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("session_id"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("width"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("height"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("channel"));
+    json_array_add_string_element(jVisualPropRequired, g_strdup("image"));
+
+    json_object_set_array_member(propObj, "required", jVisualPropRequired);
+
+    // timestamp
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("Time stamp of this event message"));
+    json_object_set_string_member(jObj, "type", g_strdup("double"));
+    json_object_set_double_member(jObj, "value", msg_meta_content->timestamp);
+
+    json_object_set_object_member(propObj, "timestamp", jObj);
+
+    // Camera_id
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("camera_id of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("string"));
+    json_object_set_string_member(jObj, "value", g_strdup(msg_meta_content->cameraId));
+    json_object_set_object_member(propObj, "camera_id", jObj);
+
+    // Frame_id
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("frame_id of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("integer"));
+    json_object_set_int_member(jObj, "value", msg_meta_content->frameId);
+    json_object_set_object_member(propObj, "frame_id", jObj);
+
+    // session_id
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("session_id of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("string"));
+    json_object_set_string_member(jObj, "value", msg_meta_content->sessionId);
+    json_object_set_object_member(propObj, "frame_id", jObj);
+    // width
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("witdh of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("integer"));
+    json_object_set_int_member(jObj, "value", msg_meta_content->width);
+    json_object_set_object_member(propObj, "width", jObj);
+    // height
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("height of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("integer"));
+    json_object_set_int_member(jObj, "value", msg_meta_content->height);
+    json_object_set_object_member(propObj, "height", jObj);
+    // num_channel
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("number of channel of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("integer"));
+    json_object_set_int_member(jObj, "value", msg_meta_content->num_channel);
+    json_object_set_object_member(propObj, "channel", jObj);
+    // bas264 encoded image
+    jObj = json_object_new();
+    json_object_set_string_member(jObj, "description", g_strdup("bas264 encoded image of this frame"));
+    json_object_set_string_member(jObj, "type", g_strdup("bytes"));
+    json_object_set_string_member(jObj, "value", msg_meta_content->full_img);
+    json_object_set_object_member(propObj, "image", jObj);
+
+    json_object_set_object_member(rootObj, "properties", propObj);
+    // create root node
+    rootNode = json_node_new(JSON_NODE_OBJECT);
+    json_node_set_object(rootNode, rootObj);
+
+    // create message
+    message = json_to_string(rootNode, TRUE);
+
+    json_node_free(rootNode);
+    json_object_unref(rootObj);
+
+    return message;
+}
 
 static GstPadProbeReturn jpegenc_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
-    QDTLog::info("Get here my friends");
+    KafkaProducer *producer = reinterpret_cast<KafkaProducer *>(_udata);
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
     GST_ASSERT(buf);
     if (!buf)
@@ -73,7 +172,7 @@ static GstPadProbeReturn jpegenc_src_pad_buffer_probe(GstPad *pad, GstPadProbeIn
         return GST_PAD_PROBE_OK;
     }
     GstMapInfo in_map_info;
-    
+
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
 
@@ -104,17 +203,47 @@ static GstPadProbeReturn jpegenc_src_pad_buffer_probe(GstPad *pad, GstPadProbeIn
         visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
         visual_event_msg->componentId = 2;
 
-        // Pack EventMsgMeta into UserMeta
-        NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
-        if (user_event_visual)
+        gchar *message = generate_XFace_visual_message(visual_event_msg);
+        RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(std::string("HDImage"),
+                                                                                  RdKafka::Topic::PARTITION_UA,
+                                                                                  RdKafka::Producer::RK_MSG_COPY,
+                                                                                  (gchar *)message,
+                                                                                  std::string(message).length(),
+                                                                                  NULL, 0,
+                                                                                  0, NULL, NULL);
+        if (err != RdKafka::ERR_NO_ERROR)
         {
-            user_event_visual->user_meta_data = (void *)visual_event_msg;
-            user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
-            user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_visual_copy_func;
-            user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_visual_release_func;
+            std::cerr << "% Failed to produce to topic "
+                      << ": "
+                      << RdKafka::err2str(err) << std::endl;
 
-            nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
+            if (err == RdKafka::ERR__QUEUE_FULL)
+            {
+                /* If the internal queue is full, wait for
+                 * messages to be delivered and then retry.
+                 * The internal queue represents both
+                 * messages to be sent and messages that have
+                 * been sent or failed, awaiting their
+                 * delivery report callback to be called.
+                 *
+                 * The internal queue is limited by the
+                 * configuration property
+                 * queue.buffering.max.messages */
+                callback_data->kafka_producer->producer->poll(1000 /*block for max 1000ms*/);
+            }
         }
+
+        // // Pack EventMsgMeta into UserMeta
+        // NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
+        // if (user_event_visual)
+        // {
+        //     user_event_visual->user_meta_data = (void *)visual_event_msg;
+        //     user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
+        //     user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_visual_copy_func;
+        //     user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_visual_release_func;
+
+        //     nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
+        // }
     }
 
     return GST_PAD_PROBE_OK;
@@ -218,27 +347,31 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
         GST_ASSERT(m_queue_tee_infer[source_id]);
         m_nvjpeg_encode.push_back(gst_element_factory_make("jpegenc", ("nvJpegenc" + std::to_string(source_id)).c_str()));
         GST_ASSERT(m_nvjpeg_encode[source_id]);
-        GstPad *jpegenc_src_pad = gst_element_get_static_pad(m_nvjpeg_encode[source_id], "src");
-        GST_ASSERT(jpegenc_src_pad);
-        gst_pad_add_probe(jpegenc_src_pad, GST_PAD_PROBE_TYPE_BUFFER, jpegenc_src_pad_buffer_probe, nullptr, NULL);
-        gst_object_unref(jpegenc_src_pad);
+
         m_msgconv.push_back(gst_element_factory_make("nvmsgconv", ("nvmsgconv" + std::to_string(source_id)).c_str()));
         GST_ASSERT(m_msgconv[source_id]);
+
         m_msgbroker.push_back(gst_element_factory_make("nvmsgbroker", ("nvmsgbroker" + std::to_string(source_id)).c_str()));
         GST_ASSERT(m_msgbroker[source_id]);
+
         gst_bin_add_many(
             GST_BIN(m_pipeline), m_tee_split_src[source_id], m_queue_tee_visual[source_id],
-            m_queue_tee_infer[source_id], m_nvjpeg_encode[source_id], m_msgconv[source_id], m_msgbroker[source_id], NULL);
+            m_queue_tee_infer[source_id], m_nvjpeg_encode[source_id], NULL);
 
         if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], m_tee_split_src[source_id], NULL))
         {
             gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
             throw std::runtime_error("");
         }
-        if (!gst_element_link_many(m_queue_tee_visual[source_id],m_nvjpeg_encode[source_id], m_msgconv[source_id], m_msgbroker[source_id], NULL))
-        {
-            gst_printerr("%s:%d Could not link elements\n", __FILE__, __LINE__);
-        }
+        // if (!gst_element_link_many(m_queue_tee_visual[source_id], NULL))
+        // {
+        //     gst_printerr("%s:%d Could not link elements\n", __FILE__, __LINE__);
+        // }
+
+        GstPad *jpegenc_src_pad = gst_element_get_static_pad(m_nvjpeg_encode[source_id], "src");
+        GST_ASSERT(jpegenc_src_pad);
+        gst_pad_add_probe(jpegenc_src_pad, GST_PAD_PROBE_TYPE_BUFFER, jpegenc_src_pad_buffer_probe, m_producer, NULL);
+        gst_object_unref(jpegenc_src_pad);
 
         GstPad *sink_pad = gst_element_get_static_pad(m_queue_tee_visual[source_id], "sink");
         m_tee_visual_pad.push_back(gst_element_get_request_pad(m_tee_split_src[source_id], "src_%u"));

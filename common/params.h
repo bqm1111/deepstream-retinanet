@@ -11,6 +11,7 @@
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 #include <chrono>
 #include <curl/curl.h>
+#include "kafka_producer.h"
 #ifndef NVDS_OBJ_USER_META_MOT
 #define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
 #endif
@@ -85,6 +86,7 @@ struct user_callback_data
     CURL *curl;
     gchar* session_id;
     std::vector<std::string> video_name;
+    KafkaProducer *kafka_producer;
 };
 
 struct GstAppParam
