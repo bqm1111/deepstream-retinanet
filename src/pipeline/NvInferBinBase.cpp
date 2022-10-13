@@ -25,9 +25,8 @@ GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
     m_pipeline = pipeline;
     // createVideoSinkBin();
     createFileSinkBin("out.mkv");
-    linkMsgBroker();
-    setMsgBrokerConfig();
-
+    // linkMsgBroker();
+    // setMsgBrokerConfig();
     attachProbe();
     return m_tiler;
 }
@@ -36,10 +35,10 @@ void NvInferBinBase::createVideoSinkBin()
 {
     m_tiler = gst_element_factory_make("nvmultistreamtiler", std::string("sink-nvmultistreamtiler" + m_module_name).c_str());
     GST_ASSERT(m_tiler);
-    g_object_set(G_OBJECT(m_tiler), "rows", m_params.tiler_rows, NULL);
-    g_object_set(G_OBJECT(m_tiler), "columns", m_params.tiler_cols, NULL);
-    g_object_set(G_OBJECT(m_tiler), "width", m_params.tiler_width, NULL);
-    g_object_set(G_OBJECT(m_tiler), "height", m_params.tiler_height, NULL);
+    g_object_set(G_OBJECT(m_tiler), "rows", m_user_callback_data->tiler_rows, NULL);
+    g_object_set(G_OBJECT(m_tiler), "columns", m_user_callback_data->tiler_cols, NULL);
+    g_object_set(G_OBJECT(m_tiler), "width", m_user_callback_data->tiler_width, NULL);
+    g_object_set(G_OBJECT(m_tiler), "height", m_user_callback_data->tiler_height, NULL);
     m_convert = gst_element_factory_make("nvvideoconvert", std::string("video-convert" + m_module_name).c_str());
     GST_ASSERT(m_convert);
 
@@ -83,10 +82,10 @@ void NvInferBinBase::createFileSinkBin(std::string location)
 {
     m_tiler = gst_element_factory_make("nvmultistreamtiler", std::string("sink-nvmultistreamtiler" + m_module_name).c_str());
     GST_ASSERT(m_tiler);
-    g_object_set(G_OBJECT(m_tiler), "rows", m_params.tiler_rows, NULL);
-    g_object_set(G_OBJECT(m_tiler), "columns", m_params.tiler_cols, NULL);
-    g_object_set(G_OBJECT(m_tiler), "width", m_params.tiler_width, NULL);
-    g_object_set(G_OBJECT(m_tiler), "height", m_params.tiler_height, NULL);
+    g_object_set(G_OBJECT(m_tiler), "rows", m_user_callback_data->tiler_rows, NULL);
+    g_object_set(G_OBJECT(m_tiler), "columns", m_user_callback_data->tiler_cols, NULL);
+    g_object_set(G_OBJECT(m_tiler), "width", m_user_callback_data->tiler_width, NULL);
+    g_object_set(G_OBJECT(m_tiler), "height", m_user_callback_data->tiler_height, NULL);
     m_convert = gst_element_factory_make("nvvideoconvert", std::string("video-convert" + m_module_name).c_str());
     GST_ASSERT(m_convert);
 
@@ -254,8 +253,8 @@ void NvInferBinBase::setMsgBrokerConfig()
 
     g_object_set(G_OBJECT(m_metadata_msgbroker), "comp-id", 1, NULL);
     g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_params.metadata_topic.c_str(), NULL);
+                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
 
     // Crop image branch
     g_object_set(G_OBJECT(m_visual_msgconv), "config", MSG_CONFIG_PATH, NULL);
@@ -269,6 +268,6 @@ void NvInferBinBase::setMsgBrokerConfig()
 
     g_object_set(G_OBJECT(m_visual_msgbroker), "comp-id", 2, NULL);
     g_object_set(G_OBJECT(m_visual_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
-    g_object_set(G_OBJECT(m_visual_msgbroker), "topic", m_params.visual_topic.c_str(), NULL);
+                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(m_visual_msgbroker), "topic", m_user_callback_data->visual_topic.c_str(), NULL);
 }

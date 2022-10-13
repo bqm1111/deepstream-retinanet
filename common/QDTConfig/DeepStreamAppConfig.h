@@ -14,7 +14,8 @@ enum class DSAppProperty
     TILER_ROWS,
     TILER_COLS,
     TILER_WIDTH,
-    TILER_HEIGHT
+    TILER_HEIGHT,
+    FACE_CONFIDENCE_THRESHOLD
 };
 
 class DSAppConfig : public ConfigBase
@@ -31,7 +32,8 @@ private:
             {DSAppProperty::TILER_ROWS, "TILER_ROWS"},
             {DSAppProperty::TILER_COLS, "TILER_COLS"},
             {DSAppProperty::TILER_WIDTH, "TILER_WIDTH"},
-            {DSAppProperty::TILER_HEIGHT, "TILER_HEIGHT"}};
+            {DSAppProperty::TILER_HEIGHT, "TILER_HEIGHT"},
+            {DSAppProperty::FACE_CONFIDENCE_THRESHOLD, "FACE_CONFIDENCE_THRESHOLD"}};
 
 public:
     DSAppConfig(const std::string &name = "DSApp");

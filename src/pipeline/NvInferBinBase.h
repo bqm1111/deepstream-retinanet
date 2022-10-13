@@ -20,7 +20,7 @@ public:
 
     virtual ~NvInferBinBase() {}
     void getMasterBin(GstElement *&bin) { bin = this->m_masterBin; }
-    void setParam(GstAppParam param) { m_params = param; };
+    void setParam(user_callback_data *callback_data) { m_user_callback_data = callback_data; };
     virtual void createInferBin() {}
     virtual void attachProbe();
     virtual void setMsgBrokerConfig();
@@ -72,7 +72,6 @@ protected:
     GstElement *m_masterBin = NULL;
     std::shared_ptr<NvInferBinConfigBase> m_configs;
     std::string m_module_name;
-    GstAppParam m_params;
 };
 
 #endif

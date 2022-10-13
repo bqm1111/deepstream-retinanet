@@ -20,15 +20,11 @@ public:
     void setLive(bool is_live);
     void loadConfig(std::string config_file);
     void addVideoSource(std::string list_video_src_file);
-    void MOT();
-    void detect();
-    void detectAndMOT();
     void sequentialDetectAndMOT();
     GstElement *getPipeline();
     int numVideoSrc();
     std::vector<std::string> m_video_source_name;
     std::vector<std::vector<std::string>> m_video_source_info;
-    GstAppParam m_gstparam;
     AppPipeline m_pipeline;
     MOTTrackerList *m_tracker_list = nullptr;
 

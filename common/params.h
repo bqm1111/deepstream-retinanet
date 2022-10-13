@@ -74,23 +74,13 @@
 
 struct user_callback_data
 {
-    user_callback_data(){}
-    user_callback_data (const user_callback_data &callback_data)
-    {
-        tensor_count = callback_data.tensor_count;
-        curl = callback_data.curl;
-        session_id = callback_data.session_id;
-        video_name = callback_data.video_name;
-    }
-    int tensor_count = 0;
     CURL *curl;
-    gchar* session_id;
+    gchar *session_id;
     std::vector<std::string> video_name;
     KafkaProducer *kafka_producer;
-};
+    double timestamp;
+    float face_feature_confidence_threshold;
 
-struct GstAppParam
-{
     int muxer_output_width;
     int muxer_output_height;
     int tiler_rows;
@@ -103,6 +93,7 @@ struct GstAppParam
     std::string connection_str;
     std::string curl_address;
 };
+
 
 struct alignas(float) Detection
 {
@@ -161,21 +152,6 @@ typedef struct FaceEventMsgData
     gchar *feature;
 } FaceEventMsgData;
 
-enum EventMsgSubMetaType
-{
-    SGIE_EVENT,
-    TRACKER_EVENT
-};
-
-struct EventMsgSubMeta
-{
-    EventMsgSubMetaType type;
-    gint frameId;
-    gint sensorId;
-    guint num_msg_sub_meta;
-    NvDsEventMsgMeta **msg_sub_meta_list;
-};
-
 typedef struct NvDsFaceMsgData
 {
     NvDsRect bbox;
@@ -197,9 +173,9 @@ struct XFaceVisualMsg
 {
     double timestamp;
     gint frameId;
-    gchar* cameraId;
-    gchar* sessionId;
-    gchar* full_img;
+    gchar *cameraId;
+    gchar *sessionId;
+    gchar *full_img;
     gint width;
     gint height;
     gint num_channel;
@@ -209,8 +185,8 @@ struct XFaceMetaMsg
 {
     double timestamp;
     gint frameId;
-    gchar* sessionId;
-    gchar* cameraId;
+    gchar *sessionId;
+    gchar *cameraId;
     gint num_face_obj;
     gint num_mot_obj;
     NvDsFaceMsgData **face_meta_list;

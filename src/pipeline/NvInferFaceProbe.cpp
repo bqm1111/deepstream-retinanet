@@ -567,85 +567,6 @@ static void XFace_msg_meta_release_func(gpointer data, gpointer user_data)
     g_free(user_meta->user_meta_data);
     user_meta->user_meta_data = NULL;
 }
-static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDsFrameMeta *frame_meta, user_callback_data *callback_data, double timestamp)
-{
-    gint frame_width = (gint)surface->surfaceList[frame_meta->batch_id].width;
-    gint frame_height = (gint)surface->surfaceList[frame_meta->batch_id].height;
-    void *frame_data = surface->surfaceList[frame_meta->batch_id].mappedAddr.addr[0];
-    size_t frame_step = surface->surfaceList[frame_meta->batch_id].pitch;
-
-    cv::Mat frame = cv::Mat(frame_height, frame_width, CV_8UC4, frame_data, frame_step);
-    cv::Mat bgr_frame;
-    cv::cvtColor(frame, bgr_frame, cv::COLOR_RGBA2BGR);
-
-    char filename[64];
-    snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
-    // cv::imwrite(filename, bgr_frame);
-    // cv::resize(bgr_frame, bgr_frame, cv::Size(1280, 720));
-    std::vector<int> encode_param;
-    std::vector<uchar> encoded_buf;
-    encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
-    encode_param.push_back(80);
-    cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
-    // QDTLog::info("buffer size = {}", encoded_buf.size());
-
-    XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
-    msg_meta_content->timestamp = timestamp;
-    msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
-    msg_meta_content->frameId = frame_meta->frame_num;
-    msg_meta_content->sessionId = g_strdup(callback_data->session_id);
-    msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
-    msg_meta_content->width = bgr_frame.cols;
-    msg_meta_content->height = bgr_frame.rows;
-    msg_meta_content->num_channel = bgr_frame.channels();
-
-    NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-    visual_event_msg->extMsg = (void *)msg_meta_content;
-    visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
-    visual_event_msg->componentId = 2;
-    
-    gchar *message = generate_XFace_visual_message(visual_event_msg);
-    RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(std::string("HDImage"),
-                                                                              RdKafka::Topic::PARTITION_UA,
-                                                                              RdKafka::Producer::RK_MSG_COPY,
-                                                                              (gchar *)message,
-                                                                              std::string(message).length(),
-                                                                              NULL, 0,
-                                                                              0, NULL, NULL);
-    if (err != RdKafka::ERR_NO_ERROR)
-    {
-        std::cerr << "% Failed to produce to topic "
-                  << ": "
-                  << RdKafka::err2str(err) << std::endl;
-
-        if (err == RdKafka::ERR__QUEUE_FULL)
-        {
-            /* If the internal queue is full, wait for
-             * messages to be delivered and then retry.
-             * The internal queue represents both
-             * messages to be sent and messages that have
-             * been sent or failed, awaiting their
-             * delivery report callback to be called.
-             *
-             * The internal queue is limited by the
-             * configuration property
-             * queue.buffering.max.messages */
-            callback_data->kafka_producer->producer->poll(1000 /*block for max 1000ms*/);
-        }
-    }
-
-    // // Pack EventMsgMeta into UserMeta
-    // NvDsUserMeta *user_event_visual = nvds_acquire_user_meta_from_pool(batch_meta);
-    // if (user_event_visual)
-    // {
-    //     user_event_visual->user_meta_data = (void *)visual_event_msg;
-    //     user_event_visual->base_meta.meta_type = NVDS_EVENT_MSG_META;
-    //     user_event_visual->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_visual_copy_func;
-    //     user_event_visual->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_visual_release_func;
-
-    //     nvds_add_user_meta_to_frame(frame_meta, user_event_visual);
-    // }
-}
 
 void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsFaceMsgData *> &face_meta_list,
                      user_callback_data *callback_data, NvDsInferLayerInfo *output_layer_info)
@@ -656,13 +577,9 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
     face_msg_sub_meta->bbox.width = obj_meta->rect_params.width;
     face_msg_sub_meta->bbox.height = obj_meta->rect_params.height;
 
-    std::string fileNameString = "crop_img/" + std::to_string(frame_meta->frame_num) + "_" + std::to_string(frame_meta->source_id) +
-                                 "_" + std::to_string((int)obj_meta->rect_params.width) + "x" + std::to_string((int)obj_meta->rect_params.height) + ".jpg";
-
     for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
     {
         NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-        FILE *file;
         if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
         {
             NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
@@ -682,50 +599,75 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
 
-            // // request over HTTP/2, using the same connection!
-            // CURLcode res = curl_easy_perform(curl);
+            // request over HTTP/2, using the same connection!
+            CURLcode res = curl_easy_perform(curl);
 
-            // switch (res)
-            // {
-            // case CURLE_OPERATION_TIMEDOUT:
-            //     face_msg_sub_meta->confidence_score = 0;
-            //     face_msg_sub_meta->staff_id = g_strdup("236573");
-            //     face_msg_sub_meta->name= g_strdup("Unknown");
-
-            //     QDTLog::warn("Curl Timed Out. Vectordb server is broken");
-            //     continue;
-            //     break;
-            // case CURLE_OK:
-            //     QDTLog::info("Response string = {}", response_string);
-            //     break;
-            // default:
-            //     QDTLog::error("curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            //     break;
-            // }
-            // std::string response_json = response_string.substr(1, response_string.size() - 2);
-            // Document doc;
-            // doc.Parse(response_json.c_str());
-            // Value &s = doc["distance"];
-            // face_msg_sub_meta->confidence_score = s.GetDouble();
-            // s = doc["code"];
-            // face_msg_sub_meta->staff_id = g_strdup(s.GetString());
-            // s = doc["name"];
-            // face_msg_sub_meta->name = g_strdup(s.GetString());
+            if (res != CURLE_OK)
+            {
+                face_msg_sub_meta->confidence_score = 0;
+                face_msg_sub_meta->staff_id = g_strdup("000000");
+                face_msg_sub_meta->name = g_strdup("Unknown");
+            }
+            else
+            {
+                QDTLog::info("Response string = {}", response_string);
+                std::string response_json = response_string.substr(1, response_string.size() - 2);
+                Document doc;
+                doc.Parse(response_json.c_str());
+                Value &s = doc["score"];
+                face_msg_sub_meta->confidence_score = s.GetDouble();
+                s = doc["code"];
+                face_msg_sub_meta->staff_id = g_strdup(s.GetString());
+                s = doc["name"];
+                face_msg_sub_meta->name = g_strdup(s.GetString());
+                if (std::string(face_msg_sub_meta->name) != std::string("Unknown") && face_msg_sub_meta->confidence_score > callback_data->face_feature_confidence_threshold)
+                {
+                    obj_meta->text_params.x_offset = obj_meta->rect_params.left;
+                    obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top - 10);
+                    obj_meta->text_params.display_text = (char *)g_malloc0(64 * sizeof(char));
+                    snprintf(obj_meta->text_params.display_text, 64, face_msg_sub_meta->name, obj_meta->object_id);
+                    obj_meta->text_params.font_params.font_name = (char *)"Serif";
+                    obj_meta->text_params.font_params.font_size = 10;
+                    obj_meta->text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
+                    obj_meta->text_params.set_bg_clr = 1;
+                    obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
+                    nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
+                }
+            }
         }
         else if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
         {
             NvDsObjEncOutParams *enc_jpeg_image =
                 (NvDsObjEncOutParams *)user_meta->user_meta_data;
             face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
-
-            /* Write to File */
-            // file = fopen(fileNameString.c_str(), "wb");
-            // fwrite(enc_jpeg_image->outBuffer, sizeof(uint8_t),
-            //        enc_jpeg_image->outLen, file);
-            // fclose(file);
         }
     }
+
     face_meta_list.push_back(face_msg_sub_meta);
+
+    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+    {
+        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+        FILE *file;
+
+        if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
+        {
+            if (face_msg_sub_meta->confidence_score > callback_data->face_feature_confidence_threshold && std::string(face_msg_sub_meta->name) != std::string("Unknown"))
+            {
+                NvDsObjEncOutParams *enc_jpeg_image =
+                    (NvDsObjEncOutParams *)user_meta->user_meta_data;
+
+                std::string fileNameString = "crop_img/" + std::to_string(frame_meta->frame_num) + "_" + std::to_string(face_msg_sub_meta->confidence_score) + std::string(face_msg_sub_meta->name) +
+                                             "_" + std::to_string((int)obj_meta->rect_params.width) + "x" + std::to_string((int)obj_meta->rect_params.height) + ".jpg";
+
+                /* Write to File */
+                file = fopen(fileNameString.c_str(), "wb");
+                fwrite(enc_jpeg_image->outBuffer, sizeof(uint8_t),
+                       enc_jpeg_image->outLen, file);
+                fclose(file);
+            }
+        }
+    }
 }
 
 void getMOTMetaData(NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsMOTMsgData *> &mot_meta_list)
@@ -787,6 +729,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
 
     const auto p1 = std::chrono::system_clock::now();
     double timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(p1.time_since_epoch()).count();
+    callback_data->timestamp = timestamp;
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
@@ -808,7 +751,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                 getMOTMetaData(batch_meta, obj_meta, mot_sub_meta_list);
             }
         }
-        sendFullFrame(surface, batch_meta, frame_meta, callback_data, timestamp);
 
         // ===================================== XFace MetaData sent to Kafka =====================================
         XFaceMetaMsg *msg_meta_content = (XFaceMetaMsg *)g_malloc0(sizeof(XFaceMetaMsg));
@@ -823,8 +765,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsFaceMsgData *));
 
         // Generate timestamp
-        // msg_meta_content->timestamp = (gchar *)g_malloc0(MAX_TIME_STAMP_LEN + 1);
-        // generate_ts_rfc3339(msg_meta_content->timestamp, MAX_TIME_STAMP_LEN);
         msg_meta_content->timestamp = timestamp;
         msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
         msg_meta_content->frameId = frame_meta->frame_num;
@@ -837,7 +777,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         meta_msg->componentId = 1;
 
         gchar *message = generate_XFaceRawMeta_message(meta_msg);
-        RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(std::string("RawMeta"),
+        RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->metadata_topic,
                                                                                   RdKafka::Topic::PARTITION_UA,
                                                                                   RdKafka::Producer::RK_MSG_COPY,
                                                                                   (gchar *)message,
@@ -846,9 +786,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                                                                   0, NULL, NULL);
         if (err != RdKafka::ERR_NO_ERROR)
         {
-            std::cerr << "% Failed to produce to topic "
-                      << ": "
-                      << RdKafka::err2str(err) << std::endl;
+            QDTLog::error("{} Failed to produce to topic", RdKafka::err2str(err));
 
             if (err == RdKafka::ERR__QUEUE_FULL)
             {
@@ -865,19 +803,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                 callback_data->kafka_producer->producer->poll(1000 /*block for max 1000ms*/);
             }
         }
-
-        // // Pack EventMsgMeta into UserMeta
-        // NvDsUserMeta *user_event_meta = nvds_acquire_user_meta_from_pool(batch_meta);
-        // if (user_event_meta)
-        // {
-        //     user_event_meta->user_meta_data = (void *)meta_msg;
-        //     user_event_meta->base_meta.meta_type = NVDS_EVENT_MSG_META;
-        //     user_event_meta->base_meta.copy_func = (NvDsMetaCopyFunc)XFace_msg_meta_copy_func;
-        //     user_event_meta->base_meta.release_func = (NvDsMetaReleaseFunc)XFace_msg_meta_release_func;
-        //     nvds_add_user_meta_to_frame(frame_meta, user_event_meta);
-        // }
     }
-    callback_data->tensor_count++;
     NvBufSurfaceUnMap(surface, -1, -1);
     gst_buffer_unmap(buf, &in_map_info);
 }

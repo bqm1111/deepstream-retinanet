@@ -126,9 +126,9 @@ void NvInferFaceBin::setMsgBrokerConfig()
     g_object_set(G_OBJECT(m_metadata_msgconv), "frame-interval", 30, NULL);
 
     g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
 
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_params.metadata_topic.c_str(), NULL);
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
 }
 
 void NvInferFaceBin::attachProbe()
