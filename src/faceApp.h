@@ -1,7 +1,7 @@
 #ifndef APP_H
 #define APP_H
 #include <string>
-#include "PipelineHandler.h"
+#include "videoSource.h"
 #include "FaceBin.h"
 #include "MOTBin.h"
 #include <curl/curl.h>

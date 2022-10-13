@@ -35,7 +35,7 @@ GstPadProbeReturn NvInferBinBase::osd_sink_pad_buffer_probe(GstPad *pad, GstPadP
             // Statistics
             double avg_runtime = sink_perf_struct->total_time / sink_perf_struct->num_ticks / 1e6;
             double avg_fps = 1.0 / avg_runtime;
-            // g_print(" %s:%d Tiler Average runtime: %f  Average FPS: %f \n", __FILE__, __LINE__, avg_runtime, avg_fps);
+            QDTLog::info("Tiler Average runtime: {}  Average FPS: {}", avg_runtime, avg_fps);
         }
 
         if (nvds_enable_latency_measurement)
@@ -66,7 +66,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
 
     char filename[64];
     snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
-    cv::imwrite(filename, bgr_frame);
+    // cv::imwrite(filename, bgr_frame);
     // cv::resize(bgr_frame, bgr_frame, cv::Size(1280, 720));
     std::vector<int> encode_param;
     std::vector<uchar> encoded_buf;
@@ -80,6 +80,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     msg_meta_content->frameId = frame_meta->frame_num;
     msg_meta_content->sessionId = g_strdup(callback_data->session_id);
     msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
+
     msg_meta_content->width = bgr_frame.cols;
     msg_meta_content->height = bgr_frame.rows;
     msg_meta_content->num_channel = bgr_frame.channels();
@@ -90,6 +91,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     visual_event_msg->componentId = 2;
 
     gchar *message = generate_XFace_visual_message(visual_event_msg);
+
     RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
                                                                               RdKafka::Topic::PARTITION_UA,
                                                                               RdKafka::Producer::RK_MSG_COPY,
@@ -97,6 +99,8 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
                                                                               std::string(message).length(),
                                                                               NULL, 0,
                                                                               0, NULL, NULL);
+
+    callback_data->kafka_producer->counter++;
     if (err != RdKafka::ERR_NO_ERROR)
     {
         std::cerr << "% Failed to produce to topic "
@@ -115,7 +119,11 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
              * The internal queue is limited by the
              * configuration property
              * queue.buffering.max.messages */
-            callback_data->kafka_producer->producer->poll(1000 /*block for max 1000ms*/);
+            if (callback_data->kafka_producer->counter > 10)
+            {
+                callback_data->kafka_producer->counter = 0;
+                callback_data->kafka_producer->producer->poll(100);
+            }
         }
     }
 }
@@ -147,7 +155,7 @@ GstPadProbeReturn NvInferBinBase::tiler_sink_pad_buffer_probe(GstPad *pad, GstPa
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
 
-        sendFullFrame(surface, batch_meta, frame_meta, callback_data);
+        // sendFullFrame(surface, batch_meta, frame_meta, callback_data);
     }
     NvBufSurfaceUnMap(surface, -1, -1);
     gst_buffer_unmap(buf, &in_map_info);

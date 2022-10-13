@@ -1,5 +1,5 @@
-#ifndef PIPELINE_HANDLER_H
-#define PIPELINE_HANDLER_H
+#ifndef VIDEOSOURCE_H
+#define VIDEOSOURCE_H
 #include <gstreamer-1.0/gst/gstpad.h>
 #include <iostream>
 #include <string>

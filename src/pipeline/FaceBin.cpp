@@ -119,7 +119,6 @@ void NvInferFaceBin::createDetectBin()
 
 void NvInferFaceBin::setMsgBrokerConfig()
 {
-    g_object_set(G_OBJECT(m_metadata_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);

@@ -243,7 +243,6 @@ void NvInferBinBase::attachProbe()
 void NvInferBinBase::setMsgBrokerConfig()
 {
     // FACE and MOT Branch
-    g_object_set(G_OBJECT(m_metadata_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);
@@ -257,7 +256,6 @@ void NvInferBinBase::setMsgBrokerConfig()
     g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
 
     // Crop image branch
-    g_object_set(G_OBJECT(m_visual_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_visual_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_visual_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_visual_msgconv), "msg2p-newapi", 0, NULL);

@@ -1,6 +1,6 @@
 #include "faceApp.h"
 #include "DeepStreamAppConfig.h"
-
+#include "message.h"
 FaceApp::FaceApp()
 {
     m_config = new ConfigManager();
@@ -40,6 +40,7 @@ void FaceApp::loadConfig(std::string config_file)
     m_user_callback_data->connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
     m_user_callback_data->curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
     m_user_callback_data->face_feature_confidence_threshold = appConf->getProperty(DSAppProperty::FACE_CONFIDENCE_THRESHOLD).toFloat();
+    m_user_callback_data->save_crop_img = appConf->getProperty(DSAppProperty::SAVE_CROP_IMG).toBool();
 
     init_curl();
     m_user_callback_data->kafka_producer = new KafkaProducer();
@@ -102,6 +103,163 @@ int FaceApp::numVideoSrc()
     return m_video_source_name.size();
 }
 
+static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDsFrameMeta *frame_meta, user_callback_data *callback_data)
+{
+    gint frame_width = (gint)surface->surfaceList[frame_meta->batch_id].width;
+    gint frame_height = (gint)surface->surfaceList[frame_meta->batch_id].height;
+    void *frame_data = surface->surfaceList[frame_meta->batch_id].mappedAddr.addr[0];
+    size_t frame_step = surface->surfaceList[frame_meta->batch_id].pitch;
+
+    cv::Mat frame = cv::Mat(frame_height, frame_width, CV_8UC4, frame_data, frame_step);
+    cv::Mat bgr_frame;
+    cv::cvtColor(frame, bgr_frame, cv::COLOR_RGBA2BGR);
+
+    char filename[64];
+    snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
+    std::vector<int> encode_param;
+    std::vector<uchar> encoded_buf;
+    encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
+    encode_param.push_back(80);
+    cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
+
+    XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
+    msg_meta_content->timestamp = callback_data->timestamp;
+    msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
+    msg_meta_content->frameId = frame_meta->frame_num;
+    msg_meta_content->sessionId = g_strdup(callback_data->session_id);
+    msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
+    // msg_meta_content->full_img = g_strdup("Something");
+
+    msg_meta_content->width = bgr_frame.cols;
+    msg_meta_content->height = bgr_frame.rows;
+    msg_meta_content->num_channel = bgr_frame.channels();
+
+    NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+    visual_event_msg->extMsg = (void *)msg_meta_content;
+    visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
+    visual_event_msg->componentId = 2;
+
+    gchar *message = generate_XFace_visual_message(visual_event_msg);
+    RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
+                                                                              RdKafka::Topic::PARTITION_UA,
+                                                                              RdKafka::Producer::RK_MSG_COPY,
+                                                                              (gchar *)message,
+                                                                              std::string(message).length(),
+                                                                              NULL, 0,
+                                                                              0, NULL, NULL);
+
+    callback_data->kafka_producer->counter++;
+    if (err != RdKafka::ERR_NO_ERROR)
+    {
+        std::cerr << "% Failed to produce to topic "
+                  << ": "
+                  << RdKafka::err2str(err) << std::endl;
+
+        if (err == RdKafka::ERR__QUEUE_FULL)
+        {
+            /* If the internal queue is full, wait for
+             * messages to be delivered and then retry.
+             * The internal queue represents both
+             * messages to be sent and messages that have
+             * been sent or failed, awaiting their
+             * delivery report callback to be called.
+             *
+             * The internal queue is limited by the
+             * configuration property
+             * queue.buffering.max.messages */
+            if (callback_data->kafka_producer->counter > 10)
+            {
+                callback_data->kafka_producer->counter = 0;
+                callback_data->kafka_producer->producer->poll(100);
+            }
+        }
+    }
+}
+
+static GstPadProbeReturn queue_encode_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+{
+    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    GST_ASSERT(buf);
+    if (!buf)
+    {
+        return GST_PAD_PROBE_OK;
+    }
+    GstMapInfo in_map_info;
+    NvBufSurface *surface = NULL;
+    memset(&in_map_info, 0, sizeof(in_map_info));
+    if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
+    {
+        QDTLog::error("Error: Failed to map gst buffer\n");
+        gst_buffer_unmap(buf, &in_map_info);
+    }
+    surface = (NvBufSurface *)in_map_info.data;
+    NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
+    NvBufSurfaceSyncForCpu(surface, -1, -1);
+
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
+
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+    {
+        NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+
+        sendFullFrame(surface, batch_meta, frame_meta, callback_data);
+    }
+    NvBufSurfaceUnMap(surface, -1, -1);
+    gst_buffer_unmap(buf, &in_map_info);
+
+    return GST_PAD_PROBE_OK;
+}
+GstPadProbeReturn fakesink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+{
+    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    GST_ASSERT(buf);
+    if (!buf)
+    {
+        return GST_PAD_PROBE_OK;
+    }
+
+    if (_udata != nullptr)
+    {
+        /* do speed mesurement */
+        SinkPerfStruct *sink_perf_struct = reinterpret_cast<SinkPerfStruct *>(_udata);
+        if (!sink_perf_struct->start_perf_measurement)
+        {
+            sink_perf_struct->start_perf_measurement = true;
+            sink_perf_struct->last_tick = std::chrono::high_resolution_clock::now();
+        }
+        else
+        {
+            // Measure
+            auto tick = std::chrono::high_resolution_clock::now();
+            double elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(tick - sink_perf_struct->last_tick).count();
+
+            // Update
+            sink_perf_struct->last_tick = tick;
+            sink_perf_struct->total_time += elapsed_time;
+            sink_perf_struct->num_ticks++;
+
+            // Statistics
+            double avg_runtime = sink_perf_struct->total_time / sink_perf_struct->num_ticks / 1e6;
+            double avg_fps = 1.0 / avg_runtime;
+            QDTLog::info("Encode Average runtime: {}  Average FPS: {}", avg_runtime, avg_fps);
+        }
+
+        if (nvds_enable_latency_measurement)
+        {
+            NvDsFrameLatencyInfo latency_info[2];
+            nvds_measure_buffer_latency(buf, latency_info);
+            g_print(" %s Source id = %d Frame_num = %d Frame latency = %lf (ms) \n",
+                    __func__,
+                    latency_info[0].source_id,
+                    latency_info[0].frame_num,
+                    latency_info[0].latency);
+        }
+    }
+
+    return GST_PAD_PROBE_OK;
+}
+
 void FaceApp::sequentialDetectAndMOT()
 {
     // ======================== MOT BRANCH ========================
@@ -147,11 +305,72 @@ void FaceApp::sequentialDetectAndMOT()
     GST_ASSERT(caps);
     g_object_set(G_OBJECT(m_capsfilter), "caps", caps, NULL);
 
+    GstElement *tee = gst_element_factory_make("tee", "tee-split");
+    GstElement *queue_infer = gst_element_factory_make("queue", "queue-infer");
+    GstElement *queue_encode = gst_element_factory_make("queue", "queue-encode");
+    GstElement *convert = gst_element_factory_make("nvvideoconvert", "convert");
+    g_object_set(G_OBJECT(convert), "nvbuf-memory-type", 3, NULL);
+
+    GstElement *fakesink = gst_element_factory_make("fakesink", "osd");
+    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), tee, queue_infer, queue_encode, convert, fakesink, NULL);
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, m_video_convert, m_capsfilter, NULL);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, mot_inferbin, face_inferbin, m_video_convert, m_capsfilter, bin.m_tiler, NULL))
+
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, tee, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
+    if (!gst_element_link_many(queue_encode, convert, m_capsfilter, fakesink, NULL))
+    {
+        QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
+    }
+
+    if (!gst_element_link_many(queue_infer, mot_inferbin, face_inferbin, m_video_convert, bin.m_tiler, NULL))
+    {
+        QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
+    }
+
+    // Link queue infer
+    GstPad *sink_pad = gst_element_get_static_pad(queue_infer, "sink");
+    GstPad *queue_infer_pad = gst_element_get_request_pad(tee, "src_%u");
+    if (!queue_infer_pad)
+    {
+        g_printerr("Unable to get request pads\n");
+    }
+
+    if (gst_pad_link(queue_infer_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
+
+    // Link queue encode
+    sink_pad = gst_element_get_static_pad(queue_encode, "sink");
+    GstPad *queue_encode_pad = gst_element_get_request_pad(tee, "src_%u");
+    if (!queue_encode_pad)
+    {
+        g_printerr("Unable to get request pads\n");
+    }
+
+    if (gst_pad_link(queue_encode_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
+
+    GstPad *queue_encode_src_pad = gst_element_get_static_pad(m_capsfilter, "src");
+    GST_ASSERT(queue_encode_src_pad);
+    gst_pad_add_probe(queue_encode_src_pad, GST_PAD_PROBE_TYPE_BUFFER, queue_encode_src_pad_buffer_probe,
+                      m_user_callback_data, NULL);
+    g_object_unref(queue_encode_src_pad);
+
+    SinkPerfStruct *fakesink_perf = new SinkPerfStruct;
+    GstPad *fakesink_pad = gst_element_get_static_pad(fakesink, "sink");
+    GST_ASSERT(queue_encode_src_pad);
+    gst_pad_add_probe(queue_encode_src_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
+                      fakesink_perf, NULL);
+    g_object_unref(fakesink_pad);
 
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
 }

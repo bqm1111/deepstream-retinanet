@@ -18,5 +18,6 @@ public:
     void init(std::string conn_str);
     RdKafka::Conf *conf;
     RdKafka::Producer *producer;
+    int counter;
 };
 #endif

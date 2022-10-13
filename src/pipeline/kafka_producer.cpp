@@ -2,6 +2,7 @@
 
 KafkaProducer::KafkaProducer()
 {
+    counter = 0;
 }
 
 KafkaProducer::~KafkaProducer()

@@ -1,4 +1,4 @@
-#include "PipelineHandler.h"
+#include "videoSource.h"
 #include "QDTLog.h"
 #include <json-glib/json-glib.h>
 #include <librdkafka/rdkafkacpp.h>

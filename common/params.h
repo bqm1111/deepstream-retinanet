@@ -57,10 +57,6 @@
 #define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
 #endif
 
-#ifndef MSG_CONFIG_PATH
-#define MSG_CONFIG_PATH "../configs/faceid/msgconv_config.txt"
-#endif
-
 #ifndef KAFKA_MSG2P_LIB
 #define KAFKA_MSG2P_LIB "src/nvmsgconv/libnvmsgconv.so"
 #endif
@@ -80,6 +76,7 @@ struct user_callback_data
     KafkaProducer *kafka_producer;
     double timestamp;
     float face_feature_confidence_threshold;
+    bool save_crop_img;
 
     int muxer_output_width;
     int muxer_output_height;

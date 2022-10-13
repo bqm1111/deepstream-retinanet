@@ -407,6 +407,29 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
                 obj_meta->detector_bbox_info.org_bbox_coords.width *= scale_x;
                 obj_meta->detector_bbox_info.org_bbox_coords.height *= scale_y;
 
+                // add padding to bbox found
+                int padding = 5;
+                float left, top, width, height;
+                obj_meta->detector_bbox_info.org_bbox_coords.left -= padding;
+                obj_meta->detector_bbox_info.org_bbox_coords.top -= padding;
+                obj_meta->detector_bbox_info.org_bbox_coords.width += 2 * padding;
+                obj_meta->detector_bbox_info.org_bbox_coords.height += 2 * padding;
+
+                left = obj_meta->detector_bbox_info.org_bbox_coords.left;
+                top = obj_meta->detector_bbox_info.org_bbox_coords.top;
+                width = obj_meta->detector_bbox_info.org_bbox_coords.width;
+                height = obj_meta->detector_bbox_info.org_bbox_coords.height;
+
+                left = left > 0 ? left : 0;
+                top = top > 0 ? top : 0;
+                width = (left + width < muxer_output_width) ? width : (muxer_output_width - left);
+                height = (top + height < muxer_output_height) ? height : (muxer_output_height - top);
+
+                obj_meta->detector_bbox_info.org_bbox_coords.left = left;
+                obj_meta->detector_bbox_info.org_bbox_coords.top = top;
+                obj_meta->detector_bbox_info.org_bbox_coords.width = width;
+                obj_meta->detector_bbox_info.org_bbox_coords.height = height;
+
                 /* for nvdosd */
                 NvOSD_RectParams &rect_params = obj_meta->rect_params;
                 NvOSD_TextParams &text_params = obj_meta->text_params;
@@ -610,7 +633,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
             }
             else
             {
-                QDTLog::info("Response string = {}", response_string);
+                // QDTLog::info("Response string = {}", response_string);
                 std::string response_json = response_string.substr(1, response_string.size() - 2);
                 Document doc;
                 doc.Parse(response_json.c_str());
@@ -652,7 +675,9 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
 
         if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
         {
-            if (face_msg_sub_meta->confidence_score > callback_data->face_feature_confidence_threshold && std::string(face_msg_sub_meta->name) != std::string("Unknown"))
+            if (face_msg_sub_meta->confidence_score && callback_data->face_feature_confidence_threshold &&
+                std::string(face_msg_sub_meta->name) != std::string("Unknown") &&
+                callback_data->save_crop_img)
             {
                 NvDsObjEncOutParams *enc_jpeg_image =
                     (NvDsObjEncOutParams *)user_meta->user_meta_data;
@@ -784,6 +809,8 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                                                                   std::string(message).length(),
                                                                                   NULL, 0,
                                                                                   0, NULL, NULL);
+        callback_data->kafka_producer->counter++;
+
         if (err != RdKafka::ERR_NO_ERROR)
         {
             QDTLog::error("{} Failed to produce to topic", RdKafka::err2str(err));
@@ -800,7 +827,11 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                  * The internal queue is limited by the
                  * configuration property
                  * queue.buffering.max.messages */
-                callback_data->kafka_producer->producer->poll(1000 /*block for max 1000ms*/);
+                if (callback_data->kafka_producer->counter > 10)
+                {
+                    callback_data->kafka_producer->counter = 0;
+                    callback_data->kafka_producer->producer->poll(100);
+                }
             }
         }
     }
