@@ -61,15 +61,15 @@ void make_obj_meta_from_track_box(NvDsObjectMeta *obj_meta, Track track)
     obj_meta->object_id = track.track_id;
     strcpy(obj_meta->obj_label, "PersonBox");
 
-    // obj_meta->text_params.x_offset = obj_meta->rect_params.left;
-    // obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top - 10);
-    // obj_meta->text_params.display_text = (char *)g_malloc0(64 * sizeof(char));
-    // snprintf(obj_meta->text_params.display_text, 64, "PersonBox_%lu", obj_meta->object_id);
-    // obj_meta->text_params.font_params.font_name = (char *)"Serif";
-    // obj_meta->text_params.font_params.font_size = 10;
-    // obj_meta->text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
-    // obj_meta->text_params.set_bg_clr = 1;
-    // obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
+    obj_meta->text_params.x_offset = obj_meta->rect_params.left;
+    obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top - 10);
+    obj_meta->text_params.display_text = (char *)g_malloc0(64 * sizeof(char));
+    snprintf(obj_meta->text_params.display_text, 64, "PersonBox_%lu", obj_meta->object_id);
+    obj_meta->text_params.font_params.font_name = (char *)"Serif";
+    obj_meta->text_params.font_params.font_size = 10;
+    obj_meta->text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
+    obj_meta->text_params.set_bg_clr = 1;
+    obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
 }
 
 void make_msg_sub_meta(Track track, NvDsFrameMeta *frame_meta, NvDsEventMsgMeta *&msg_sub_meta)

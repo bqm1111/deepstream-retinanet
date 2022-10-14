@@ -130,35 +130,35 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
 
 GstPadProbeReturn NvInferBinBase::tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
-    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
-    GST_ASSERT(buf);
-    if (!buf)
-    {
-        return GST_PAD_PROBE_OK;
-    }
-    GstMapInfo in_map_info;
-    NvBufSurface *surface = NULL;
-    memset(&in_map_info, 0, sizeof(in_map_info));
-    if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
-    {
-        QDTLog::error("Error: Failed to map gst buffer\n");
-        gst_buffer_unmap(buf, &in_map_info);
-    }
-    surface = (NvBufSurface *)in_map_info.data;
-    NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
-    NvBufSurfaceSyncForCpu(surface, -1, -1);
+    // GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    // GST_ASSERT(buf);
+    // if (!buf)
+    // {
+    //     return GST_PAD_PROBE_OK;
+    // }
+    // GstMapInfo in_map_info;
+    // NvBufSurface *surface = NULL;
+    // memset(&in_map_info, 0, sizeof(in_map_info));
+    // if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
+    // {
+    //     QDTLog::error("Error: Failed to map gst buffer\n");
+    //     gst_buffer_unmap(buf, &in_map_info);
+    // }
+    // surface = (NvBufSurface *)in_map_info.data;
+    // NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
+    // NvBufSurfaceSyncForCpu(surface, -1, -1);
 
-    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
-    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
+    // NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    // user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
 
-    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
-    {
-        NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+    // for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+    // {
+    //     NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
 
-        // sendFullFrame(surface, batch_meta, frame_meta, callback_data);
-    }
-    NvBufSurfaceUnMap(surface, -1, -1);
-    gst_buffer_unmap(buf, &in_map_info);
+    //     // sendFullFrame(surface, batch_meta, frame_meta, callback_data);
+    // }
+    // NvBufSurfaceUnMap(surface, -1, -1);
+    // gst_buffer_unmap(buf, &in_map_info);
 
     return GST_PAD_PROBE_OK;
 }

@@ -624,13 +624,14 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
 
             // request over HTTP/2, using the same connection!
             CURLcode res = curl_easy_perform(curl);
-
+            
             if (res != CURLE_OK)
             {
                 face_msg_sub_meta->confidence_score = 0;
                 face_msg_sub_meta->staff_id = g_strdup("000000");
                 face_msg_sub_meta->name = g_strdup("Unknown");
             }
+            
             else
             {
                 // QDTLog::info("Response string = {}", response_string);
@@ -646,7 +647,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
                 if (std::string(face_msg_sub_meta->name) != std::string("Unknown") && face_msg_sub_meta->confidence_score > callback_data->face_feature_confidence_threshold)
                 {
                     obj_meta->text_params.x_offset = obj_meta->rect_params.left;
-                    obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top - 10);
+                    obj_meta->text_params.y_offset = std::max(0.0f, obj_meta->rect_params.top);
                     obj_meta->text_params.display_text = (char *)g_malloc0(64 * sizeof(char));
                     snprintf(obj_meta->text_params.display_text, 64, face_msg_sub_meta->name, obj_meta->object_id);
                     obj_meta->text_params.font_params.font_name = (char *)"Serif";
@@ -654,7 +655,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
                     obj_meta->text_params.font_params.font_color = {1.0, 1.0, 1.0, 1.0};
                     obj_meta->text_params.set_bg_clr = 1;
                     obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
-                    nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
+                    // nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
                 }
             }
         }
@@ -665,7 +666,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
             face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
         }
     }
-
+    
     face_meta_list.push_back(face_msg_sub_meta);
 
     for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
@@ -752,9 +753,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
     NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
     NvBufSurfaceSyncForCpu(surface, -1, -1);
 
-    const auto p1 = std::chrono::system_clock::now();
-    double timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(p1.time_since_epoch()).count();
-    callback_data->timestamp = timestamp;
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
@@ -790,7 +788,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsFaceMsgData *));
 
         // Generate timestamp
-        msg_meta_content->timestamp = timestamp;
+        msg_meta_content->timestamp = callback_data->timestamp;
         msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
         msg_meta_content->frameId = frame_meta->frame_num;
         msg_meta_content->sessionId = g_strdup(callback_data->session_id);

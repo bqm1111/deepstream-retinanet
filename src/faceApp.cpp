@@ -45,6 +45,7 @@ void FaceApp::loadConfig(std::string config_file)
     init_curl();
     m_user_callback_data->kafka_producer = new KafkaProducer();
     m_user_callback_data->kafka_producer->init(m_user_callback_data->connection_str);
+    m_pipeline.m_user_callback_data = m_user_callback_data;
 }
 
 void FaceApp::create(std::string name)
@@ -116,6 +117,8 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
 
     char filename[64];
     snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
+    // 
+    // cv::imwrite(std::string(filename), bgr_frame);
     std::vector<int> encode_param;
     std::vector<uchar> encoded_buf;
     encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
@@ -175,7 +178,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
         }
     }
 }
-
+// 
 static GstPadProbeReturn queue_encode_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
@@ -210,6 +213,7 @@ static GstPadProbeReturn queue_encode_src_pad_buffer_probe(GstPad *pad, GstPadPr
 
     return GST_PAD_PROBE_OK;
 }
+
 GstPadProbeReturn fakesink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
@@ -242,7 +246,7 @@ GstPadProbeReturn fakesink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, 
             // Statistics
             double avg_runtime = sink_perf_struct->total_time / sink_perf_struct->num_ticks / 1e6;
             double avg_fps = 1.0 / avg_runtime;
-            QDTLog::info("Encode Average runtime: {}  Average FPS: {}", avg_runtime, avg_fps);
+            // QDTLog::info("Encode Average runtime: {}  Average FPS: {}", avg_runtime, avg_fps);
         }
 
         if (nvds_enable_latency_measurement)
@@ -359,16 +363,16 @@ void FaceApp::sequentialDetectAndMOT()
     }
     gst_object_unref(sink_pad);
 
-    GstPad *queue_encode_src_pad = gst_element_get_static_pad(m_capsfilter, "src");
-    GST_ASSERT(queue_encode_src_pad);
-    gst_pad_add_probe(queue_encode_src_pad, GST_PAD_PROBE_TYPE_BUFFER, queue_encode_src_pad_buffer_probe,
+    GstPad *capsfilter_src_pad = gst_element_get_static_pad(m_capsfilter, "src");
+    GST_ASSERT(capsfilter_src_pad);
+    gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, queue_encode_src_pad_buffer_probe,
                       m_user_callback_data, NULL);
-    g_object_unref(queue_encode_src_pad);
+    g_object_unref(capsfilter_src_pad);
 
     SinkPerfStruct *fakesink_perf = new SinkPerfStruct;
     GstPad *fakesink_pad = gst_element_get_static_pad(fakesink, "sink");
-    GST_ASSERT(queue_encode_src_pad);
-    gst_pad_add_probe(queue_encode_src_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
+    GST_ASSERT(fakesink_pad);
+    gst_pad_add_probe(fakesink_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
                       fakesink_perf, NULL);
     g_object_unref(fakesink_pad);
 

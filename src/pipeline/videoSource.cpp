@@ -46,7 +46,7 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
         else if (info[2] == std::string("rtsp"))
         {
             m_source.push_back(gst_element_factory_make("rtspsrc", ("rtsp-source-" + std::to_string(source_id)).c_str()));
-
+            g_object_set(m_source[source_id], "latency", 300, NULL);
             if (info[1] == "h265")
             {
                 m_demux.push_back(gst_element_factory_make("rtph265depay", ("rtph265depay-" + std::to_string(source_id)).c_str()));
@@ -126,7 +126,15 @@ void AppPipeline::setLiveSource(bool is_live)
 {
     m_live_source = is_live;
 }
+static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+{
+    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
+    const auto p1 = std::chrono::system_clock::now();
+    double timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(p1.time_since_epoch()).count();
+    callback_data->timestamp = timestamp;
 
+    return GST_PAD_PROBE_OK;
+}
 void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 {
     m_stream_muxer = gst_element_factory_make("nvstreammux", "streammuxer");
@@ -138,6 +146,11 @@ void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
                  "batched-push-timeout", 220000,
                  "live-source", m_live_source,
                  NULL);
+    GstPad *streammux_pad = gst_element_get_static_pad(m_stream_muxer, "src");
+    GST_ASSERT(streammux_pad);
+    gst_pad_add_probe(streammux_pad, GST_PAD_PROBE_TYPE_BUFFER, streammux_src_pad_buffer_probe,
+                      m_user_callback_data, NULL);
+    g_object_unref(streammux_pad);
 
     gst_bin_add(GST_BIN(m_pipeline), m_stream_muxer);
 

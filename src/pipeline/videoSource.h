@@ -44,6 +44,7 @@ public:
     GstElement *m_queue_mot = NULL;
     GstElement *m_queue_face = NULL;
     std::string m_pipeline_name;
+    user_callback_data *m_user_callback_data;
 
     void create(std::string pipeline_name);
     void add_video_source(std::vector<std::vector<std::string>> video_info, std::vector<std::string> video_name);
