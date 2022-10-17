@@ -94,7 +94,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
 
     RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
                                                                               RdKafka::Topic::PARTITION_UA,
-                                                                              RdKafka::Producer::RK_MSG_COPY,
+                                                                              RdKafka::Producer::RK_MSG_FREE,
                                                                               (gchar *)message,
                                                                               std::string(message).length(),
                                                                               NULL, 0,

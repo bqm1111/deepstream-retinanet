@@ -126,6 +126,7 @@ void AppPipeline::setLiveSource(bool is_live)
 {
     m_live_source = is_live;
 }
+
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);

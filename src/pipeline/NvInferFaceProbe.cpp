@@ -624,14 +624,13 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
 
             // request over HTTP/2, using the same connection!
             CURLcode res = curl_easy_perform(curl);
-            
+
             if (res != CURLE_OK)
             {
                 face_msg_sub_meta->confidence_score = 0;
                 face_msg_sub_meta->staff_id = g_strdup("000000");
                 face_msg_sub_meta->name = g_strdup("Unknown");
             }
-            
             else
             {
                 // QDTLog::info("Response string = {}", response_string);
@@ -666,7 +665,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
             face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
         }
     }
-    
+
     face_meta_list.push_back(face_msg_sub_meta);
 
     for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
@@ -755,10 +754,19 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
 
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    int frame_test_id = -1;
+    
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
 
+        int tmp = frame_meta->source_id;
+        if(frame_test_id == tmp)
+        {
+            QDTLog::warn("Duplicate camera_id: {} - {}", frame_meta->source_id, frame_meta->frame_num);
+        }
+        
+        frame_test_id = tmp;
         std::vector<NvDsFaceMsgData *> face_sub_meta_list;
         std::vector<NvDsMOTMsgData *> mot_sub_meta_list;
 
@@ -802,7 +810,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         gchar *message = generate_XFaceRawMeta_message(meta_msg);
         RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->metadata_topic,
                                                                                   RdKafka::Topic::PARTITION_UA,
-                                                                                  RdKafka::Producer::RK_MSG_COPY,
+                                                                                  RdKafka::Producer::RK_MSG_FREE,
                                                                                   (gchar *)message,
                                                                                   std::string(message).length(),
                                                                                   NULL, 0,

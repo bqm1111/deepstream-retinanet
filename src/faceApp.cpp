@@ -132,7 +132,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     msg_meta_content->sessionId = g_strdup(callback_data->session_id);
     msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
     // msg_meta_content->full_img = g_strdup("Something");
-
+    
     msg_meta_content->width = bgr_frame.cols;
     msg_meta_content->height = bgr_frame.rows;
     msg_meta_content->num_channel = bgr_frame.channels();
@@ -145,7 +145,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     gchar *message = generate_XFace_visual_message(visual_event_msg);
     RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
                                                                               RdKafka::Topic::PARTITION_UA,
-                                                                              RdKafka::Producer::RK_MSG_COPY,
+                                                                              RdKafka::Producer::RK_MSG_FREE,
                                                                               (gchar *)message,
                                                                               std::string(message).length(),
                                                                               NULL, 0,
@@ -318,7 +318,7 @@ void FaceApp::sequentialDetectAndMOT()
     GstElement *fakesink = gst_element_factory_make("fakesink", "osd");
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), tee, queue_infer, queue_encode, convert, fakesink, NULL);
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, m_video_convert, m_capsfilter, NULL);
-
+    // 
     if (!gst_element_link_many(m_pipeline.m_stream_muxer, tee, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
