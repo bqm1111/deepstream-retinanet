@@ -5,6 +5,7 @@
 #include <cassert>
 #include <stdio.h>
 #include <iostream>
+#include <vector>
 #include <nvdsmeta_schema.h>
 #include "gstnvdsmeta.h"
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
@@ -74,7 +75,7 @@ struct user_callback_data
     gchar *session_id;
     std::vector<std::string> video_name;
     KafkaProducer *kafka_producer;
-    double timestamp;
+    gchar* timestamp;
     float face_feature_confidence_threshold;
     bool save_crop_img;
 
@@ -168,7 +169,7 @@ typedef struct NvDsMOTMsgData
 
 struct XFaceVisualMsg
 {
-    double timestamp;
+    gchar* timestamp;
     gint frameId;
     gchar *cameraId;
     gchar *sessionId;
@@ -180,7 +181,7 @@ struct XFaceVisualMsg
 
 struct XFaceMetaMsg
 {
-    double timestamp;
+    gchar* timestamp;
     gint frameId;
     gchar *sessionId;
     gchar *cameraId;

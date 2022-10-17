@@ -16,6 +16,7 @@ FaceApp::~FaceApp()
     delete m_config;
     free_curl();
     free(m_user_callback_data->session_id);
+    free(m_user_callback_data->timestamp);
     delete m_user_callback_data->kafka_producer;
     delete m_user_callback_data;
     if (!m_tracker_list)
@@ -126,7 +127,7 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
 
     XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
-    msg_meta_content->timestamp = callback_data->timestamp;
+    msg_meta_content->timestamp =g_strdup(callback_data->timestamp);
     msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
     msg_meta_content->frameId = frame_meta->frame_num;
     msg_meta_content->sessionId = g_strdup(callback_data->session_id);
@@ -178,8 +179,8 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
         }
     }
 }
-// 
-static GstPadProbeReturn queue_encode_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+
+static GstPadProbeReturn capsfilter_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
     GST_ASSERT(buf);
@@ -301,34 +302,32 @@ void FaceApp::sequentialDetectAndMOT()
     bin.acquireUserData(m_user_callback_data);
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
 
-    GstElement *m_video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
-    g_object_set(G_OBJECT(m_video_convert), "nvbuf-memory-type", 3, NULL);
-    GstElement *m_capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
-    GST_ASSERT(m_capsfilter);
+    GstElement *video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
+    g_object_set(G_OBJECT(video_convert), "nvbuf-memory-type", 3, NULL);
+    GstElement *capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
+    GST_ASSERT(capsfilter);
     GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)RGBA");
     GST_ASSERT(caps);
-    g_object_set(G_OBJECT(m_capsfilter), "caps", caps, NULL);
+    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
 
     GstElement *tee = gst_element_factory_make("tee", "tee-split");
     GstElement *queue_infer = gst_element_factory_make("queue", "queue-infer");
     GstElement *queue_encode = gst_element_factory_make("queue", "queue-encode");
-    GstElement *convert = gst_element_factory_make("nvvideoconvert", "convert");
-    g_object_set(G_OBJECT(convert), "nvbuf-memory-type", 3, NULL);
 
     GstElement *fakesink = gst_element_factory_make("fakesink", "osd");
-    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), tee, queue_infer, queue_encode, convert, fakesink, NULL);
-    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, m_video_convert, m_capsfilter, NULL);
-    // 
+    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), tee, queue_infer, queue_encode, video_convert, capsfilter, fakesink, NULL);
+    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, NULL);
+
     if (!gst_element_link_many(m_pipeline.m_stream_muxer, tee, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
-    if (!gst_element_link_many(queue_encode, convert, m_capsfilter, fakesink, NULL))
+    if (!gst_element_link_many(queue_encode, video_convert, capsfilter, fakesink, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
 
-    if (!gst_element_link_many(queue_infer, mot_inferbin, face_inferbin, m_video_convert, bin.m_tiler, NULL))
+    if (!gst_element_link_many(queue_infer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
@@ -363,9 +362,9 @@ void FaceApp::sequentialDetectAndMOT()
     }
     gst_object_unref(sink_pad);
 
-    GstPad *capsfilter_src_pad = gst_element_get_static_pad(m_capsfilter, "src");
+    GstPad *capsfilter_src_pad = gst_element_get_static_pad(capsfilter, "src");
     GST_ASSERT(capsfilter_src_pad);
-    gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, queue_encode_src_pad_buffer_probe,
+    gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, capsfilter_src_pad_buffer_probe,
                       m_user_callback_data, NULL);
     g_object_unref(capsfilter_src_pad);
 

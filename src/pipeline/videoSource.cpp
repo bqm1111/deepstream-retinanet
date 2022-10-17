@@ -127,15 +127,33 @@ void AppPipeline::setLiveSource(bool is_live)
     m_live_source = is_live;
 }
 
+static void
+generate_ts_rfc3339 (char *buf, int buf_size)
+{
+  time_t tloc;
+  struct tm tm_log;
+  struct timespec ts;
+  char strmsec[6];           
+
+  clock_gettime (CLOCK_REALTIME, &ts);
+  memcpy (&tloc, (void *) (&ts.tv_sec), sizeof (time_t));
+  gmtime_r (&tloc, &tm_log);
+  strftime (buf, buf_size, "%Y-%m-%dT%H:%M:%S", &tm_log);
+  int ms = ts.tv_nsec / 1000000;
+  g_snprintf (strmsec, sizeof (strmsec), ".%.3dZ", ms);
+  strncat (buf, strmsec, buf_size);
+}
+
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
     const auto p1 = std::chrono::system_clock::now();
-    double timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(p1.time_since_epoch()).count();
-    callback_data->timestamp = timestamp;
-
+    double timestamp = std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count();
+    callback_data->timestamp = (gchar*)malloc(MAX_TIME_STAMP_LEN);
+    generate_ts_rfc3339(callback_data->timestamp,  MAX_TIME_STAMP_LEN);
     return GST_PAD_PROBE_OK;
 }
+
 void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 {
     m_stream_muxer = gst_element_factory_make("nvstreammux", "streammuxer");

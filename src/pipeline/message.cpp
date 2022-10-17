@@ -11,7 +11,7 @@ gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
 
     // add frame info
     XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)meta->extMsg;
-    json_object_set_double_member(rootObj, "srctime", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
     json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);
@@ -44,7 +44,7 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
 
     // add frame info
     XFaceMetaMsg *msg_meta_content = (XFaceMetaMsg *)meta->extMsg;
-    json_object_set_double_member(rootObj, "srctime", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
     json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);

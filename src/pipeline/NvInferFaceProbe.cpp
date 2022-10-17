@@ -486,111 +486,6 @@ static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void 
     return size * nmemb;
 }
 
-static gpointer XFace_msg_meta_copy_func(gpointer data, gpointer user_data)
-{
-    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
-    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
-    NvDsEventMsgMeta *dstMeta = NULL;
-
-    dstMeta = (NvDsEventMsgMeta *)g_memdup(srcMeta, sizeof(NvDsEventMsgMeta));
-    dstMeta->extMsg = g_malloc0(sizeof(XFaceMetaMsg));
-    XFaceMetaMsg *srcExtMsg = (XFaceMetaMsg *)srcMeta->extMsg;
-    XFaceMetaMsg *dstExtMsg = (XFaceMetaMsg *)dstMeta->extMsg;
-
-    dstMeta->componentId = srcMeta->componentId;
-    dstExtMsg->cameraId = g_strdup(srcExtMsg->cameraId);
-    dstExtMsg->sessionId = g_strdup(srcExtMsg->sessionId);
-    dstExtMsg->frameId = srcExtMsg->frameId;
-    dstExtMsg->timestamp = srcExtMsg->timestamp;
-    dstExtMsg->num_face_obj = srcExtMsg->num_face_obj;
-    dstExtMsg->num_mot_obj = srcExtMsg->num_mot_obj;
-
-    dstExtMsg->mot_meta_list = (NvDsMOTMsgData **)g_malloc0(dstExtMsg->num_mot_obj * sizeof(NvDsMOTMsgData *));
-    dstExtMsg->face_meta_list = (NvDsFaceMsgData **)g_malloc0(dstExtMsg->num_face_obj * sizeof(NvDsFaceMsgData *));
-
-    // Copy Face
-    for (int i = 0; i < dstExtMsg->num_face_obj; i++)
-    {
-        NvDsFaceMsgData *msg_sub_meta = (NvDsFaceMsgData *)g_malloc0(sizeof(NvDsFaceMsgData));
-        msg_sub_meta->bbox.top = srcExtMsg->face_meta_list[i]->bbox.top;
-        msg_sub_meta->bbox.left = srcExtMsg->face_meta_list[i]->bbox.left;
-        msg_sub_meta->bbox.width = srcExtMsg->face_meta_list[i]->bbox.width;
-        msg_sub_meta->bbox.height = srcExtMsg->face_meta_list[i]->bbox.height;
-
-        msg_sub_meta->confidence_score = srcExtMsg->face_meta_list[i]->confidence_score; // confidence score
-        msg_sub_meta->feature = g_strdup(srcExtMsg->face_meta_list[i]->feature);         // face feature
-        msg_sub_meta->staff_id = g_strdup(srcExtMsg->face_meta_list[i]->staff_id);       // Staff_code
-        msg_sub_meta->name = g_strdup(srcExtMsg->face_meta_list[i]->name);               // Staff_code
-        msg_sub_meta->encoded_img = g_strdup(srcExtMsg->face_meta_list[i]->encoded_img);
-
-        dstExtMsg->face_meta_list[i] = msg_sub_meta;
-    }
-
-    // Copy MOT
-    for (int i = 0; i < dstExtMsg->num_mot_obj; i++)
-    {
-        NvDsMOTMsgData *msg_sub_meta = (NvDsMOTMsgData *)g_malloc0(sizeof(NvDsMOTMsgData));
-        msg_sub_meta->bbox.top = srcExtMsg->mot_meta_list[i]->bbox.top;
-        msg_sub_meta->bbox.left = srcExtMsg->mot_meta_list[i]->bbox.left;
-        msg_sub_meta->bbox.width = srcExtMsg->mot_meta_list[i]->bbox.width;
-        msg_sub_meta->bbox.height = srcExtMsg->mot_meta_list[i]->bbox.height;
-        msg_sub_meta->track_id = srcExtMsg->mot_meta_list[i]->track_id;
-
-        msg_sub_meta->embedding = g_strdup(srcExtMsg->mot_meta_list[i]->embedding); // person embedding
-
-        dstExtMsg->mot_meta_list[i] = msg_sub_meta;
-    }
-
-    dstMeta->extMsgSize = srcMeta->extMsgSize;
-    return dstMeta;
-}
-
-static void XFace_msg_meta_release_func(gpointer data, gpointer user_data)
-{
-    NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
-    NvDsEventMsgMeta *srcMeta = (NvDsEventMsgMeta *)user_meta->user_meta_data;
-
-    if (srcMeta->extMsgSize > 0)
-    {
-        // free extMsg content
-        XFaceMetaMsg *srcExtMsg = (XFaceMetaMsg *)srcMeta->extMsg;
-        // g_free(srcExtMsg->timestamp);
-        g_free(srcExtMsg->cameraId);
-        g_free(srcExtMsg->sessionId);
-        // Delete face
-
-        for (int i = 0; i < srcExtMsg->num_face_obj; i++)
-        {
-            NvDsFaceMsgData *msg_sub_meta = srcExtMsg->face_meta_list[i];
-
-            g_free(msg_sub_meta->feature);
-            g_free(msg_sub_meta->staff_id);
-            g_free(msg_sub_meta->name);
-            g_free(msg_sub_meta->encoded_img);
-
-            g_free(msg_sub_meta);
-        }
-        g_free(srcExtMsg->face_meta_list);
-        srcExtMsg->num_face_obj = 0;
-
-        // Delete MOT
-        for (int i = 0; i < srcExtMsg->num_mot_obj; i++)
-        {
-            NvDsMOTMsgData *msg_sub_meta = srcExtMsg->mot_meta_list[i];
-            g_free(msg_sub_meta->embedding);
-            g_free(msg_sub_meta);
-        }
-        g_free(srcExtMsg->mot_meta_list);
-        srcExtMsg->num_mot_obj = 0;
-        // free extMsg
-        g_free(srcMeta->extMsg);
-        // free extMsgSize
-        srcMeta->extMsgSize = 0;
-    }
-    g_free(user_meta->user_meta_data);
-    user_meta->user_meta_data = NULL;
-}
-
 void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsFaceMsgData *> &face_meta_list,
                      user_callback_data *callback_data, NvDsInferLayerInfo *output_layer_info)
 {
@@ -754,19 +649,11 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
 
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
-    int frame_test_id = -1;
-    
+
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
 
-        int tmp = frame_meta->source_id;
-        if(frame_test_id == tmp)
-        {
-            QDTLog::warn("Duplicate camera_id: {} - {}", frame_meta->source_id, frame_meta->frame_num);
-        }
-        
-        frame_test_id = tmp;
         std::vector<NvDsFaceMsgData *> face_sub_meta_list;
         std::vector<NvDsMOTMsgData *> mot_sub_meta_list;
 
@@ -796,7 +683,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         memcpy(msg_meta_content->face_meta_list, face_sub_meta_list.data(), face_sub_meta_list.size() * sizeof(NvDsFaceMsgData *));
 
         // Generate timestamp
-        msg_meta_content->timestamp = callback_data->timestamp;
+        msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
         msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
         msg_meta_content->frameId = frame_meta->frame_num;
         msg_meta_content->sessionId = g_strdup(callback_data->session_id);
@@ -841,6 +728,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             }
         }
     }
+
     NvBufSurfaceUnMap(surface, -1, -1);
     gst_buffer_unmap(buf, &in_map_info);
 }
