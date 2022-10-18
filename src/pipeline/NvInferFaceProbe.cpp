@@ -479,7 +479,7 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
 
     return GST_PAD_PROBE_OK;
 }
-
+// This is 
 static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void *userp)
 {
     ((std::string *)userp)->append((char *)contents, size * nmemb);
@@ -516,7 +516,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-
+            
             // request over HTTP/2, using the same connection!
             CURLcode res = curl_easy_perform(curl);
 
@@ -653,7 +653,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
-
+        // QDTLog::info("width and height = {} - {}", frame_meta->source_frame_width, frame_meta->source_frame_height);
         std::vector<NvDsFaceMsgData *> face_sub_meta_list;
         std::vector<NvDsMOTMsgData *> mot_sub_meta_list;
 
@@ -706,8 +706,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
 
         if (err != RdKafka::ERR_NO_ERROR)
         {
-            QDTLog::error("{} Failed to produce to topic", RdKafka::err2str(err));
-
             if (err == RdKafka::ERR__QUEUE_FULL)
             {
                 /* If the internal queue is full, wait for

@@ -1,6 +1,7 @@
 #include "faceApp.h"
 #include "DeepStreamAppConfig.h"
 #include "message.h"
+
 FaceApp::FaceApp()
 {
     m_config = new ConfigManager();
@@ -118,8 +119,6 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
 
     char filename[64];
     snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
-    // 
-    // cv::imwrite(std::string(filename), bgr_frame);
     std::vector<int> encode_param;
     std::vector<uchar> encoded_buf;
     encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
@@ -127,13 +126,12 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
 
     XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
-    msg_meta_content->timestamp =g_strdup(callback_data->timestamp);
+    msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
     msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
     msg_meta_content->frameId = frame_meta->frame_num;
     msg_meta_content->sessionId = g_strdup(callback_data->session_id);
     msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
-    // msg_meta_content->full_img = g_strdup("Something");
-    
+
     msg_meta_content->width = bgr_frame.cols;
     msg_meta_content->height = bgr_frame.rows;
     msg_meta_content->num_channel = bgr_frame.channels();
@@ -155,10 +153,6 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     callback_data->kafka_producer->counter++;
     if (err != RdKafka::ERR_NO_ERROR)
     {
-        std::cerr << "% Failed to produce to topic "
-                  << ": "
-                  << RdKafka::err2str(err) << std::endl;
-
         if (err == RdKafka::ERR__QUEUE_FULL)
         {
             /* If the internal queue is full, wait for
@@ -322,11 +316,12 @@ void FaceApp::sequentialDetectAndMOT()
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
+    
     if (!gst_element_link_many(queue_encode, video_convert, capsfilter, fakesink, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
-
+    
     if (!gst_element_link_many(queue_infer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);

@@ -103,10 +103,6 @@ static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDs
     callback_data->kafka_producer->counter++;
     if (err != RdKafka::ERR_NO_ERROR)
     {
-        std::cerr << "% Failed to produce to topic "
-                  << ": "
-                  << RdKafka::err2str(err) << std::endl;
-
         if (err == RdKafka::ERR__QUEUE_FULL)
         {
             /* If the internal queue is full, wait for

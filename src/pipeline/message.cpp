@@ -56,10 +56,10 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
     {
         JsonObject *faceObj = json_object_new();
         JsonObject *jbboxObj = json_object_new();
-        // x
-        json_object_set_double_member(jbboxObj, "x", msg_meta_content->face_meta_list[i]->bbox.top);
         // y
-        json_object_set_double_member(jbboxObj, "y", msg_meta_content->face_meta_list[i]->bbox.left);
+        json_object_set_double_member(jbboxObj, "y", msg_meta_content->face_meta_list[i]->bbox.top);
+        // x
+        json_object_set_double_member(jbboxObj, "x", msg_meta_content->face_meta_list[i]->bbox.left);
         // w
         json_object_set_double_member(jbboxObj, "w", msg_meta_content->face_meta_list[i]->bbox.width);
         // h
@@ -93,10 +93,10 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
     {
         JsonObject *motObj = json_object_new();
         JsonObject *jbboxObj = json_object_new();
-        // x
-        json_object_set_double_member(jbboxObj, "x", msg_meta_content->mot_meta_list[i]->bbox.top);
         // y
-        json_object_set_double_member(jbboxObj, "y", msg_meta_content->mot_meta_list[i]->bbox.left);
+        json_object_set_double_member(jbboxObj, "y", msg_meta_content->mot_meta_list[i]->bbox.top);
+        // x
+        json_object_set_double_member(jbboxObj, "x", msg_meta_content->mot_meta_list[i]->bbox.left);
         // w
         json_object_set_double_member(jbboxObj, "w", msg_meta_content->mot_meta_list[i]->bbox.width);
         // h
