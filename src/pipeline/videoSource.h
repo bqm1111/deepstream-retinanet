@@ -1,5 +1,5 @@
-#ifndef PIPELINE_HANDLER_H
-#define PIPELINE_HANDLER_H
+#ifndef VIDEOSOURCE_H
+#define VIDEOSOURCE_H
 #include <gstreamer-1.0/gst/gstpad.h>
 #include <iostream>
 #include <string>
@@ -12,10 +12,11 @@
 #include <gst/gstinfo.h>
 #include <gst/gstutils.h>
 #include <gst/gstelement.h>
-#include <opencv2/videostab/log.hpp>
+#include "opencv2/opencv.hpp"
 #include "common.h"
 #include "params.h"
-
+#include "utils.h"
+#include "kafka_producer.h"
 #if __has_include(<filesystem>)
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -37,10 +38,13 @@ public:
     std::vector<GstElement *> m_decoder;
 
     GstElement *m_stream_muxer = NULL;
+    GstElement *m_video_convert = NULL;
+    GstElement *m_capsfilter = NULL;
     GstElement *m_tee_app = NULL;
     GstElement *m_queue_mot = NULL;
     GstElement *m_queue_face = NULL;
     std::string m_pipeline_name;
+    user_callback_data *m_user_callback_data;
 
     void create(std::string pipeline_name);
     void add_video_source(std::vector<std::vector<std::string>> video_info, std::vector<std::string> video_name);

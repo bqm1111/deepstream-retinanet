@@ -1,5 +1,14 @@
 #include "FaceBin.h"
 #include "QDTLog.h"
+NvInferFaceBin::NvInferFaceBin(std::shared_ptr<NvInferFaceBinConfig> configs)
+{
+    m_configs = configs;
+    m_module_name = "face";
+}
+NvInferFaceBin::~NvInferFaceBin()
+{
+    
+}
 
 void NvInferFaceBin::createInferBin()
 {
@@ -39,9 +48,7 @@ void NvInferFaceBin::createInferBin()
     g_object_set(m_sgie, "input-tensor-meta", TRUE, NULL);
     g_object_set(m_sgie, "output-tensor-meta", TRUE, NULL);
 
-    face_user_data *callback_data = new face_user_data;
-    callback_data->curl = m_curl;
-    callback_data->video_source_name = m_video_source_name;
+    user_callback_data *callback_data = m_user_callback_data;
     gst_nvinfer_raw_output_generated_callback out_callback = this->sgie_output_callback;
     g_object_set(m_sgie, "raw-output-generated-callback", out_callback, NULL);
     g_object_set(m_sgie, "raw-output-generated-userdata", reinterpret_cast<void *>(callback_data), NULL);
@@ -105,28 +112,22 @@ void NvInferFaceBin::createDetectBin()
 
     gst_element_add_pad(m_masterBin, sink_ghost_pad);
     gst_element_add_pad(m_masterBin, src_ghost_pad);
-    //
+
     gst_object_unref(pgie_src_pad);
 }
 
-void NvInferFaceBin::acquireFaceUserData(CURL *curl, std::vector<std::string> video_source_list)
-{
-    m_curl = curl;
-    m_video_source_name = video_source_list;
-}
 
 void NvInferFaceBin::setMsgBrokerConfig()
 {
-    g_object_set(G_OBJECT(m_metadata_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "frame-interval", 30, NULL);
 
     g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
+                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
 
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_params.metadata_topic.c_str(), NULL);
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
 }
 
 void NvInferFaceBin::attachProbe()

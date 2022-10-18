@@ -5,12 +5,14 @@
 #include <cassert>
 #include <stdio.h>
 #include <iostream>
+#include <vector>
 #include <nvdsmeta_schema.h>
 #include "gstnvdsmeta.h"
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 #include <chrono>
-
+#include <curl/curl.h>
+#include "kafka_producer.h"
 #ifndef NVDS_OBJ_USER_META_MOT
 #define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
 #endif
@@ -56,10 +58,6 @@
 #define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
 #endif
 
-#ifndef MSG_CONFIG_PATH
-#define MSG_CONFIG_PATH "../configs/faceid/msgconv_config.txt"
-#endif
-
 #ifndef KAFKA_MSG2P_LIB
 #define KAFKA_MSG2P_LIB "src/nvmsgconv/libnvmsgconv.so"
 #endif
@@ -69,9 +67,18 @@
 #endif
 
 #define POST_TRACK_SCORE 1.0
+#define SESSION_ID_LENGTH 37
 
-struct GstAppParam
+struct user_callback_data
 {
+    CURL *curl;
+    gchar *session_id;
+    std::vector<std::string> video_name;
+    KafkaProducer *kafka_producer;
+    gchar* timestamp;
+    float face_feature_confidence_threshold;
+    bool save_crop_img;
+
     int muxer_output_width;
     int muxer_output_height;
     int tiler_rows;
@@ -84,6 +91,7 @@ struct GstAppParam
     std::string connection_str;
     std::string curl_address;
 };
+
 
 struct alignas(float) Detection
 {
@@ -142,21 +150,6 @@ typedef struct FaceEventMsgData
     gchar *feature;
 } FaceEventMsgData;
 
-enum EventMsgSubMetaType
-{
-    SGIE_EVENT,
-    TRACKER_EVENT
-};
-
-struct EventMsgSubMeta
-{
-    EventMsgSubMetaType type;
-    gint frameId;
-    gint sensorId;
-    guint num_msg_sub_meta;
-    NvDsEventMsgMeta **msg_sub_meta_list;
-};
-
 typedef struct NvDsFaceMsgData
 {
     double timestamp;
@@ -180,25 +173,24 @@ typedef struct NvDsMOTMsgData
     gchar *embedding;
 } NvDsMOTMsgData;
 
-typedef struct NvDsVisualMsgData
-{
-    gchar *cropped_face;
-} NvDsVisualMsgData;
-
 struct XFaceVisualMsg
 {
-    double timestamp;
+    gchar* timestamp;
     gint frameId;
-    gint cameraId;
-    gint num_cropped_face;
-    NvDsVisualMsgData **visual_meta_list;
+    gchar *cameraId;
+    gchar *sessionId;
+    gchar *full_img;
+    gint width;
+    gint height;
+    gint num_channel;
 };
 
 struct XFaceMetaMsg
 {
-    double timestamp;
+    gchar* timestamp;
     gint frameId;
-    gint cameraId;
+    gchar *sessionId;
+    gchar *cameraId;
     gint num_face_obj;
     gint num_mot_obj;
     NvDsFaceMsgData **face_meta_list;

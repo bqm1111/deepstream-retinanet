@@ -12,23 +12,26 @@ find_package(spdlog REQUIRED)
 
 file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/*.cu
-                    ${PROJECT_SOURCE_DIR}/common/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/common/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/pipeline/*.cpp
                     ${PROJECT_SOURCE_DIR}/src/deepsort/*.cpp
-                    ${PROJECT_SOURCE_DIR}/common/QDTConfig/*.cpp
-                    ${PROJECT_SOURCE_DIR}/common/QDTLog/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/common/QDTConfig/*.cpp
+                    ${PROJECT_SOURCE_DIR}/src/common/QDTLog/*.cpp
                     )
                     
 include_directories(
 ${PROJECT_SOURCE_DIR}/utils
-${PROJECT_SOURCE_DIR}/common
-${PROJECT_SOURCE_DIR}/common/QDTConfig
-${PROJECT_SOURCE_DIR}/common/QDTLog
+${PROJECT_SOURCE_DIR}/src/common
+${PROJECT_SOURCE_DIR}/src/common/QDTConfig
+${PROJECT_SOURCE_DIR}/src/common/QDTLog
 ${PROJECT_SOURCE_DIR}/src/pipeline
 ${PROJECT_SOURCE_DIR}/src/deepsort
 ${PROJECT_SOURCE_DIR}/src/mot
 )
 add_executable(${PROJECT_NAME} ${SOURCES})
+pkg_check_modules(Uuid REQUIRED IMPORTED_TARGET uuid)
+include_directories(${Uuid_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${Uuid_LIBRARIES})
 
 # cuda
 find_package(CUDA REQUIRED)
@@ -65,6 +68,12 @@ target_link_libraries(${PROJECT_NAME} ${JSON-GLIB_LIBRARIES})
 # Eigen 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 target_include_directories(${PROJECT_NAME} PUBLIC ${EIGEN3_INCLUDE_DIR})
+
+# librdkafka
+pkg_check_modules(KAFKACPP REQUIRED IMPORTED_TARGET rdkafka++>=1.9.0 rdkafka>=1.9.0)
+target_include_directories(${PROJECT_NAME} PUBLIC ${KAFKACPP_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PkgConfig::KAFKACPP)
+target_compile_options(${PROJECT_NAME} PUBLIC ${KAFKACPP_CFLAGS_OTHER})
 
 # Subdirectory
 add_subdirectory(src)

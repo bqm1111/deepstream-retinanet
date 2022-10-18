@@ -24,26 +24,14 @@ public:
     std::string aligner_config_path;
 };
 
-struct face_user_data
-{
-    int tensor_count = 0;
-    CURL *curl;
-    std::vector<std::string> video_source_name;
-};
-
 class NvInferFaceBin : public NvInferBinBase
 {
 public:
-    NvInferFaceBin(std::shared_ptr<NvInferFaceBinConfig> configs)
-    {
-        m_configs = configs;
-        m_module_name = "face";
-    }
-    ~NvInferFaceBin() {}
+    NvInferFaceBin(std::shared_ptr<NvInferFaceBinConfig> configs);
+    ~NvInferFaceBin();
 
     void createInferBin() override;
     void createDetectBin();
-    void acquireFaceUserData(CURL *curl, std::vector<std::string> video_source_list);
     void setMsgBrokerConfig() override;
     void attachProbe() override;
     static void sgie_output_callback(GstBuffer *buf,
@@ -58,8 +46,6 @@ public:
     // static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
     GstElement *aligner = NULL;
-    CURL *m_curl;
-    std::vector<std::string> m_video_source_name;
     NvDsObjEncCtxHandle m_obj_ctx_handle;
 };
 

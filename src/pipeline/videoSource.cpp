@@ -1,5 +1,7 @@
-#include "PipelineHandler.h"
+#include "videoSource.h"
 #include "QDTLog.h"
+#include <json-glib/json-glib.h>
+#include <librdkafka/rdkafkacpp.h>
 
 AppPipeline::~AppPipeline()
 {
@@ -44,7 +46,7 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
         else if (info[2] == std::string("rtsp"))
         {
             m_source.push_back(gst_element_factory_make("rtspsrc", ("rtsp-source-" + std::to_string(source_id)).c_str()));
-
+            g_object_set(m_source[source_id], "latency", 300, NULL);
             if (info[1] == "h265")
             {
                 m_demux.push_back(gst_element_factory_make("rtph265depay", ("rtph265depay-" + std::to_string(source_id)).c_str()));
@@ -83,7 +85,6 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
         m_decoder.push_back(gst_element_factory_make("nvv4l2decoder", ("decoder-" + std::to_string(source_id)).c_str()));
         GST_ASSERT(m_decoder[source_id]);
 
-        QDTLog::info("Input video path = {}\n", video_path);
         g_object_set(m_source[source_id], "location", video_path.c_str(), NULL);
 
         /* link */
@@ -111,12 +112,12 @@ void AppPipeline::add_video_source(std::vector<std::vector<std::string>> video_i
                 throw std::runtime_error("");
             }
         }
+
         if (!gst_element_link_many(m_parser[source_id], m_decoder[source_id], NULL))
         {
             gst_printerr("%s:%d could not link elements in camera source\n", __FILE__, __LINE__);
             throw std::runtime_error("");
         }
-
         cnt++;
     }
 }
@@ -126,17 +127,50 @@ void AppPipeline::setLiveSource(bool is_live)
     m_live_source = is_live;
 }
 
+static void
+generate_ts_rfc3339 (char *buf, int buf_size)
+{
+  time_t tloc;
+  struct tm tm_log;
+  struct timespec ts;
+  char strmsec[6];           
+
+  clock_gettime (CLOCK_REALTIME, &ts);
+  memcpy (&tloc, (void *) (&ts.tv_sec), sizeof (time_t));
+  gmtime_r (&tloc, &tm_log);
+  strftime (buf, buf_size, "%Y-%m-%dT%H:%M:%S", &tm_log);
+  int ms = ts.tv_nsec / 1000000;
+  g_snprintf (strmsec, sizeof (strmsec), ".%.3dZ", ms);
+  strncat (buf, strmsec, buf_size);
+}
+
+static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+{
+    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
+    const auto p1 = std::chrono::system_clock::now();
+    double timestamp = std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count();
+    callback_data->timestamp = (gchar*)malloc(MAX_TIME_STAMP_LEN);
+    generate_ts_rfc3339(callback_data->timestamp,  MAX_TIME_STAMP_LEN);
+    return GST_PAD_PROBE_OK;
+}
+
 void AppPipeline::linkMuxer(int muxer_output_width, int muxer_output_height)
 {
-    QDTLog::info("live source = {}", m_live_source);
     m_stream_muxer = gst_element_factory_make("nvstreammux", "streammuxer");
     g_object_set(m_stream_muxer, "width", muxer_output_width,
                  "height", muxer_output_height,
                  "batch-size", numVideoSrc(),
                  "buffer-pool-size", 40,
+                 "nvbuf-memory-type", 3,
                  "batched-push-timeout", 220000,
                  "live-source", m_live_source,
                  NULL);
+    GstPad *streammux_pad = gst_element_get_static_pad(m_stream_muxer, "src");
+    GST_ASSERT(streammux_pad);
+    gst_pad_add_probe(streammux_pad, GST_PAD_PROBE_TYPE_BUFFER, streammux_src_pad_buffer_probe,
+                      m_user_callback_data, NULL);
+    g_object_unref(streammux_pad);
+
     gst_bin_add(GST_BIN(m_pipeline), m_stream_muxer);
 
     for (int i = 0; i < numVideoSrc(); i++)

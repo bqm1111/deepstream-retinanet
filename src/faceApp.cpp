@@ -1,21 +1,25 @@
 #include "faceApp.h"
 #include "DeepStreamAppConfig.h"
+#include "message.h"
 
 FaceApp::FaceApp()
 {
     m_config = new ConfigManager();
+    m_user_callback_data = new user_callback_data();
+    m_user_callback_data->session_id = (gchar *)malloc(SESSION_ID_LENGTH);
+    uuid_t uuid;
+    uuid_generate_random(uuid);
+    uuid_unparse_lower(uuid, m_user_callback_data->session_id);
 }
 
 FaceApp::~FaceApp()
 {
     delete m_config;
     free_curl();
-    // printf("tracker list = %p\n", m_tracker_list->trackers);
-    // if (m_tracker_list->trackers != NULL)
-    // {
-    //     g_free(m_tracker_list->trackers);
-    // }
-
+    free(m_user_callback_data->session_id);
+    free(m_user_callback_data->timestamp);
+    delete m_user_callback_data->kafka_producer;
+    delete m_user_callback_data;
     if (!m_tracker_list)
     {
         g_free(m_tracker_list);
@@ -27,19 +31,23 @@ void FaceApp::loadConfig(std::string config_file)
     m_config->setContext();
     std::shared_ptr<DSAppConfig> appConf = std::dynamic_pointer_cast<DSAppConfig>(m_config->getConfig(ConfigType::DeepStreamApp));
 
-    m_gstparam.muxer_output_height = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_HEIGHT).toInt();
-    m_gstparam.muxer_output_width = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_WIDTH).toInt();
-    m_gstparam.tiler_cols = appConf->getProperty(DSAppProperty::TILER_COLS).toInt();
-    m_gstparam.tiler_rows = appConf->getProperty(DSAppProperty::TILER_ROWS).toInt();
-    m_gstparam.tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
-    m_gstparam.tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
-
-    m_gstparam.metadata_topic = appConf->getProperty(DSAppProperty::KAFKA_METADATA_TOPIC).toString();
-    m_gstparam.visual_topic = appConf->getProperty(DSAppProperty::KAFKA_VISUAL_TOPIC).toString();
-    m_gstparam.connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
-    m_gstparam.curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
+    m_user_callback_data->muxer_output_height = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_HEIGHT).toInt();
+    m_user_callback_data->muxer_output_width = appConf->getProperty(DSAppProperty::MUXER_OUTPUT_WIDTH).toInt();
+    m_user_callback_data->tiler_cols = appConf->getProperty(DSAppProperty::TILER_COLS).toInt();
+    m_user_callback_data->tiler_rows = appConf->getProperty(DSAppProperty::TILER_ROWS).toInt();
+    m_user_callback_data->tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
+    m_user_callback_data->tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
+    m_user_callback_data->metadata_topic = appConf->getProperty(DSAppProperty::KAFKA_METADATA_TOPIC).toString();
+    m_user_callback_data->visual_topic = appConf->getProperty(DSAppProperty::KAFKA_VISUAL_TOPIC).toString();
+    m_user_callback_data->connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
+    m_user_callback_data->curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
+    m_user_callback_data->face_feature_confidence_threshold = appConf->getProperty(DSAppProperty::FACE_CONFIDENCE_THRESHOLD).toFloat();
+    m_user_callback_data->save_crop_img = appConf->getProperty(DSAppProperty::SAVE_CROP_IMG).toBool();
 
     init_curl();
+    m_user_callback_data->kafka_producer = new KafkaProducer();
+    m_user_callback_data->kafka_producer->init(m_user_callback_data->connection_str);
+    m_pipeline.m_user_callback_data = m_user_callback_data;
 }
 
 void FaceApp::create(std::string name)
@@ -51,18 +59,19 @@ void FaceApp::addVideoSource(std::string list_video_src_file)
 {
     parseJson(list_video_src_file, m_video_source_name, m_video_source_info);
     m_pipeline.add_video_source(m_video_source_info, m_video_source_name);
-    m_pipeline.linkMuxer(m_gstparam.muxer_output_width, m_gstparam.muxer_output_height);
-    QDTLog::info("Num video source = {}", m_video_source_info.size());
+    m_pipeline.linkMuxer(m_user_callback_data->muxer_output_width, m_user_callback_data->muxer_output_height);
+    m_user_callback_data->video_name = m_video_source_name;
 }
 
 void FaceApp::init_curl()
 {
-    m_curl = curl_easy_init();
+    m_user_callback_data->curl = curl_easy_init();
+    CURL *m_curl = m_user_callback_data->curl;
     assert(m_curl);
 
     /* copy from postman */
     curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, "POST");
-    curl_easy_setopt(m_curl, CURLOPT_URL, m_gstparam.curl_address.c_str());
+    curl_easy_setopt(m_curl, CURLOPT_URL, m_user_callback_data->curl_address.c_str());
 
     // curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 11);
 
@@ -84,7 +93,7 @@ void FaceApp::init_curl()
 
 void FaceApp::free_curl()
 {
-    curl_easy_cleanup(m_curl);
+    curl_easy_cleanup(m_user_callback_data->curl);
 }
 
 GstElement *FaceApp::getPipeline()
@@ -97,73 +106,157 @@ int FaceApp::numVideoSrc()
     return m_video_source_name.size();
 }
 
-void FaceApp::detect()
+static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDsFrameMeta *frame_meta, user_callback_data *callback_data)
 {
-    std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
-    NvInferFaceBin face_bin(face_configs);
-    // remember to acquire curl before createBin
-    face_bin.setParam(m_gstparam);
-    face_bin.acquireFaceUserData(m_curl, m_video_source_name);
-    GstElement *inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
+    gint frame_width = (gint)surface->surfaceList[frame_meta->batch_id].width;
+    gint frame_height = (gint)surface->surfaceList[frame_meta->batch_id].height;
+    void *frame_data = surface->surfaceList[frame_meta->batch_id].mappedAddr.addr[0];
+    size_t frame_step = surface->surfaceList[frame_meta->batch_id].pitch;
 
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
+    cv::Mat frame = cv::Mat(frame_height, frame_width, CV_8UC4, frame_data, frame_step);
+    cv::Mat bgr_frame;
+    cv::cvtColor(frame, bgr_frame, cv::COLOR_RGBA2BGR);
+
+    char filename[64];
+    snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
+    std::vector<int> encode_param;
+    std::vector<uchar> encoded_buf;
+    encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
+    encode_param.push_back(80);
+    cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
+
+    XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
+    msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
+    msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
+    msg_meta_content->frameId = frame_meta->frame_num;
+    msg_meta_content->sessionId = g_strdup(callback_data->session_id);
+    msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
+
+    msg_meta_content->width = bgr_frame.cols;
+    msg_meta_content->height = bgr_frame.rows;
+    msg_meta_content->num_channel = bgr_frame.channels();
+
+    NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+    visual_event_msg->extMsg = (void *)msg_meta_content;
+    visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
+    visual_event_msg->componentId = 2;
+
+    gchar *message = generate_XFace_visual_message(visual_event_msg);
+    RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
+                                                                              RdKafka::Topic::PARTITION_UA,
+                                                                              RdKafka::Producer::RK_MSG_FREE,
+                                                                              (gchar *)message,
+                                                                              std::string(message).length(),
+                                                                              NULL, 0,
+                                                                              0, NULL, NULL);
+
+    callback_data->kafka_producer->counter++;
+    if (err != RdKafka::ERR_NO_ERROR)
     {
-        g_printerr("%s:%d Cant link inferbin to detect and Send\n", __FILE__, __LINE__);
+        if (err == RdKafka::ERR__QUEUE_FULL)
+        {
+            /* If the internal queue is full, wait for
+             * messages to be delivered and then retry.
+             * The internal queue represents both
+             * messages to be sent and messages that have
+             * been sent or failed, awaiting their
+             * delivery report callback to be called.
+             *
+             * The internal queue is limited by the
+             * configuration property
+             * queue.buffering.max.messages */
+            if (callback_data->kafka_producer->counter > 10)
+            {
+                callback_data->kafka_producer->counter = 0;
+                callback_data->kafka_producer->producer->poll(100);
+            }
+        }
     }
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
 }
 
-void FaceApp::MOT()
+static GstPadProbeReturn capsfilter_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
-    m_tracker_list = (MOTTrackerList *)g_malloc0(sizeof(MOTTrackerList));
-    int num_tracker = m_video_source_info.size();
-    m_tracker_list->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
-    m_tracker_list->num_trackers = num_tracker;
-    for (size_t i = 0; i < m_tracker_list->num_trackers; i++)
-        this->m_tracker_list->trackers[i] = tracker(
-            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
-
-    std::shared_ptr<NvInferMOTBinConfig> mot_configs = std::make_shared<NvInferMOTBinConfig>(MOT_PGIE_CONFIG_PATH, MOT_SGIE_CONFIG_PATH);
-    NvInferMOTBin mot_bin(mot_configs);
-    // remember to acquire trackerList before createBin
-    mot_bin.acquireTrackerList(m_tracker_list);
-    mot_bin.setParam(m_gstparam);
-    GstElement *inferbin = mot_bin.createInferPipeline(m_pipeline.m_pipeline);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, inferbin, NULL))
+    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    GST_ASSERT(buf);
+    if (!buf)
     {
-        g_printerr("%s:%d Cant link mot bin\n", __FILE__, __LINE__);
+        return GST_PAD_PROBE_OK;
     }
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
+    GstMapInfo in_map_info;
+    NvBufSurface *surface = NULL;
+    memset(&in_map_info, 0, sizeof(in_map_info));
+    if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
+    {
+        QDTLog::error("Error: Failed to map gst buffer\n");
+        gst_buffer_unmap(buf, &in_map_info);
+    }
+    surface = (NvBufSurface *)in_map_info.data;
+    NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
+    NvBufSurfaceSyncForCpu(surface, -1, -1);
+
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
+
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+    {
+        NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+
+        sendFullFrame(surface, batch_meta, frame_meta, callback_data);
+    }
+    NvBufSurfaceUnMap(surface, -1, -1);
+    gst_buffer_unmap(buf, &in_map_info);
+
+    return GST_PAD_PROBE_OK;
 }
 
-void FaceApp::detectAndMOT()
+GstPadProbeReturn fakesink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
-    // MOT BRANCH
-    m_tracker_list = (MOTTrackerList *)g_malloc0(sizeof(MOTTrackerList));
-    int num_tracker = m_video_source_info.size();
-    m_tracker_list->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
-    m_tracker_list->num_trackers = num_tracker;
-    for (size_t i = 0; i < m_tracker_list->num_trackers; i++)
-        this->m_tracker_list->trackers[i] = tracker(
-            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
+    GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
+    GST_ASSERT(buf);
+    if (!buf)
+    {
+        return GST_PAD_PROBE_OK;
+    }
 
-    std::shared_ptr<NvInferMOTBinConfig> mot_configs = std::make_shared<NvInferMOTBinConfig>(MOT_PGIE_CONFIG_PATH, MOT_SGIE_CONFIG_PATH);
-    NvInferMOTBin mot_bin(mot_configs);
-    // remember to acquire trackerList before createBin
-    mot_bin.acquireTrackerList(m_tracker_list);
-    mot_bin.setParam(m_gstparam);
-    GstElement *mot_inferbin = mot_bin.createInferPipeline(m_pipeline.m_pipeline);
+    if (_udata != nullptr)
+    {
+        /* do speed mesurement */
+        SinkPerfStruct *sink_perf_struct = reinterpret_cast<SinkPerfStruct *>(_udata);
+        if (!sink_perf_struct->start_perf_measurement)
+        {
+            sink_perf_struct->start_perf_measurement = true;
+            sink_perf_struct->last_tick = std::chrono::high_resolution_clock::now();
+        }
+        else
+        {
+            // Measure
+            auto tick = std::chrono::high_resolution_clock::now();
+            double elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(tick - sink_perf_struct->last_tick).count();
 
-    // DETECT BRANCH
-    std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
-    NvInferFaceBin face_bin(face_configs);
-    // remember to acquire curl before createBin
-    face_bin.setParam(m_gstparam);
-    face_bin.acquireFaceUserData(m_curl, m_video_source_name);
-    GstElement *face_inferbin = face_bin.createInferPipeline(m_pipeline.m_pipeline);
+            // Update
+            sink_perf_struct->last_tick = tick;
+            sink_perf_struct->total_time += elapsed_time;
+            sink_perf_struct->num_ticks++;
 
-    m_pipeline.linkTwoBranch(mot_inferbin, face_inferbin);
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
+            // Statistics
+            double avg_runtime = sink_perf_struct->total_time / sink_perf_struct->num_ticks / 1e6;
+            double avg_fps = 1.0 / avg_runtime;
+            // QDTLog::info("Encode Average runtime: {}  Average FPS: {}", avg_runtime, avg_fps);
+        }
+
+        if (nvds_enable_latency_measurement)
+        {
+            NvDsFrameLatencyInfo latency_info[2];
+            nvds_measure_buffer_latency(buf, latency_info);
+            g_print(" %s Source id = %d Frame_num = %d Frame latency = %lf (ms) \n",
+                    __func__,
+                    latency_info[0].source_id,
+                    latency_info[0].frame_num,
+                    latency_info[0].latency);
+        }
+    }
+
+    return GST_PAD_PROBE_OK;
 }
 
 void FaceApp::sequentialDetectAndMOT()
@@ -180,7 +273,7 @@ void FaceApp::sequentialDetectAndMOT()
     std::shared_ptr<NvInferMOTBinConfig> mot_configs = std::make_shared<NvInferMOTBinConfig>(MOT_PGIE_CONFIG_PATH, MOT_SGIE_CONFIG_PATH);
     NvInferMOTBin mot_bin(mot_configs);
     // remember to acquire trackerList before createBin
-    mot_bin.setParam(m_gstparam);
+    mot_bin.setParam(m_user_callback_data);
     mot_bin.acquireTrackerList(m_tracker_list);
     GstElement *mot_inferbin;
     mot_bin.createInferBin();
@@ -190,23 +283,92 @@ void FaceApp::sequentialDetectAndMOT()
     std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
     NvInferFaceBin face_bin(face_configs);
     // remember to acquire curl before createBin
-    face_bin.setParam(m_gstparam);
-    face_bin.acquireFaceUserData(m_curl, m_video_source_name);
+    face_bin.setParam(m_user_callback_data);
+    face_bin.acquireUserData(m_user_callback_data);
     GstElement *face_inferbin;
     face_bin.createInferBin();
     face_bin.getMasterBin(face_inferbin);
 
     // ========================================================================
     NvInferBinBase bin;
-    bin.setParam(m_gstparam);
+    bin.setParam(m_user_callback_data);
     bin.acquireTrackerList(m_tracker_list);
+    bin.acquireUserData(m_user_callback_data);
     GstElement *tiler = bin.createNonInferPipeline(m_pipeline.m_pipeline);
 
+    GstElement *video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
+    g_object_set(G_OBJECT(video_convert), "nvbuf-memory-type", 3, NULL);
+    GstElement *capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
+    GST_ASSERT(capsfilter);
+    GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)RGBA");
+    GST_ASSERT(caps);
+    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
+
+    GstElement *tee = gst_element_factory_make("tee", "tee-split");
+    GstElement *queue_infer = gst_element_factory_make("queue", "queue-infer");
+    GstElement *queue_encode = gst_element_factory_make("queue", "queue-encode");
+
+    GstElement *fakesink = gst_element_factory_make("fakesink", "osd");
+    gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), tee, queue_infer, queue_encode, video_convert, capsfilter, fakesink, NULL);
     gst_bin_add_many(GST_BIN(m_pipeline.m_pipeline), face_inferbin, mot_inferbin, NULL);
-    if (!gst_element_link_many(m_pipeline.m_stream_muxer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
+
+    if (!gst_element_link_many(m_pipeline.m_stream_muxer, tee, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
+    
+    if (!gst_element_link_many(queue_encode, video_convert, capsfilter, fakesink, NULL))
+    {
+        QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
+    }
+    
+    if (!gst_element_link_many(queue_infer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
+    {
+        QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
+    }
+
+    // Link queue infer
+    GstPad *sink_pad = gst_element_get_static_pad(queue_infer, "sink");
+    GstPad *queue_infer_pad = gst_element_get_request_pad(tee, "src_%u");
+    if (!queue_infer_pad)
+    {
+        g_printerr("Unable to get request pads\n");
+    }
+
+    if (gst_pad_link(queue_infer_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
+
+    // Link queue encode
+    sink_pad = gst_element_get_static_pad(queue_encode, "sink");
+    GstPad *queue_encode_pad = gst_element_get_request_pad(tee, "src_%u");
+    if (!queue_encode_pad)
+    {
+        g_printerr("Unable to get request pads\n");
+    }
+
+    if (gst_pad_link(queue_encode_pad, sink_pad) != GST_PAD_LINK_OK)
+    {
+        g_printerr("Unable to link tee and message converter\n");
+        gst_object_unref(sink_pad);
+    }
+    gst_object_unref(sink_pad);
+
+    GstPad *capsfilter_src_pad = gst_element_get_static_pad(capsfilter, "src");
+    GST_ASSERT(capsfilter_src_pad);
+    gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, capsfilter_src_pad_buffer_probe,
+                      m_user_callback_data, NULL);
+    g_object_unref(capsfilter_src_pad);
+
+    SinkPerfStruct *fakesink_perf = new SinkPerfStruct;
+    GstPad *fakesink_pad = gst_element_get_static_pad(fakesink, "sink");
+    GST_ASSERT(fakesink_pad);
+    gst_pad_add_probe(fakesink_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
+                      fakesink_perf, NULL);
+    g_object_unref(fakesink_pad);
 
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline.m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");
 }

@@ -186,7 +186,7 @@ __global__ void CalDetection(const float *input, float *output, int num_elem, in
     const float *bbox_reg = &cur_input[0];
     const float *cls_reg = &cur_input[2 * 4 * total_grid];
     const float *lmk_reg = &cur_input[2 * 4 * total_grid + 2 * 2 * total_grid];
-
+    // 
     for (int k = 0; k < 2; ++k) {
         float conf1 = cls_reg[idx + k * total_grid * 2];
         float conf2 = cls_reg[idx + k * total_grid * 2 + total_grid];
@@ -204,7 +204,7 @@ __global__ void CalDetection(const float *input, float *output, int num_elem, in
         prior[2] = (float)anchor * (k + 1) / netW;
         prior[3] = (float)anchor * (k + 1) / netH;
 
-        //Location
+        // Location
         det->bbox[0] = prior[0] + bbox_reg[idx + k * total_grid * 4] * 0.1 * prior[2];
         det->bbox[1] = prior[1] + bbox_reg[idx + k * total_grid * 4 + total_grid] * 0.1 * prior[3];
         det->bbox[2] = prior[2] * expf(bbox_reg[idx + k * total_grid * 4 + total_grid * 2] * 0.2);

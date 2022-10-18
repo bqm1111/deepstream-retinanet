@@ -5,6 +5,7 @@
 #include <gst/gstelementfactory.h>
 #include <gst/gstobject.h>
 #include <string>
+
 class NvInferBinConfigBase
 {
 public:

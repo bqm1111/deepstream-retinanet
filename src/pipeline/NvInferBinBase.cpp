@@ -25,9 +25,6 @@ GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
     m_pipeline = pipeline;
     // createVideoSinkBin();
     createFileSinkBin("out.mkv");
-    linkMsgBroker();
-    setMsgBrokerConfig();
-
     attachProbe();
     return m_tiler;
 }
@@ -36,10 +33,10 @@ void NvInferBinBase::createVideoSinkBin()
 {
     m_tiler = gst_element_factory_make("nvmultistreamtiler", std::string("sink-nvmultistreamtiler" + m_module_name).c_str());
     GST_ASSERT(m_tiler);
-    g_object_set(G_OBJECT(m_tiler), "rows", m_params.tiler_rows, NULL);
-    g_object_set(G_OBJECT(m_tiler), "columns", m_params.tiler_cols, NULL);
-    g_object_set(G_OBJECT(m_tiler), "width", m_params.tiler_width, NULL);
-    g_object_set(G_OBJECT(m_tiler), "height", m_params.tiler_height, NULL);
+    g_object_set(G_OBJECT(m_tiler), "rows", m_user_callback_data->tiler_rows, NULL);
+    g_object_set(G_OBJECT(m_tiler), "columns", m_user_callback_data->tiler_cols, NULL);
+    g_object_set(G_OBJECT(m_tiler), "width", m_user_callback_data->tiler_width, NULL);
+    g_object_set(G_OBJECT(m_tiler), "height", m_user_callback_data->tiler_height, NULL);
     m_convert = gst_element_factory_make("nvvideoconvert", std::string("video-convert" + m_module_name).c_str());
     GST_ASSERT(m_convert);
 
@@ -83,10 +80,10 @@ void NvInferBinBase::createFileSinkBin(std::string location)
 {
     m_tiler = gst_element_factory_make("nvmultistreamtiler", std::string("sink-nvmultistreamtiler" + m_module_name).c_str());
     GST_ASSERT(m_tiler);
-    g_object_set(G_OBJECT(m_tiler), "rows", m_params.tiler_rows, NULL);
-    g_object_set(G_OBJECT(m_tiler), "columns", m_params.tiler_cols, NULL);
-    g_object_set(G_OBJECT(m_tiler), "width", m_params.tiler_width, NULL);
-    g_object_set(G_OBJECT(m_tiler), "height", m_params.tiler_height, NULL);
+    g_object_set(G_OBJECT(m_tiler), "rows", m_user_callback_data->tiler_rows, NULL);
+    g_object_set(G_OBJECT(m_tiler), "columns", m_user_callback_data->tiler_cols, NULL);
+    g_object_set(G_OBJECT(m_tiler), "width", m_user_callback_data->tiler_width, NULL);
+    g_object_set(G_OBJECT(m_tiler), "height", m_user_callback_data->tiler_height, NULL);
     m_convert = gst_element_factory_make("nvvideoconvert", std::string("video-convert" + m_module_name).c_str());
     GST_ASSERT(m_convert);
 
@@ -137,7 +134,7 @@ void NvInferBinBase::createFileSinkBin(std::string location)
     {
         gst_printerr("%s:%dCould not link elements\n", __FILE__, __LINE__);
     }
-
+    
     GstPad *muxer_sinkpad = gst_element_get_request_pad(m_file_muxer, "video_0");
     GST_ASSERT(muxer_sinkpad);
 
@@ -149,7 +146,7 @@ void NvInferBinBase::createFileSinkBin(std::string location)
         gst_printerr("%s:%d could not link h265parse and matroskamux, reason %d\n", __FILE__, __LINE__, pad_link_return);
         throw std::runtime_error("");
     }
-
+    
     GstPad *sink_pad = gst_element_get_static_pad(m_queue_display, "sink");
     m_tee_display_pad = gst_element_get_request_pad(m_tee, "src_%u");
     if (!m_tee_display_pad)
@@ -231,20 +228,19 @@ void NvInferBinBase::attachProbe()
     GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
     GST_ASSERT(tiler_sink_pad);
     gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
-                      sink_perf, NULL);
+                      m_user_callback_data, NULL);
     g_object_unref(tiler_sink_pad);
 
     GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
     GST_ASSERT(osd_sink_pad);
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
-                      reinterpret_cast<gpointer>(m_tiler), NULL);
+                      reinterpret_cast<gpointer>(sink_perf), NULL);
     gst_object_unref(osd_sink_pad);
 }
 
 void NvInferBinBase::setMsgBrokerConfig()
 {
     // FACE and MOT Branch
-    g_object_set(G_OBJECT(m_metadata_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);
@@ -254,11 +250,10 @@ void NvInferBinBase::setMsgBrokerConfig()
 
     g_object_set(G_OBJECT(m_metadata_msgbroker), "comp-id", 1, NULL);
     g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_params.metadata_topic.c_str(), NULL);
+                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
 
     // Crop image branch
-    g_object_set(G_OBJECT(m_visual_msgconv), "config", MSG_CONFIG_PATH, NULL);
     g_object_set(G_OBJECT(m_visual_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
     g_object_set(G_OBJECT(m_visual_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
     g_object_set(G_OBJECT(m_visual_msgconv), "msg2p-newapi", 0, NULL);
@@ -269,6 +264,6 @@ void NvInferBinBase::setMsgBrokerConfig()
 
     g_object_set(G_OBJECT(m_visual_msgbroker), "comp-id", 2, NULL);
     g_object_set(G_OBJECT(m_visual_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_params.connection_str.c_str(), "sync", FALSE, NULL);
-    g_object_set(G_OBJECT(m_visual_msgbroker), "topic", m_params.visual_topic.c_str(), NULL);
+                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
+    g_object_set(G_OBJECT(m_visual_msgbroker), "topic", m_user_callback_data->visual_topic.c_str(), NULL);
 }
