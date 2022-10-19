@@ -61,7 +61,7 @@ void NvInferMOTBin::createInferBin()
         throw std::runtime_error("");
     }
     gst_pad_add_probe(sgie_srcpad, GST_PAD_PROBE_TYPE_BUFFER,
-                      sgie_src_pad_buffer_probe, m_tracker_list, NULL);
+                      sgie_src_pad_buffer_probe, m_user_callback_data, NULL);
     gst_object_unref(sgie_srcpad);
 }
 
@@ -76,19 +76,7 @@ void NvInferMOTBin::attachProbe()
     GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
     GST_ASSERT(osd_sink_pad);
     gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
-                      m_tracker_list, NULL);
+                      m_user_callback_data, NULL);
     gst_object_unref(osd_sink_pad);
 }
 
-void NvInferMOTBin::setMsgBrokerConfig()
-{
-    g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_DEEPSTREAM, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgconv), "frame-interval", 30, NULL);
-
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
-
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
-}

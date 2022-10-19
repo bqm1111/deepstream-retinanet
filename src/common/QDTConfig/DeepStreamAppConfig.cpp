@@ -8,7 +8,7 @@ void DSAppConfig::load()
 {
     if (!rootDataDoc_)
     {
-        QDTLog::debug("Video Config does not exist in linkConfig file");
+        QDTLog::debug("DsApp Config does not exist in linkConfig file");
     }
     else
     {

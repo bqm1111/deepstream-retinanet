@@ -27,7 +27,7 @@ private:
             {ConfigType::DeepStreamApp, "DsApp"}};
     std::unordered_map<ConfigType, std::string> fileConfigMap_ =
         {
-            {ConfigType::DeepStreamApp, "../configs/DsApp.conf"}};
+            {ConfigType::DeepStreamApp, "../configs/app.conf"}};
     std::unordered_map<ConfigType, std::shared_ptr<ConfigBase>> configMap_;
     std::mutex mutexDocument_;
 };

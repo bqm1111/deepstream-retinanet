@@ -9,6 +9,7 @@
 #include "NvInferBinConfigBase.h"
 #include "common.h"
 #include "params.h"
+#include "app_struct.h"
 #include "mot_struct.h"
 #include "utils.h"
 #include "QDTLog.h"
@@ -20,18 +21,14 @@ public:
 
     virtual ~NvInferBinBase() {}
     void getMasterBin(GstElement *&bin) { bin = this->m_masterBin; }
-    void setParam(user_callback_data *callback_data) { m_user_callback_data = callback_data; };
     virtual void createInferBin() {}
     virtual void attachProbe();
-    virtual void setMsgBrokerConfig();
     void acquireUserData(user_callback_data *callback_data) { m_user_callback_data = callback_data; }
-    void acquireTrackerList(MOTTrackerList *tracker_list) { m_tracker_list = tracker_list; }
 
     GstElement *createInferPipeline(GstElement *pipeline);
     GstElement *createNonInferPipeline(GstElement *pipeline);
     void createVideoSinkBin();
     void createFileSinkBin(std::string location);
-    void linkMsgBroker();
 
     GstElement *m_pipeline = NULL;
     // Common element in infer bin
@@ -41,10 +38,6 @@ public:
     // common elements for the rest of the pipeline
     GstElement *m_tiler = NULL;
     GstElement *m_convert = NULL;
-    GstElement *m_metadata_msgconv = NULL;
-    GstElement *m_metadata_msgbroker = NULL;
-    GstElement *m_visual_msgconv = NULL;
-    GstElement *m_visual_msgbroker = NULL;
 
     GstElement *m_tee = NULL;
     GstElement *m_queue_display = NULL;
@@ -60,14 +53,11 @@ public:
     GstElement *m_sink = NULL;
 
     GstPad *m_tee_display_pad;
-    GstPad *m_tee_metadata_msg_pad;
-    GstPad *m_tee_visual_msg_pad;
 
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
 protected:
-    MOTTrackerList *m_tracker_list;
     user_callback_data *m_user_callback_data;
     GstElement *m_masterBin = NULL;
     std::shared_ptr<NvInferBinConfigBase> m_configs;

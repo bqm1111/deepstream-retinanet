@@ -43,3 +43,4 @@ add_compile_definitions(WITH_OPENCV)
 find_package( OpenCV 4.3.0 REQUIRED )
 target_include_directories(${ALIGNMENT_ELEMENT} PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(${ALIGNMENT_ELEMENT} ${OpenCV_LIBS})
+

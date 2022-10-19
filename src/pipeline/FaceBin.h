@@ -3,12 +3,13 @@
 #include "NvInferBinBase.h"
 #include "NvInferBinConfigBase.h"
 #include "params.h"
+#include "app_struct.h"
 #include <curl/curl.h>
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include <nvds_obj_encode.h>
-
+#include "utils.h"
 using namespace rapidjson;
 
 class NvInferFaceBinConfig : public NvInferBinConfigBase
@@ -32,7 +33,6 @@ public:
 
     void createInferBin() override;
     void createDetectBin();
-    void setMsgBrokerConfig() override;
     void attachProbe() override;
     static void sgie_output_callback(GstBuffer *buf,
                                      NvDsInferNetworkInfo *network_info,

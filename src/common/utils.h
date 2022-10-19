@@ -22,4 +22,6 @@ void floatArr2Str(std::string &str, float *arr, int length);
 gchar *gen_body(int num_vec, gchar *vec);
 bool parseJson(std::string filename, std::vector<std::string> &name,
                std::vector<std::vector<std::string>> &info);
+void generate_ts_rfc3339(char *buf, int buf_size);
+
 #endif

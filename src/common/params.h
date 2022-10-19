@@ -11,8 +11,6 @@
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 #include <chrono>
-#include <curl/curl.h>
-#include "kafka_producer.h"
 #ifndef NVDS_OBJ_USER_META_MOT
 #define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
 #endif
@@ -68,29 +66,6 @@
 
 #define POST_TRACK_SCORE 1.0
 #define SESSION_ID_LENGTH 37
-
-struct user_callback_data
-{
-    CURL *curl;
-    gchar *session_id;
-    std::vector<std::string> video_name;
-    KafkaProducer *kafka_producer;
-    gchar* timestamp;
-    float face_feature_confidence_threshold;
-    bool save_crop_img;
-
-    int muxer_output_width;
-    int muxer_output_height;
-    int tiler_rows;
-    int tiler_cols;
-    int tiler_width;
-    int tiler_height;
-
-    std::string metadata_topic;
-    std::string visual_topic;
-    std::string connection_str;
-    std::string curl_address;
-};
 
 
 struct alignas(float) Detection

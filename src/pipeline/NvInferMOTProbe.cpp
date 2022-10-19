@@ -132,7 +132,8 @@ void user_release_mot_meta(gpointer data, gpointer user_data)
 
 GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
-    MOTTrackerList *tracker_list = (MOTTrackerList *)user_data;
+    user_callback_data * callback_data = (user_callback_data *)user_data;
+    tracker *trackers = callback_data->trackers;
     GstBuffer *gst_buffer = gst_pad_probe_info_get_buffer(info);
     NvDsMetaList *l_obj = NULL;
 
@@ -149,7 +150,7 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)l_frame->data;
 
-        tracker *_tracker = tracker_list->trackers + frame_meta->source_id;
+        tracker *_tracker = trackers + frame_meta->source_id;
         // Track with DeepSORT
         DETECTIONS detections;
         parse_detections_from_frame_meta(detections, frame_meta);

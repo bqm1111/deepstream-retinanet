@@ -14,7 +14,6 @@ add_library(deepsort SHARED
 )
 
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-message(STATUS "EIGEN3_INCLUDE_DIR=${EIGEN3_INCLUDE_DIR}")
 find_package(OpenCV REQUIRED )
 
 target_include_directories(${TARGET_DEEPSORT} PUBLIC ${OpenCV_INCLUDE_DIRS})

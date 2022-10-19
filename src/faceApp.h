@@ -1,7 +1,6 @@
 #ifndef APP_H
 #define APP_H
 #include <string>
-#include "videoSource.h"
 #include "FaceBin.h"
 #include "MOTBin.h"
 #include <curl/curl.h>
@@ -9,24 +8,28 @@
 #include "ConfigManager.h"
 #include "DeepStreamAppConfig.h"
 #include <uuid.h>
-
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
 class FaceApp
 {
 public:
-    FaceApp();
+    FaceApp(std::string app_name);
     ~FaceApp();
 
-    void create(std::string name);
-    void setLive(bool is_live);
-    void loadConfig(std::string config_file);
+    void loadConfig();
     void addVideoSource(std::string list_video_src_file);
     void sequentialDetectAndMOT();
     GstElement *getPipeline();
     int numVideoSrc();
     std::vector<std::string> m_video_source_name;
     std::vector<std::vector<std::string>> m_video_source_info;
-    AppPipeline m_pipeline;
-    MOTTrackerList *m_tracker_list = nullptr;
+    GstElement *m_pipeline = NULL;
+    GstElement *m_stream_muxer = NULL;
 
 private:
     ConfigManager *m_config;

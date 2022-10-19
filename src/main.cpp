@@ -29,10 +29,8 @@ int main(int argc, char *argv[])
 	gst_init(&argc, &argv);
 	loop = g_main_loop_new(NULL, FALSE);
 
-	FaceApp app;
-	app.loadConfig("../configs/DsApp.conf");
-	app.create("face-app");
-	app.setLive(std::stoi(argv[2]));
+	FaceApp app("face-app");
+	app.loadConfig();
 	app.addVideoSource(std::string(argv[1]));
 	
 	app.sequentialDetectAndMOT();

@@ -100,21 +100,6 @@ static void nms(std::vector<Detection> &res, float *output, float post_cluster_t
     }
 }
 
-static void generate_ts_rfc3339(char *buf, int buf_size)
-{
-    time_t tloc;
-    struct tm tm_log;
-    struct timespec ts;
-    char strmsec[6]; //.nnnZ\0
-
-    clock_gettime(CLOCK_REALTIME, &ts);
-    memcpy(&tloc, (void *)(&ts.tv_sec), sizeof(time_t));
-    gmtime_r(&tloc, &tm_log);
-    strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%S", &tm_log);
-    int ms = ts.tv_nsec / 1000000;
-    g_snprintf(strmsec, sizeof(strmsec), ".%.3dZ", ms);
-    strncat(buf, strmsec, buf_size);
-}
 
 static void
 generate_event_msg_meta(gpointer data, NvDsObjectMeta *obj_meta)

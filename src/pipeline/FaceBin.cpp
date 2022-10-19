@@ -38,7 +38,6 @@ void NvInferFaceBin::createInferBin()
 
     GstPad *sgie_src_pad = gst_element_get_static_pad(m_sgie, "src");
     GST_ASSERT(sgie_src_pad);
-    // gst_pad_add_probe(sgie_src_pad, GST_PAD_PROBE_TYPE_BUFFER, sgie_face_src_pad_buffer_probe, nullptr, NULL);
     // Properties
     g_object_set(m_pgie, "config-file-path", m_configs->pgie_config_path.c_str(), NULL);
     g_object_set(m_pgie, "output-tensor-meta", TRUE, NULL);
@@ -114,20 +113,6 @@ void NvInferFaceBin::createDetectBin()
     gst_element_add_pad(m_masterBin, src_ghost_pad);
 
     gst_object_unref(pgie_src_pad);
-}
-
-
-void NvInferFaceBin::setMsgBrokerConfig()
-{
-    g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-lib", KAFKA_MSG2P_LIB, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgconv), "payload-type", NVDS_PAYLOAD_CUSTOM, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgconv), "msg2p-newapi", 0, NULL);
-    g_object_set(G_OBJECT(m_metadata_msgconv), "frame-interval", 30, NULL);
-
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "proto-lib", KAFKA_PROTO_LIB,
-                 "conn-str", m_user_callback_data->connection_str.c_str(), "sync", FALSE, NULL);
-
-    g_object_set(G_OBJECT(m_metadata_msgbroker), "topic", m_user_callback_data->metadata_topic.c_str(), NULL);
 }
 
 void NvInferFaceBin::attachProbe()
