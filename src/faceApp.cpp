@@ -255,75 +255,7 @@ int FaceApp::numVideoSrc()
     return m_video_source_name.size();
 }
 
-static void sendFullFrame(NvBufSurface *surface, NvDsBatchMeta *batch_meta, NvDsFrameMeta *frame_meta, user_callback_data *callback_data)
-{
-    gint frame_width = (gint)surface->surfaceList[frame_meta->batch_id].width;
-    gint frame_height = (gint)surface->surfaceList[frame_meta->batch_id].height;
-    void *frame_data = surface->surfaceList[frame_meta->batch_id].mappedAddr.addr[0];
-    size_t frame_step = surface->surfaceList[frame_meta->batch_id].pitch;
-
-    cv::Mat frame = cv::Mat(frame_height, frame_width, CV_8UC4, frame_data, frame_step);
-    cv::Mat bgr_frame;
-    cv::cvtColor(frame, bgr_frame, cv::COLOR_RGBA2BGR);
-
-    char filename[64];
-    snprintf(filename, 64, "img/image%d_%d.jpg", frame_meta->source_id, frame_meta->frame_num);
-    std::vector<int> encode_param;
-    std::vector<uchar> encoded_buf;
-    encode_param.push_back(cv::IMWRITE_JPEG_QUALITY);
-    encode_param.push_back(80);
-    cv::imencode(".jpg", bgr_frame, encoded_buf, encode_param);
-
-    XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
-    msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
-    msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
-    msg_meta_content->frameId = frame_meta->frame_num;
-    msg_meta_content->sessionId = g_strdup(callback_data->session_id);
-    msg_meta_content->full_img = g_strdup(b64encode((uchar *)encoded_buf.data(), encoded_buf.size()));
-
-    msg_meta_content->width = bgr_frame.cols;
-    msg_meta_content->height = bgr_frame.rows;
-    msg_meta_content->num_channel = bgr_frame.channels();
-
-    NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-    visual_event_msg->extMsg = (void *)msg_meta_content;
-    visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
-    visual_event_msg->componentId = 2;
-
-    gchar *message = generate_XFace_visual_message(visual_event_msg);
-    RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
-                                                                              RdKafka::Topic::PARTITION_UA,
-                                                                              RdKafka::Producer::RK_MSG_FREE,
-                                                                              (gchar *)message,
-                                                                              std::string(message).length(),
-                                                                              NULL, 0,
-                                                                              0, NULL, NULL);
-
-    callback_data->kafka_producer->counter++;
-    if (err != RdKafka::ERR_NO_ERROR)
-    {
-        if (err == RdKafka::ERR__QUEUE_FULL)
-        {
-            /* If the internal queue is full, wait for
-             * messages to be delivered and then retry.
-             * The internal queue represents both
-             * messages to be sent and messages that have
-             * been sent or failed, awaiting their
-             * delivery report callback to be called.
-             *
-             * The internal queue is limited by the
-             * configuration property
-             * queue.buffering.max.messages */
-            if (callback_data->kafka_producer->counter > 10)
-            {
-                callback_data->kafka_producer->counter = 0;
-                callback_data->kafka_producer->producer->poll(100);
-            }
-        }
-    }
-}
-
-static GstPadProbeReturn capsfilter_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
+static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     GstBuffer *buf = reinterpret_cast<GstBuffer *>(info->data);
     GST_ASSERT(buf);
@@ -331,30 +263,134 @@ static GstPadProbeReturn capsfilter_src_pad_buffer_probe(GstPad *pad, GstPadProb
     {
         return GST_PAD_PROBE_OK;
     }
-    GstMapInfo in_map_info;
-    NvBufSurface *surface = NULL;
-    memset(&in_map_info, 0, sizeof(in_map_info));
-    if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
+    GstMapInfo inmap = GST_MAP_INFO_INIT;
+    if (!gst_buffer_map(buf, &inmap, GST_MAP_READ))
     {
         QDTLog::error("Error: Failed to map gst buffer\n");
-        gst_buffer_unmap(buf, &in_map_info);
+        gst_buffer_unmap(buf, &inmap);
     }
-    surface = (NvBufSurface *)in_map_info.data;
-    NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
-    NvBufSurfaceSyncForCpu(surface, -1, -1);
+    NvBufSurface *ip_surf = (NvBufSurface *)inmap.data;
+    gst_buffer_unmap(buf, &inmap);
+
+    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
 
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
-    user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
 
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
-        NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
+        NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
 
-        sendFullFrame(surface, batch_meta, frame_meta, callback_data);
+        // attack a mfake object whose class id is MFAKE_CLASS_ID
+        NvDsObjectMeta *mfake_meta = nvds_acquire_obj_meta_from_pool(batch_meta);
+        mfake_meta->unique_component_id = 1;
+        mfake_meta->confidence = 1.0;
+        mfake_meta->class_id = MFAKE_CLASS_ID;
+        mfake_meta->object_id = UNTRACKED_OBJECT_ID;
+
+        mfake_meta->detector_bbox_info.org_bbox_coords.left = 0.0f;
+        mfake_meta->detector_bbox_info.org_bbox_coords.top = 0.0f;
+        mfake_meta->detector_bbox_info.org_bbox_coords.width = 1000;
+        mfake_meta->detector_bbox_info.org_bbox_coords.height = 1000;
+        // mfake_meta->detector_bbox_info.org_bbox_coords.height = frame_meta->source_frame_height;
+        // mfake_meta->detector_bbox_info.org_bbox_coords.height = frame_meta->source_frame_height;
+
+        mfake_meta->rect_params.top = 0.0f;
+        mfake_meta->rect_params.left = 0.0f;
+        mfake_meta->rect_params.width = float(frame_meta->source_frame_height);
+        mfake_meta->rect_params.height = float(frame_meta->source_frame_width);
+
+        // QDTLog::debug("frame_meta width {} height {}", frame_meta->source_frame_width, frame_meta->source_frame_height);
+
+        nvds_add_obj_meta_to_frame(frame_meta, mfake_meta, NULL);
+
+        NvDsObjEncUsrArgs userData = {0};
+        userData.saveImg = FALSE;
+        userData.attachUsrMeta = TRUE;
+
+        userData.scaleImg = TRUE;
+        userData.scaledWidth = callback_data->fullframe_encode_scale_width;
+        userData.scaledHeight = callback_data->fullframe_encode_scale_height;
+
+        userData.quality = 50;
+
+        nvds_obj_enc_process((NvDsObjEncCtxHandle)callback_data->fullframe_ctx_handle, &userData, ip_surf, mfake_meta, frame_meta);
     }
-    NvBufSurfaceUnMap(surface, -1, -1);
-    gst_buffer_unmap(buf, &in_map_info);
 
+    nvds_obj_enc_finish((NvDsObjEncCtxHandle)callback_data->fullframe_ctx_handle);
+
+
+    for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+    {
+        NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
+        for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
+        {
+            NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
+            if (obj_meta->class_id != MFAKE_CLASS_ID)
+            {
+                continue;
+            }
+            for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+            {
+                NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+                // get encoded image from mfake_meta
+                if (user_meta->base_meta.meta_type != NVDS_CROP_IMAGE_META)
+                {
+                    continue;
+                }
+
+                NvDsObjEncOutParams *enc_jpeg_image = (NvDsObjEncOutParams *)user_meta->user_meta_data;
+                // face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
+
+                XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
+                msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
+                msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
+                msg_meta_content->frameId = frame_meta->frame_num;
+                msg_meta_content->sessionId = g_strdup(callback_data->session_id);
+                msg_meta_content->full_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
+
+                msg_meta_content->width = callback_data->fullframe_encode_scale_width;
+                msg_meta_content->height = callback_data->fullframe_encode_scale_height;
+                msg_meta_content->num_channel = 3 /*bgr_frame.channels()*/;
+
+                NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
+                visual_event_msg->extMsg = (void *)msg_meta_content;
+                visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
+                visual_event_msg->componentId = 2;
+
+                gchar *message = generate_XFace_visual_message(visual_event_msg);
+                RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
+                                                                                          RdKafka::Topic::PARTITION_UA,
+                                                                                          RdKafka::Producer::RK_MSG_FREE,
+                                                                                          (gchar *)message,
+                                                                                          std::string(message).length(),
+                                                                                          NULL, 0,
+                                                                                          0, NULL, NULL);
+
+                callback_data->kafka_producer->counter++;
+                if (err != RdKafka::ERR_NO_ERROR)
+                {
+                    if (err == RdKafka::ERR__QUEUE_FULL)
+                    {
+                        /* If the internal queue is full, wait for
+                         * messages to be delivered and then retry.
+                         * The internal queue represents both
+                         * messages to be sent and messages that have
+                         * been sent or failed, awaiting their
+                         * delivery report callback to be called.
+                         *
+                         * The internal queue is limited by the
+                         * configuration property
+                         * queue.buffering.max.messages */
+                        if (callback_data->kafka_producer->counter > 10)
+                        {
+                            callback_data->kafka_producer->counter = 0;
+                            callback_data->kafka_producer->producer->poll(100);
+                        }
+                    }
+                }
+            }
+        } // obj_meta_list
+    }     // frame_meta_list
     return GST_PAD_PROBE_OK;
 }
 
@@ -496,8 +532,18 @@ void FaceApp::sequentialDetectAndMOT()
 
     GstPad *capsfilter_src_pad = gst_element_get_static_pad(capsfilter, "src");
     GST_ASSERT(capsfilter_src_pad);
-    gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, capsfilter_src_pad_buffer_probe,
-                      m_user_callback_data, NULL);
+    // gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, capsfilter_src_pad_buffer_probe,
+    //   m_user_callback_data, NULL);
+    // FIXME: nvds_obj_enc_create_context in somewhere else?
+    m_user_callback_data->fullframe_ctx_handle = nvds_obj_enc_create_context();
+    if (!m_user_callback_data->fullframe_ctx_handle)
+    {
+        QDTLog::error("%s:%d Unable to create context\n", __FILE__, __LINE__);
+    }
+    // FIXME: nvds_obj_enc_destroy_context
+    gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, encode_and_send,
+      m_user_callback_data, NULL);
+    
     g_object_unref(capsfilter_src_pad);
 
     SinkPerfStruct *fakesink_perf = new SinkPerfStruct;

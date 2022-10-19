@@ -27,6 +27,11 @@
 #define FACE_CLASS_ID 1000
 #endif
 
+// each frame have only one mfake object, whose boudingbox is the whole image
+#ifndef MFAKE_CLASS_ID
+#define MFAKE_CLASS_ID 1234
+#endif
+
 #ifndef FEATURE_SIZE
 #define FEATURE_SIZE 512
 #endif
@@ -177,12 +182,53 @@ typedef struct NvDsMOTMetaData
     gchar *feature;
 } NvDsMOTMetaData;
 
-struct SinkPerfStruct
+
+#include "QDTLog.h"
+class SinkPerfStruct
 {
     bool start_perf_measurement = false;
+    double avg_runtime;
     std::chrono::high_resolution_clock::time_point last_tick = std::chrono::high_resolution_clock::now();
     gdouble total_time = 0;
     gdouble num_ticks = 0;
+
+public:
+    /**
+     * start if not started
+     */ 
+    inline void check_start() {
+        if (!start_perf_measurement) {
+            start_perf_measurement = true;
+            last_tick = std::chrono::high_resolution_clock::now();
+        }
+    }
+
+    inline void update(std::chrono::_V2::system_clock::time_point tick = std::chrono::high_resolution_clock::now()) {
+        double elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(tick - last_tick).count();
+
+        // Update
+        last_tick = tick;
+        total_time += elapsed_time;
+        num_ticks++;
+
+        avg_runtime = total_time / num_ticks / 1e6;
+    }
+
+    inline double get_avg_runtime() {
+        return avg_runtime;
+    }
+
+    inline double get_avg_fps() {
+        return 1.0 / avg_runtime;
+    }
+
+    void log() {
+        QDTLog::debug("Average runtime: {}  Average FPS: {}", get_avg_runtime(), get_avg_fps());
+    }
+
+    // std::ostream &operator<<(std::ostream &os, SinkPerfStruct const &m) { 
+    //     return os << "Average runtime: " << m.get_avg_runtime() << " Average FPS: " << m.get_avg_fps();
+    // }
 };
 
 #endif

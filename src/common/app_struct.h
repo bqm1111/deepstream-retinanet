@@ -5,6 +5,8 @@
 #include "kafka_producer.h"
 #include "tracker.h"
 
+#include "nvds_obj_encode.h"
+
 struct user_callback_data
 {
     CURL *curl;
@@ -32,6 +34,11 @@ struct user_callback_data
     std::string visual_topic;
     std::string connection_str;
     std::string curl_address;
+
+    // full frame encode related settings
+    int fullframe_encode_scale_width = 640;
+    int fullframe_encode_scale_height = 480;
+    NvDsObjEncCtxHandle fullframe_ctx_handle;
 };
 
 
