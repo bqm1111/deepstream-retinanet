@@ -31,3 +31,8 @@ Run with rtsp stream
 ./experiment ../configs/rtsp_source_list.json 1
 ```
 
+Enable LATENCY mesurement
+
+```bash
+export NVDS_ENABLE_COMPONENT_LATENCY_MEASUREMENT=1
+```
