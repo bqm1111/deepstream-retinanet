@@ -100,7 +100,6 @@ static void nms(std::vector<Detection> &res, float *output, float post_cluster_t
     }
 }
 
-
 static void
 generate_event_msg_meta(gpointer data, NvDsObjectMeta *obj_meta)
 {
@@ -365,98 +364,102 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
             std::vector<Detection> res;
             nms(res, output, detectionParams.perClassPostclusterThreshold[0]);
 
+            // QDTLog::info("number of detection box = {}", res.size());
             /* Iterate final rectangules and attach result into frame's obj_meta_list */
             for (const auto &obj : res)
             {
-                NvDsObjectMeta *obj_meta = nvds_acquire_obj_meta_from_pool(batch_meta);
-
-                // FIXME: a `meta` can produce more than once `obj`. Hence cannot set obj_meta->unique_component_id = meta->unique_id;
-                obj_meta->unique_component_id = meta->unique_id;
-                obj_meta->confidence = obj.class_confidence;
-
-                // untracked object. Set tracking_id to -1
-                obj_meta->object_id = UNTRACKED_OBJECT_ID;
-                obj_meta->class_id = FACE_CLASS_ID; // only have one class
-
-                /* retrieve bouding box */
-                float scale_x = muxer_output_width / pgie_net_width;
-                float scale_y = muxer_output_height / pgie_net_height;
-
-                obj_meta->detector_bbox_info.org_bbox_coords.left = obj.bbox[0];
-                obj_meta->detector_bbox_info.org_bbox_coords.top = obj.bbox[1];
-                obj_meta->detector_bbox_info.org_bbox_coords.width = obj.bbox[2] - obj.bbox[0];
-                obj_meta->detector_bbox_info.org_bbox_coords.height = obj.bbox[3] - obj.bbox[1];
-
-                obj_meta->detector_bbox_info.org_bbox_coords.left *= scale_x;
-                obj_meta->detector_bbox_info.org_bbox_coords.top *= scale_y;
-                obj_meta->detector_bbox_info.org_bbox_coords.width *= scale_x;
-                obj_meta->detector_bbox_info.org_bbox_coords.height *= scale_y;
-
-                // add padding to bbox found
-                int padding = 5;
-                float left, top, width, height;
-                obj_meta->detector_bbox_info.org_bbox_coords.left -= padding;
-                obj_meta->detector_bbox_info.org_bbox_coords.top -= padding;
-                obj_meta->detector_bbox_info.org_bbox_coords.width += 2 * padding;
-                obj_meta->detector_bbox_info.org_bbox_coords.height += 2 * padding;
-
-                left = obj_meta->detector_bbox_info.org_bbox_coords.left;
-                top = obj_meta->detector_bbox_info.org_bbox_coords.top;
-                width = obj_meta->detector_bbox_info.org_bbox_coords.width;
-                height = obj_meta->detector_bbox_info.org_bbox_coords.height;
-
-                left = left > 0 ? left : 0;
-                top = top > 0 ? top : 0;
-                width = (left + width < muxer_output_width) ? width : (muxer_output_width - left);
-                height = (top + height < muxer_output_height) ? height : (muxer_output_height - top);
-
-                obj_meta->detector_bbox_info.org_bbox_coords.left = left;
-                obj_meta->detector_bbox_info.org_bbox_coords.top = top;
-                obj_meta->detector_bbox_info.org_bbox_coords.width = width;
-                obj_meta->detector_bbox_info.org_bbox_coords.height = height;
-
-                /* for nvdosd */
-                NvOSD_RectParams &rect_params = obj_meta->rect_params;
-                NvOSD_TextParams &text_params = obj_meta->text_params;
-                rect_params.left = obj_meta->detector_bbox_info.org_bbox_coords.left;
-                rect_params.top = obj_meta->detector_bbox_info.org_bbox_coords.top;
-                rect_params.width = obj_meta->detector_bbox_info.org_bbox_coords.width;
-                rect_params.height = obj_meta->detector_bbox_info.org_bbox_coords.height;
-                rect_params.border_width = 3;
-                rect_params.has_bg_color = 0;
-                rect_params.border_color = (NvOSD_ColorParams){1, 0, 0, 1};
-
-                // store landmark in obj_user_meta_list
-                NvDsFaceMetaData *face_meta_ptr = new NvDsFaceMetaData();
-                for (int j = 0; j < 2 * NUM_FACEMARK; j += 2)
+                // if (obj.class_confidence > 0.63)
                 {
-                    face_meta_ptr->stage = NvDsFaceMetaStage::DETECTED;
-                    face_meta_ptr->faceMark[j] = obj.landmark[j];
-                    face_meta_ptr->faceMark[j + 1] = obj.landmark[j + 1];
-                    face_meta_ptr->faceMark[j] *= scale_x;
-                    face_meta_ptr->faceMark[j + 1] *= scale_y;
+                    NvDsObjectMeta *obj_meta = nvds_acquire_obj_meta_from_pool(batch_meta);
+
+                    // FIXME: a `meta` can produce more than once `obj`. Hence cannot set obj_meta->unique_component_id = meta->unique_id;
+                    obj_meta->unique_component_id = meta->unique_id;
+                    obj_meta->confidence = obj.class_confidence;
+
+                    // untracked object. Set tracking_id to -1
+                    obj_meta->object_id = UNTRACKED_OBJECT_ID;
+                    obj_meta->class_id = FACE_CLASS_ID; // only have one class
+
+                    /* retrieve bouding box */
+                    float scale_x = muxer_output_width / pgie_net_width;
+                    float scale_y = muxer_output_height / pgie_net_height;
+
+                    obj_meta->detector_bbox_info.org_bbox_coords.left = obj.bbox[0];
+                    obj_meta->detector_bbox_info.org_bbox_coords.top = obj.bbox[1];
+                    obj_meta->detector_bbox_info.org_bbox_coords.width = obj.bbox[2] - obj.bbox[0];
+                    obj_meta->detector_bbox_info.org_bbox_coords.height = obj.bbox[3] - obj.bbox[1];
+
+                    obj_meta->detector_bbox_info.org_bbox_coords.left *= scale_x;
+                    obj_meta->detector_bbox_info.org_bbox_coords.top *= scale_y;
+                    obj_meta->detector_bbox_info.org_bbox_coords.width *= scale_x;
+                    obj_meta->detector_bbox_info.org_bbox_coords.height *= scale_y;
+
+                    // add padding to bbox found
+                    int padding = 5;
+                    float left, top, width, height;
+                    obj_meta->detector_bbox_info.org_bbox_coords.left -= padding;
+                    obj_meta->detector_bbox_info.org_bbox_coords.top -= padding;
+                    obj_meta->detector_bbox_info.org_bbox_coords.width += 2 * padding;
+                    obj_meta->detector_bbox_info.org_bbox_coords.height += 2 * padding;
+
+                    left = obj_meta->detector_bbox_info.org_bbox_coords.left;
+                    top = obj_meta->detector_bbox_info.org_bbox_coords.top;
+                    width = obj_meta->detector_bbox_info.org_bbox_coords.width;
+                    height = obj_meta->detector_bbox_info.org_bbox_coords.height;
+
+                    left = left > 0 ? left : 0;
+                    top = top > 0 ? top : 0;
+                    width = (left + width < muxer_output_width) ? width : (muxer_output_width - left);
+                    height = (top + height < muxer_output_height) ? height : (muxer_output_height - top);
+
+                    obj_meta->detector_bbox_info.org_bbox_coords.left = left;
+                    obj_meta->detector_bbox_info.org_bbox_coords.top = top;
+                    obj_meta->detector_bbox_info.org_bbox_coords.width = width;
+                    obj_meta->detector_bbox_info.org_bbox_coords.height = height;
+
+                    /* for nvdosd */
+                    NvOSD_RectParams &rect_params = obj_meta->rect_params;
+                    NvOSD_TextParams &text_params = obj_meta->text_params;
+                    rect_params.left = obj_meta->detector_bbox_info.org_bbox_coords.left;
+                    rect_params.top = obj_meta->detector_bbox_info.org_bbox_coords.top;
+                    rect_params.width = obj_meta->detector_bbox_info.org_bbox_coords.width;
+                    rect_params.height = obj_meta->detector_bbox_info.org_bbox_coords.height;
+                    rect_params.border_width = 3;
+                    rect_params.has_bg_color = 0;
+                    rect_params.border_color = (NvOSD_ColorParams){1, 0, 0, 1};
+
+                    // store landmark in obj_user_meta_list
+                    NvDsFaceMetaData *face_meta_ptr = new NvDsFaceMetaData();
+                    for (int j = 0; j < 2 * NUM_FACEMARK; j += 2)
+                    {
+                        face_meta_ptr->stage = NvDsFaceMetaStage::DETECTED;
+                        face_meta_ptr->faceMark[j] = obj.landmark[j];
+                        face_meta_ptr->faceMark[j + 1] = obj.landmark[j + 1];
+                        face_meta_ptr->faceMark[j] *= scale_x;
+                        face_meta_ptr->faceMark[j + 1] *= scale_y;
+                    }
+
+                    NvDsUserMeta *user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
+                    user_meta->user_meta_data = static_cast<void *>(face_meta_ptr);
+                    NvDsMetaType user_meta_type = (NvDsMetaType)NVDS_OBJ_USER_META_FACE;
+                    user_meta->base_meta.meta_type = user_meta_type;
+                    user_meta->base_meta.copy_func = (NvDsMetaCopyFunc)user_copy_facemark_meta;
+                    user_meta->base_meta.release_func = (NvDsMetaReleaseFunc)user_release_facemark_data;
+                    nvds_add_user_meta_to_obj(obj_meta, user_meta);
+                    nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
+
+                    NvDsObjEncUsrArgs userData = {0};
+                    userData.saveImg = FALSE;
+                    userData.attachUsrMeta = TRUE;
+                    /* Set if Image scaling Required */
+                    userData.scaleImg = FALSE;
+                    userData.scaledWidth = 0;
+                    userData.scaledHeight = 0;
+                    /* Quality */
+                    userData.quality = 80;
+                    /*Main Function Call */
+                    nvds_obj_enc_process((NvDsObjEncCtxHandle)_udata, &userData, ip_surf, obj_meta, frame_meta);
                 }
-
-                NvDsUserMeta *user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
-                user_meta->user_meta_data = static_cast<void *>(face_meta_ptr);
-                NvDsMetaType user_meta_type = (NvDsMetaType)NVDS_OBJ_USER_META_FACE;
-                user_meta->base_meta.meta_type = user_meta_type;
-                user_meta->base_meta.copy_func = (NvDsMetaCopyFunc)user_copy_facemark_meta;
-                user_meta->base_meta.release_func = (NvDsMetaReleaseFunc)user_release_facemark_data;
-                nvds_add_user_meta_to_obj(obj_meta, user_meta);
-                nvds_add_obj_meta_to_frame(frame_meta, obj_meta, NULL);
-
-                NvDsObjEncUsrArgs userData = {0};
-                userData.saveImg = FALSE;
-                userData.attachUsrMeta = TRUE;
-                /* Set if Image scaling Required */
-                userData.scaleImg = FALSE;
-                userData.scaledWidth = 0;
-                userData.scaledHeight = 0;
-                /* Quality */
-                userData.quality = 80;
-                /*Main Function Call */
-                nvds_obj_enc_process((NvDsObjEncCtxHandle)_udata, &userData, ip_surf, obj_meta, frame_meta);
             }
         }
     }
@@ -464,7 +467,7 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
 
     return GST_PAD_PROBE_OK;
 }
-// This is 
+
 static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void *userp)
 {
     ((std::string *)userp)->append((char *)contents, size * nmemb);
@@ -501,7 +504,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
 
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-            
+
             // request over HTTP/2, using the same connection!
             CURLcode res = curl_easy_perform(curl);
 
@@ -672,7 +675,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
         msg_meta_content->frameId = frame_meta->frame_num;
         msg_meta_content->sessionId = g_strdup(callback_data->session_id);
-
+        
         // This is where to create the final NvDsEventMsgMeta before sending
         NvDsEventMsgMeta *meta_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
         meta_msg->extMsg = (void *)msg_meta_content;

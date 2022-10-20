@@ -318,7 +318,6 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
 
     nvds_obj_enc_finish((NvDsObjEncCtxHandle)callback_data->fullframe_ctx_handle);
 
-
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
@@ -419,9 +418,9 @@ GstPadProbeReturn fakesink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, 
             for (int i = 0; i < num_sources_in_batch; i++)
             {
                 QDTLOG_DEBUG("source_id={} frame_num={} frame latancy={}",
-                              latency_info[i].source_id,
-                              latency_info[i].frame_num,
-                              latency_info[i].latency);
+                             latency_info[i].source_id,
+                             latency_info[i].frame_num,
+                             latency_info[i].latency);
             }
             free(latency_info);
         }
@@ -462,14 +461,14 @@ void FaceApp::sequentialDetectAndMOT()
     GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)RGBA");
     GST_ASSERT(caps);
     g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
-
+    //
     GstElement *tee = gst_element_factory_make("tee", "tee-split");
     GstElement *queue_infer = gst_element_factory_make("queue", "queue-infer");
     GstElement *queue_encode = gst_element_factory_make("queue", "queue-encode");
 
     GstElement *fakesink = gst_element_factory_make("fakesink", "osd");
     gst_bin_add_many(GST_BIN(m_pipeline), tee, queue_infer, queue_encode, video_convert, capsfilter, fakesink, NULL);
-    gst_bin_add_many(GST_BIN(m_pipeline), face_inferbin, mot_inferbin, NULL);
+    gst_bin_add_many(GST_BIN(m_pipeline), mot_inferbin, face_inferbin, NULL);
 
     if (!gst_element_link_many(m_stream_muxer, tee, NULL))
     {
@@ -528,8 +527,8 @@ void FaceApp::sequentialDetectAndMOT()
     }
     // FIXME: nvds_obj_enc_destroy_context
     gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, encode_and_send,
-      m_user_callback_data, NULL);
-    
+                      m_user_callback_data, NULL);
+
     g_object_unref(capsfilter_src_pad);
 
     SinkPerfStruct *fakesink_perf = new SinkPerfStruct;
