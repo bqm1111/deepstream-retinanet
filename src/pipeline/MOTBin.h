@@ -4,7 +4,6 @@
 #include "NvInferBinBase.h"
 #include "NvInferBinConfigBase.h"
 #include <gst/gstelement.h>
-#include "mot_struct.h"
 
 class NvInferMOTBinConfig : public NvInferBinConfigBase
 {

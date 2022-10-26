@@ -63,18 +63,44 @@ bool parseJson(std::string filename, std::vector<std::string> &name, std::vector
     return EXIT_SUCCESS;
 }
 
-void generate_ts_rfc3339 (char *buf, int buf_size)
+void generate_ts_rfc3339(char *buf, int buf_size)
 {
-  time_t tloc;
-  struct tm tm_log;
-  struct timespec ts;
-  char strmsec[6];           
+    time_t tloc;
+    struct tm tm_log;
+    struct timespec ts;
+    char strmsec[6];
 
-  clock_gettime (CLOCK_REALTIME, &ts);
-  memcpy (&tloc, (void *) (&ts.tv_sec), sizeof (time_t));
-  gmtime_r (&tloc, &tm_log);
-  strftime (buf, buf_size, "%Y-%m-%dT%H:%M:%S", &tm_log);
-  int ms = ts.tv_nsec / 1000000;
-  g_snprintf (strmsec, sizeof (strmsec), ".%.3dZ", ms);
-  strncat (buf, strmsec, buf_size);
+    clock_gettime(CLOCK_REALTIME, &ts);
+    memcpy(&tloc, (void *)(&ts.tv_sec), sizeof(time_t));
+    gmtime_r(&tloc, &tm_log);
+    strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%S", &tm_log);
+    int ms = ts.tv_nsec / 1000000;
+    g_snprintf(strmsec, sizeof(strmsec), ".%.3dZ", ms);
+    strncat(buf, strmsec, buf_size);
+}
+
+std::vector<std::string> parseListJson(std::string response_json)
+{
+    std::string str = response_json.substr(1, response_json.length() - 2);
+    std::vector<std::string> res;
+    int first = 0;
+    int last = 0;
+    for (int i = 0; i < str.size() - 2; i++)
+    {
+        if (str[i] == '}' && str[i + 1] == ',' && str[i + 2] == '{')
+        {
+            last = i;
+            res.push_back(str.substr(first, last - first + 1));
+            first = i + 2;
+        }
+    }
+    res.push_back(str.substr(first, str.length() - first));
+    return res;
+}
+
+float clip(float x)
+{
+    x = x > 1 ? 1 : x;
+    x = x < 0 ? 0 : x;
+    return x;
 }

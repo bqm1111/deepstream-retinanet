@@ -61,17 +61,8 @@
 #define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
 #endif
 
-#ifndef KAFKA_MSG2P_LIB
-#define KAFKA_MSG2P_LIB "src/nvmsgconv/libnvmsgconv.so"
-#endif
-
-#ifndef KAFKA_PROTO_LIB
-#define KAFKA_PROTO_LIB "src/kafka_protocol_adaptor/libnvds_kafka_proto.so"
-#endif
-
 #define POST_TRACK_SCORE 1.0
 #define SESSION_ID_LENGTH 37
-
 
 struct alignas(float) Detection
 {
@@ -125,29 +116,29 @@ struct NvDsFaceMetaData
     float naming_score;
 };
 
-typedef struct FaceEventMsgData
-{
-    gchar *feature;
-} FaceEventMsgData;
-
 typedef struct NvDsFaceMsgData
 {
-    double timestamp;
+    gchar *timestamp;
     gint frameId;
-    gchar* cameraId;
+    gchar *cameraId;
+    gchar *sessionId;
+
     NvDsRect bbox;
     double confidence_score;
     gchar *name;
     gchar *staff_id;
     gchar *feature;
     gchar *encoded_img;
+
 } NvDsFaceMsgData;
+
+typedef struct NvDsMOTMetaData
+{
+    gchar *feature;
+} NvDsMOTMetaData;
 
 typedef struct NvDsMOTMsgData
 {
-    double timestamp;
-    gint frameId;
-    gchar* cameraId;
     NvDsRect bbox;
     int track_id;
     gchar *embedding;
@@ -155,7 +146,7 @@ typedef struct NvDsMOTMsgData
 
 struct XFaceVisualMsg
 {
-    gchar* timestamp;
+    gchar *timestamp;
     gint frameId;
     gchar *cameraId;
     gchar *sessionId;
@@ -165,23 +156,15 @@ struct XFaceVisualMsg
     gint num_channel;
 };
 
-struct XFaceMetaMsg
+struct XFaceMOTMsgMeta
 {
-    gchar* timestamp;
+    gchar *timestamp;
     gint frameId;
     gchar *sessionId;
     gchar *cameraId;
-    gint num_face_obj;
     gint num_mot_obj;
-    NvDsFaceMsgData **face_meta_list;
     NvDsMOTMsgData **mot_meta_list;
 };
-
-typedef struct NvDsMOTMetaData
-{
-    gchar *feature;
-} NvDsMOTMetaData;
-
 
 #include "QDTLog.h"
 class SinkPerfStruct
@@ -195,15 +178,18 @@ class SinkPerfStruct
 public:
     /**
      * start if not started
-     */ 
-    inline void check_start() {
-        if (!start_perf_measurement) {
+     */
+    inline void check_start()
+    {
+        if (!start_perf_measurement)
+        {
             start_perf_measurement = true;
             last_tick = std::chrono::high_resolution_clock::now();
         }
     }
 
-    inline void update(std::chrono::_V2::system_clock::time_point tick = std::chrono::high_resolution_clock::now()) {
+    inline void update(std::chrono::_V2::system_clock::time_point tick = std::chrono::high_resolution_clock::now())
+    {
         double elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(tick - last_tick).count();
 
         // Update
@@ -214,19 +200,22 @@ public:
         avg_runtime = total_time / num_ticks / 1e6;
     }
 
-    inline double get_avg_runtime() {
+    inline double get_avg_runtime()
+    {
         return avg_runtime;
     }
 
-    inline double get_avg_fps() {
+    inline double get_avg_fps()
+    {
         return 1.0 / avg_runtime;
     }
 
-    void log() {
+    void log()
+    {
         QDTLog::debug("Average runtime: {}  Average FPS: {}", get_avg_runtime(), get_avg_fps());
     }
 
-    // std::ostream &operator<<(std::ostream &os, SinkPerfStruct const &m) { 
+    // std::ostream &operator<<(std::ostream &os, SinkPerfStruct const &m) {
     //     return os << "Average runtime: " << m.get_avg_runtime() << " Average FPS: " << m.get_avg_fps();
     // }
 };

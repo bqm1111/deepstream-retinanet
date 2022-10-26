@@ -10,7 +10,6 @@
 #include "common.h"
 #include "params.h"
 #include "app_struct.h"
-#include "mot_struct.h"
 #include "utils.h"
 #include "QDTLog.h"
 class NvInferBinBase

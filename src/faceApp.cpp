@@ -43,7 +43,9 @@ void FaceApp::loadConfig()
     m_user_callback_data->tiler_rows = appConf->getProperty(DSAppProperty::TILER_ROWS).toInt();
     m_user_callback_data->tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
     m_user_callback_data->tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
-    m_user_callback_data->metadata_topic = appConf->getProperty(DSAppProperty::KAFKA_METADATA_TOPIC).toString();
+    m_user_callback_data->mot_rawmeta_topic = appConf->getProperty(DSAppProperty::KAFKA_MOT_RAWMETA_TOPIC).toString();
+    m_user_callback_data->face_rawmeta_topic = appConf->getProperty(DSAppProperty::KAFKA_FACE_RAWMETA_TOPIC).toString();
+
     m_user_callback_data->visual_topic = appConf->getProperty(DSAppProperty::KAFKA_VISUAL_TOPIC).toString();
     m_user_callback_data->connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
     m_user_callback_data->curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();

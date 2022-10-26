@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	FaceApp app("face-app");
 	app.loadConfig();
 	app.addVideoSource(std::string(argv[1]));
-	
+
 	app.sequentialDetectAndMOT();
 	bus = gst_pipeline_get_bus(GST_PIPELINE(app.getPipeline()));
 	GST_ASSERT(bus);
@@ -42,9 +42,10 @@ int main(int argc, char *argv[])
 	g_timeout_add(40, event_thread_func, NULL);
 
 	g_main_loop_run(loop);
-	
+
 	gst_element_set_state(app.getPipeline(), GST_STATE_NULL);
 	g_source_remove(bus_watch_id);
 	g_main_loop_unref(loop);
 	return 0;
+
 }

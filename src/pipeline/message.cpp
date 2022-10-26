@@ -28,11 +28,11 @@ gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
 
     json_node_free(rootNode);
     json_object_unref(rootObj);
-    // 
+    //
     return message;
 }
-// 
-gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
+
+gchar *generate_FaceRawMeta_message(NvDsEventMsgMeta *meta)
 {
     JsonNode *rootNode;
     JsonObject *rootObj;
@@ -43,48 +43,70 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
     propObj = json_object_new();
 
     // add frame info
-    XFaceMetaMsg *msg_meta_content = (XFaceMetaMsg *)meta->extMsg;
+    NvDsFaceMsgData *msg_meta_content = (NvDsFaceMsgData *)meta->extMsg;
     json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
     json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);
 
     // FACE
-    JsonObject *faceArrObj = json_object_new();
-    JsonArray *jFaceMetaArray = json_array_sized_new(msg_meta_content->num_face_obj);
-    for (int i = 0; i < msg_meta_content->num_face_obj; i++)
-    {
-        JsonObject *faceObj = json_object_new();
-        JsonObject *jbboxObj = json_object_new();
-        // y
-        json_object_set_double_member(jbboxObj, "y", msg_meta_content->face_meta_list[i]->bbox.top);
-        // x
-        json_object_set_double_member(jbboxObj, "x", msg_meta_content->face_meta_list[i]->bbox.left);
-        // w
-        json_object_set_double_member(jbboxObj, "w", msg_meta_content->face_meta_list[i]->bbox.width);
-        // h
-        json_object_set_double_member(jbboxObj, "h", msg_meta_content->face_meta_list[i]->bbox.height);
+    JsonObject *faceObj = json_object_new();
+    JsonObject *jbboxObj = json_object_new();
+    // y
+    json_object_set_double_member(jbboxObj, "y", msg_meta_content->bbox.top);
+    // x
+    json_object_set_double_member(jbboxObj, "x", msg_meta_content->bbox.left);
+    // w
+    json_object_set_double_member(jbboxObj, "w", msg_meta_content->bbox.width);
+    // h
+    json_object_set_double_member(jbboxObj, "h", msg_meta_content->bbox.height);
 
-        json_object_set_object_member(faceObj, "bbox", jbboxObj);
+    json_object_set_object_member(faceObj, "bbox", jbboxObj);
 
-        // confidence_score
-        json_object_set_double_member(faceObj, "score", msg_meta_content->face_meta_list[i]->confidence_score);
+    // confidence_score
+    json_object_set_double_member(faceObj, "score", msg_meta_content->confidence_score);
 
-        // name
-        json_object_set_string_member(faceObj, "name", g_strdup(msg_meta_content->face_meta_list[i]->name));
-        // staff_id
-        json_object_set_string_member(faceObj, "staff_id", g_strdup(msg_meta_content->face_meta_list[i]->staff_id));
+    // name
+    json_object_set_string_member(faceObj, "name", g_strdup(msg_meta_content->name));
+    // staff_id
+    json_object_set_string_member(faceObj, "staff_id", g_strdup(msg_meta_content->staff_id));
 
-        // feature
-        json_object_set_string_member(faceObj, "feature", g_strdup(msg_meta_content->face_meta_list[i]->feature));
+    // feature
+    json_object_set_string_member(faceObj, "feature", g_strdup(msg_meta_content->feature));
 
-        // encoded_img
-        json_object_set_string_member(faceObj, "image", g_strdup(msg_meta_content->face_meta_list[i]->encoded_img));
+    // encoded_img
+    json_object_set_string_member(faceObj, "image", g_strdup(msg_meta_content->encoded_img));
 
-        json_array_add_object_element(jFaceMetaArray, faceObj);
-    }
+    json_object_set_object_member(rootObj, "face", faceObj);
 
-    json_object_set_array_member(rootObj, "FACE", jFaceMetaArray);
+    // create root node
+    rootNode = json_node_new(JSON_NODE_OBJECT);
+    json_node_set_object(rootNode, rootObj);
+
+    // create message
+    message = json_to_string(rootNode, TRUE);
+
+    json_node_free(rootNode);
+    json_object_unref(rootObj);
+
+    return message;
+}
+gchar *generate_MOTRawMeta_message(NvDsEventMsgMeta *meta)
+{
+    JsonNode *rootNode;
+    JsonObject *rootObj;
+    JsonObject *propObj;
+
+    gchar *message;
+    rootObj = json_object_new();
+    propObj = json_object_new();
+
+    // add frame info
+    XFaceMOTMsgMeta *msg_meta_content = (XFaceMOTMsgMeta *)meta->extMsg;
+    json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
+    json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
+    json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);
 
     // MOT
     JsonObject *motArrObj = json_object_new();
@@ -109,7 +131,6 @@ gchar *generate_XFaceRawMeta_message(NvDsEventMsgMeta *meta)
 
         // embedding
         json_object_set_string_member(motObj, "embedding", g_strdup(msg_meta_content->mot_meta_list[i]->embedding));
-
 
         json_array_add_object_element(jMOTMetaArray, motObj);
     }
