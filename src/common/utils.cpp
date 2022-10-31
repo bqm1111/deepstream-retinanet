@@ -104,3 +104,54 @@ float clip(float x)
     x = x < 0 ? 0 : x;
     return x;
 }
+
+void freeXFaceMOTMsgMeta(XFaceMOTMsgMeta *msg_meta_content)
+{
+    if (msg_meta_content->timestamp)
+        g_free(msg_meta_content->timestamp);
+    if (msg_meta_content->sessionId)
+        g_free(msg_meta_content->sessionId);
+    if (msg_meta_content->cameraId)
+        g_free(msg_meta_content->cameraId);
+
+    for (int i = 0; i < msg_meta_content->num_mot_obj; i++)
+    {
+        if (msg_meta_content->mot_meta_list[i]->embedding)
+            g_free(msg_meta_content->mot_meta_list[i]->embedding);
+    }
+
+    free(msg_meta_content);
+}
+void freeNvDsFaceMsgData(NvDsFaceMsgData *msg_meta_content)
+{
+    if (msg_meta_content->timestamp)
+        g_free(msg_meta_content->timestamp);
+    if (msg_meta_content->sessionId)
+        g_free(msg_meta_content->sessionId);
+    if (msg_meta_content->cameraId)
+        g_free(msg_meta_content->cameraId);
+
+    if (msg_meta_content->name)
+        g_free(msg_meta_content->name);
+    if (msg_meta_content->staff_id)
+        g_free(msg_meta_content->staff_id);
+    if (msg_meta_content->feature)
+        g_free(msg_meta_content->feature);
+    if (msg_meta_content->encoded_img)
+        g_free(msg_meta_content->encoded_img);
+
+    free(msg_meta_content);
+}
+void freeXFaceVisualMsg(XFaceVisualMsg *msg_meta_content)
+{
+    if (msg_meta_content->timestamp)
+        g_free(msg_meta_content->timestamp);
+    if (msg_meta_content->sessionId)
+        g_free(msg_meta_content->sessionId);
+    if (msg_meta_content->cameraId)
+        g_free(msg_meta_content->cameraId);
+    if (msg_meta_content->full_img)
+        g_free(msg_meta_content->full_img);
+
+    free(msg_meta_content);
+}

@@ -1,5 +1,5 @@
 #include "message.h"
-gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
+gchar *generate_XFace_visual_message(XFaceVisualMsg *msg_meta_content)
 {
     JsonNode *rootNode;
     JsonObject *rootObj;
@@ -10,7 +10,6 @@ gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
     propObj = json_object_new();
 
     // add frame info
-    XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)meta->extMsg;
     json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
@@ -32,7 +31,7 @@ gchar *generate_XFace_visual_message(NvDsEventMsgMeta *meta)
     return message;
 }
 
-gchar *generate_FaceRawMeta_message(NvDsEventMsgMeta *meta)
+gchar *generate_FaceRawMeta_message(NvDsFaceMsgData *msg_meta_content)
 {
     JsonNode *rootNode;
     JsonObject *rootObj;
@@ -43,7 +42,6 @@ gchar *generate_FaceRawMeta_message(NvDsEventMsgMeta *meta)
     propObj = json_object_new();
 
     // add frame info
-    NvDsFaceMsgData *msg_meta_content = (NvDsFaceMsgData *)meta->extMsg;
     json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
@@ -91,7 +89,7 @@ gchar *generate_FaceRawMeta_message(NvDsEventMsgMeta *meta)
 
     return message;
 }
-gchar *generate_MOTRawMeta_message(NvDsEventMsgMeta *meta)
+gchar *generate_MOTRawMeta_message(XFaceMOTMsgMeta *msg_meta_content)
 {
     JsonNode *rootNode;
     JsonObject *rootObj;
@@ -102,7 +100,6 @@ gchar *generate_MOTRawMeta_message(NvDsEventMsgMeta *meta)
     propObj = json_object_new();
 
     // add frame info
-    XFaceMOTMsgMeta *msg_meta_content = (XFaceMOTMsgMeta *)meta->extMsg;
     json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);

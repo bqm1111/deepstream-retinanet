@@ -22,7 +22,7 @@ static gboolean event_thread_func(gpointer arg)
 int main(int argc, char *argv[])
 {
 	QDTLog::init("logs/");
-
+	
 	GstBus *bus = NULL;
 	guint bus_watch_id;
 

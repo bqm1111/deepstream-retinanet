@@ -326,7 +326,6 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
         else
         {
             // QDTLog::info("Response string = {}", response_string);
-
             std::vector<std::string> response_list = parseListJson(response_string);
             for (int i = 0; i < response_list.size(); i++)
             {
@@ -343,11 +342,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
         // Sending FaceRawMeta message to Kafka server
         for (int i = 0; i < callback_data->face_meta_list.size(); i++)
         {
-            NvDsEventMsgMeta *meta_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-            meta_msg->extMsg = (void *)callback_data->face_meta_list[i];
-            meta_msg->extMsgSize = sizeof(NvDsEventMsgMeta);
-
-            gchar *message = generate_FaceRawMeta_message(meta_msg);
+            gchar *message = generate_FaceRawMeta_message(callback_data->face_meta_list[i]);
             RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->face_rawmeta_topic,
                                                                                       RdKafka::Topic::PARTITION_UA,
                                                                                       RdKafka::Producer::RK_MSG_FREE,
@@ -355,6 +350,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
                                                                                       std::string(message).length(),
                                                                                       NULL, 0,
                                                                                       0, NULL, NULL);
+            freeNvDsFaceMsgData(callback_data->face_meta_list[i]);
             callback_data->kafka_producer->counter++;
 
             if (err != RdKafka::ERR_NO_ERROR)
@@ -495,13 +491,8 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
         msg_meta_content->frameId = frame_meta->frame_num;
         msg_meta_content->sessionId = g_strdup(callback_data->session_id);
 
-        // This is where to create the final NvDsEventMsgMeta before sending
-        NvDsEventMsgMeta *meta_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-        meta_msg->extMsg = (void *)msg_meta_content;
-        meta_msg->extMsgSize = sizeof(XFaceMOTMsgMeta);
-        meta_msg->componentId = 1;
 
-        gchar *message = generate_MOTRawMeta_message(meta_msg);
+        gchar *message = generate_MOTRawMeta_message(msg_meta_content);
         RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->mot_rawmeta_topic,
                                                                                   RdKafka::Topic::PARTITION_UA,
                                                                                   RdKafka::Producer::RK_MSG_FREE,
@@ -509,6 +500,7 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                                                                   std::string(message).length(),
                                                                                   NULL, 0,
                                                                                   0, NULL, NULL);
+        freeXFaceMOTMsgMeta(msg_meta_content);
         callback_data->kafka_producer->counter++;
 
         if (err != RdKafka::ERR_NO_ERROR)

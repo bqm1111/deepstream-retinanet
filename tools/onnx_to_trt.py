@@ -31,7 +31,7 @@ profile.set_shape(
 config.add_optimization_profile(profile)
 config.max_workspace_size = 1 << 30
 # if builder.platform_has_fast_fp16:
-    # config.set_flag(trt.BuilderFlag.FP16)
+#     config.set_flag(trt.BuilderFlag.FP16)
 
 # generate TensorRT engine optimized for the target platform
 print('Building an engine')

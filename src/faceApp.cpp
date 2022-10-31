@@ -32,8 +32,8 @@ void FaceApp::loadConfig()
     m_config->setContext();
     std::shared_ptr<DSAppConfig> appConf = std::dynamic_pointer_cast<DSAppConfig>(m_config->getConfig(ConfigType::DeepStreamApp));
 
-    m_user_callback_data->muxer_output_height = appConf->getProperty(DSAppProperty::STREAMMUX_OUTPUT_WIDTH).toInt();
-    m_user_callback_data->muxer_output_width = appConf->getProperty(DSAppProperty::STREAMMUX_OUTPUT_HEIGHT).toInt();
+    m_user_callback_data->muxer_output_height = appConf->getProperty(DSAppProperty::STREAMMUX_OUTPUT_HEIGHT).toInt();
+    m_user_callback_data->muxer_output_width = appConf->getProperty(DSAppProperty::STREAMMUX_OUTPUT_WIDTH).toInt();
     m_user_callback_data->muxer_batch_size = appConf->getProperty(DSAppProperty::STREAMMUX_BATCH_SIZE).toInt();
     m_user_callback_data->muxer_buffer_pool_size = appConf->getProperty(DSAppProperty::STREAMMUX_BUFFER_POOL_SIZE).toInt();
     m_user_callback_data->muxer_nvbuf_memory_type = appConf->getProperty(DSAppProperty::STREAMMUX_NVBUF_MEMORY_TYPE).toInt();
@@ -298,8 +298,8 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
 
         mfake_meta->rect_params.top = 0.0f;
         mfake_meta->rect_params.left = 0.0f;
-        mfake_meta->rect_params.width = float(frame_meta->source_frame_height);
-        mfake_meta->rect_params.height = float(frame_meta->source_frame_width);
+        mfake_meta->rect_params.width = float(frame_meta->source_frame_width);
+        mfake_meta->rect_params.height = float(frame_meta->source_frame_height);
 
         // QDTLog::debug("frame_meta width {} height {}", frame_meta->source_frame_width, frame_meta->source_frame_height);
 
@@ -353,12 +353,7 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
                 msg_meta_content->height = callback_data->fullframe_encode_scale_height;
                 msg_meta_content->num_channel = 3 /*bgr_frame.channels()*/;
 
-                NvDsEventMsgMeta *visual_event_msg = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-                visual_event_msg->extMsg = (void *)msg_meta_content;
-                visual_event_msg->extMsgSize = sizeof(XFaceVisualMsg);
-                visual_event_msg->componentId = 2;
-
-                gchar *message = generate_XFace_visual_message(visual_event_msg);
+                gchar *message = generate_XFace_visual_message(msg_meta_content);
                 RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
                                                                                           RdKafka::Topic::PARTITION_UA,
                                                                                           RdKafka::Producer::RK_MSG_FREE,
@@ -367,6 +362,7 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
                                                                                           NULL, 0,
                                                                                           0, NULL, NULL);
 
+                freeXFaceVisualMsg(msg_meta_content);
                 callback_data->kafka_producer->counter++;
                 if (err != RdKafka::ERR_NO_ERROR)
                 {
@@ -509,7 +505,7 @@ void FaceApp::sequentialDetectAndMOT()
     {
         g_printerr("Unable to get request pads\n");
     }
-
+    
     if (gst_pad_link(queue_encode_pad, sink_pad) != GST_PAD_LINK_OK)
     {
         g_printerr("Unable to link tee and message converter\n");
