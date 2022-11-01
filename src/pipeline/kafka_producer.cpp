@@ -7,14 +7,8 @@ KafkaProducer::KafkaProducer()
 
 KafkaProducer::~KafkaProducer()
 {
-    if (!producer)
-    {
-        delete producer;
-    }
-    if (!conf)
-    {
-        delete conf;
-    }
+    delete producer;
+    delete conf;
 }
 
 void KafkaProducer::init(std::string conn_str)

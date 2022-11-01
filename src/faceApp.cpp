@@ -2,9 +2,13 @@
 #include "DeepStreamAppConfig.h"
 #include "message.h"
 
-FaceApp::FaceApp(std::string app_name)
+FaceApp::FaceApp(int argc, char **argv)
 {
-    m_pipeline = gst_pipeline_new(app_name.c_str());
+    gst_init(&argc, &argv);
+    m_loop = g_main_loop_new(NULL, FALSE);
+
+    m_video_list = std::string(argv[1]);
+    m_pipeline = gst_pipeline_new("face-app");
     m_config = new ConfigManager();
     m_user_callback_data = new user_callback_data();
     m_user_callback_data->session_id = (gchar *)malloc(SESSION_ID_LENGTH);
@@ -20,11 +24,96 @@ FaceApp::~FaceApp()
     free(m_user_callback_data->session_id);
     free(m_user_callback_data->timestamp);
     delete m_user_callback_data->kafka_producer;
+    delete m_user_callback_data->fakesink_perf;
     delete m_user_callback_data;
     if (!m_user_callback_data->trackers)
     {
         free(m_user_callback_data->trackers);
     }
+}
+
+static gboolean event_thread_func(gpointer arg)
+{
+    int c = fgetc(stdin);
+    switch (c)
+    {
+    case 'q':
+    {
+        gst_element_set_state(static_cast<FaceApp *>(arg)->m_pipeline, GST_STATE_NULL);
+        g_main_loop_quit(static_cast<FaceApp *>(arg)->getMainloop());
+        static_cast<FaceApp *>(arg)->freePipeline();
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void FaceApp::freePipeline()
+{
+    g_main_loop_unref(m_loop);
+
+    // gst_bin_remove(GST_BIN(m_pipeline), m_stream_muxer);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_tiler);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_video_convert);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_capsfilter);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_tee);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_queue_infer);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_queue_encode);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_fakesink);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_mot_elem);
+    // gst_bin_remove(GST_BIN(m_pipeline), m_face_elem);
+
+    // gst_object_unref(m_stream_muxer);
+    // gst_object_unref(m_tiler);
+    // gst_object_unref(m_video_convert);
+    // gst_object_unref(m_capsfilter);
+    // gst_object_unref(m_tee);
+    // gst_object_unref(m_queue_infer);
+
+    // gst_object_unref(m_queue_encode);
+    // gst_object_unref(m_fakesink);
+    // gst_object_unref(m_mot_elem);
+    // gst_object_unref(m_face_elem);
+
+    // gst_object_unref(m_mot_bin.m_pgie);
+    // gst_object_unref(m_mot_bin.m_sgie);
+    // gst_object_unref(m_face_bin.m_pgie);
+    // gst_object_unref(m_face_bin.m_sgie);
+    // gst_object_unref(m_face_bin.m_aligner);
+
+    // for (int i = 0; i < numVideoSrc(); i++)
+    // {
+    //     gst_bin_remove(GST_BIN(m_pipeline), m_source[i]);
+    //     gst_bin_remove(GST_BIN(m_pipeline), m_demux[i]);
+    //     gst_bin_remove(GST_BIN(m_pipeline), m_parser[i]);
+    //     gst_bin_remove(GST_BIN(m_pipeline), m_decoder[i]);
+    //     gst_object_unref(m_source[i]);
+    //     gst_object_unref(m_demux[i]);
+    //     gst_object_unref(m_parser[i]);
+    //     gst_object_unref(m_decoder[i]);
+    // }
+    g_source_remove(m_bus_watch_id);
+
+    nvds_obj_enc_destroy_context(m_face_bin.m_obj_ctx_handle);
+    nvds_obj_enc_destroy_context(m_user_callback_data->fullframe_ctx_handle);
+}
+
+void FaceApp::init()
+{
+    loadConfig();
+    addVideoSource();
+    sequentialDetectAndMOT();
+
+    m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
+    m_bus_watch_id = gst_bus_add_watch(m_bus, bus_watch_callback, nullptr);
+    g_timeout_add(40, event_thread_func, this);
+}
+
+void FaceApp::run()
+{
+    gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
+    g_main_loop_run(m_loop);
 }
 
 void FaceApp::loadConfig()
@@ -55,27 +144,27 @@ void FaceApp::loadConfig()
     init_curl();
     m_user_callback_data->kafka_producer = new KafkaProducer();
     m_user_callback_data->kafka_producer->init(m_user_callback_data->connection_str);
+    m_user_callback_data->fakesink_perf = new SinkPerfStruct;
+    m_user_callback_data->timestamp = (gchar *)malloc(MAX_TIME_STAMP_LEN);
+
+    m_user_callback_data->fullframe_ctx_handle = nvds_obj_enc_create_context();
+    if (!m_user_callback_data->fullframe_ctx_handle)
+    {
+        QDTLog::error("%s:%d Unable to create context\n", __FILE__, __LINE__);
+    }
 }
 
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
-    const auto p1 = std::chrono::system_clock::now();
-    double timestamp = std::chrono::duration_cast<std::chrono::microseconds>(p1.time_since_epoch()).count();
-    callback_data->timestamp = (gchar *)malloc(MAX_TIME_STAMP_LEN);
     generate_ts_rfc3339(callback_data->timestamp, MAX_TIME_STAMP_LEN);
     return GST_PAD_PROBE_OK;
 }
 
-void FaceApp::addVideoSource(std::string list_video_src_file)
+void FaceApp::addVideoSource()
 {
-    parseJson(list_video_src_file, m_video_source_name, m_video_source_info);
+    parseJson(m_video_list, m_video_source_name, m_video_source_info);
     m_user_callback_data->video_name = m_video_source_name;
-
-    std::vector<GstElement *> m_source;
-    std::vector<GstElement *> m_demux;
-    std::vector<GstElement *> m_parser;
-    std::vector<GstElement *> m_decoder;
     int cnt = 0;
     for (const auto &info : m_video_source_info)
     {
@@ -208,7 +297,7 @@ void FaceApp::addVideoSource(std::string list_video_src_file)
 
     // Initialize trackers for MOT
     int num_tracker = numVideoSrc();
-    m_user_callback_data->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
+    m_user_callback_data->trackers = (tracker *)malloc(sizeof(tracker) * num_tracker);
     for (size_t i = 0; i < num_tracker; i++)
         m_user_callback_data->trackers[i] = tracker(
             0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
@@ -431,61 +520,60 @@ void FaceApp::sequentialDetectAndMOT()
 {
     // ======================== MOT BRANCH ========================
     std::shared_ptr<NvInferMOTBinConfig> mot_configs = std::make_shared<NvInferMOTBinConfig>(MOT_PGIE_CONFIG_PATH, MOT_SGIE_CONFIG_PATH);
-    NvInferMOTBin mot_bin(mot_configs);
+    m_mot_bin.setConfig(mot_configs);
     // remember to acquire trackerList before createBin
-    mot_bin.acquireUserData(m_user_callback_data);
-    GstElement *mot_inferbin;
-    mot_bin.createInferBin();
-    mot_bin.getMasterBin(mot_inferbin);
+    m_mot_bin.acquireUserData(m_user_callback_data);
+    m_mot_bin.createInferBin();
+    m_mot_bin.getMasterBin(m_mot_elem);
 
     // ======================== DETECT BRANCH ========================
     std::shared_ptr<NvInferFaceBinConfig> face_configs = std::make_shared<NvInferFaceBinConfig>(FACEID_PGIE_CONFIG_PATH, FACEID_SGIE_CONFIG_PATH, FACEID_ALIGN_CONFIG_PATH);
-    NvInferFaceBin face_bin(face_configs);
+
+    m_face_bin.setConfig(face_configs);
     // remember to acquire curl before createBin
-    face_bin.acquireUserData(m_user_callback_data);
-    GstElement *face_inferbin;
-    face_bin.createInferBin();
-    face_bin.getMasterBin(face_inferbin);
+    m_face_bin.acquireUserData(m_user_callback_data);
+    m_face_bin.createInferBin();
+    m_face_bin.getMasterBin(m_face_elem);
 
     // ========================================================================
     NvInferBinBase bin;
     bin.acquireUserData(m_user_callback_data);
-    GstElement *tiler = bin.createNonInferPipeline(m_pipeline);
+    m_tiler = bin.createNonInferPipeline(m_pipeline);
 
-    GstElement *video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
-    g_object_set(G_OBJECT(video_convert), "nvbuf-memory-type", 3, NULL);
-    GstElement *capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
-    GST_ASSERT(capsfilter);
+    m_video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
+    g_object_set(G_OBJECT(m_video_convert), "nvbuf-memory-type", 3, NULL);
+    m_capsfilter = gst_element_factory_make("capsfilter", std::string("sink-capsfilter-rgba").c_str());
+    GST_ASSERT(m_capsfilter);
     GstCaps *caps = gst_caps_from_string("video/x-raw(memory:NVMM), format=(string)RGBA");
     GST_ASSERT(caps);
-    g_object_set(G_OBJECT(capsfilter), "caps", caps, NULL);
+    g_object_set(G_OBJECT(m_capsfilter), "caps", caps, NULL);
     //
-    GstElement *tee = gst_element_factory_make("tee", "tee-split");
-    GstElement *queue_infer = gst_element_factory_make("queue", "queue-infer");
-    GstElement *queue_encode = gst_element_factory_make("queue", "queue-encode");
+    m_tee = gst_element_factory_make("tee", "tee-split");
+    m_queue_infer = gst_element_factory_make("queue", "queue-infer");
+    m_queue_encode = gst_element_factory_make("queue", "queue-encode");
 
-    GstElement *fakesink = gst_element_factory_make("fakesink", "osd");
-    gst_bin_add_many(GST_BIN(m_pipeline), tee, queue_infer, queue_encode, video_convert, capsfilter, fakesink, NULL);
-    gst_bin_add_many(GST_BIN(m_pipeline), mot_inferbin, face_inferbin, NULL);
+    m_fakesink = gst_element_factory_make("fakesink", "osd");
+    gst_bin_add_many(GST_BIN(m_pipeline), m_tee, m_queue_infer, m_queue_encode, m_video_convert, m_capsfilter, m_fakesink, NULL);
+    gst_bin_add_many(GST_BIN(m_pipeline), m_mot_elem, m_face_elem, NULL);
 
-    if (!gst_element_link_many(m_stream_muxer, tee, NULL))
+    if (!gst_element_link_many(m_stream_muxer, m_tee, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
 
-    if (!gst_element_link_many(queue_encode, video_convert, capsfilter, fakesink, NULL))
+    if (!gst_element_link_many(m_queue_encode, m_video_convert, m_capsfilter, m_fakesink, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
 
-    if (!gst_element_link_many(queue_infer, mot_inferbin, face_inferbin, bin.m_tiler, NULL))
+    if (!gst_element_link_many(m_queue_infer, m_mot_elem, m_face_elem, bin.m_tiler, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
 
     // Link queue infer
-    GstPad *sink_pad = gst_element_get_static_pad(queue_infer, "sink");
-    GstPad *queue_infer_pad = gst_element_get_request_pad(tee, "src_%u");
+    GstPad *sink_pad = gst_element_get_static_pad(m_queue_infer, "sink");
+    GstPad *queue_infer_pad = gst_element_get_request_pad(m_tee, "src_%u");
     if (!queue_infer_pad)
     {
         g_printerr("Unable to get request pads\n");
@@ -499,41 +587,33 @@ void FaceApp::sequentialDetectAndMOT()
     gst_object_unref(sink_pad);
 
     // Link queue encode
-    sink_pad = gst_element_get_static_pad(queue_encode, "sink");
-    GstPad *queue_encode_pad = gst_element_get_request_pad(tee, "src_%u");
+    sink_pad = gst_element_get_static_pad(m_queue_encode, "sink");
+    GstPad *queue_encode_pad = gst_element_get_request_pad(m_tee, "src_%u");
     if (!queue_encode_pad)
     {
         g_printerr("Unable to get request pads\n");
     }
-    
+
     if (gst_pad_link(queue_encode_pad, sink_pad) != GST_PAD_LINK_OK)
     {
         g_printerr("Unable to link tee and message converter\n");
         gst_object_unref(sink_pad);
     }
     gst_object_unref(sink_pad);
-
-    GstPad *capsfilter_src_pad = gst_element_get_static_pad(capsfilter, "src");
+    gst_object_unref(queue_encode_pad);
+    gst_object_unref(queue_infer_pad);
+    GstPad *capsfilter_src_pad = gst_element_get_static_pad(m_capsfilter, "src");
     GST_ASSERT(capsfilter_src_pad);
-    // gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, capsfilter_src_pad_buffer_probe,
-    //   m_user_callback_data, NULL);
-    // FIXME: nvds_obj_enc_create_context in somewhere else?
-    m_user_callback_data->fullframe_ctx_handle = nvds_obj_enc_create_context();
-    if (!m_user_callback_data->fullframe_ctx_handle)
-    {
-        QDTLog::error("%s:%d Unable to create context\n", __FILE__, __LINE__);
-    }
-    // FIXME: nvds_obj_enc_destroy_context
+
     gst_pad_add_probe(capsfilter_src_pad, GST_PAD_PROBE_TYPE_BUFFER, encode_and_send,
                       m_user_callback_data, NULL);
 
     g_object_unref(capsfilter_src_pad);
 
-    SinkPerfStruct *fakesink_perf = new SinkPerfStruct;
-    GstPad *fakesink_pad = gst_element_get_static_pad(fakesink, "sink");
+    GstPad *fakesink_pad = gst_element_get_static_pad(m_fakesink, "sink");
     GST_ASSERT(fakesink_pad);
     gst_pad_add_probe(fakesink_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
-                      fakesink_perf, NULL);
+                      m_user_callback_data->fakesink_perf, NULL);
     g_object_unref(fakesink_pad);
 
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");

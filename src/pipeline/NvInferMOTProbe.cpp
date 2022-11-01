@@ -71,39 +71,6 @@ void make_obj_meta_from_track_box(NvDsObjectMeta *obj_meta, Track track)
     obj_meta->text_params.text_bg_clr = {0.0, 0.0, 0.0, 1.0};
 }
 
-void make_msg_sub_meta(Track track, NvDsFrameMeta *frame_meta, NvDsEventMsgMeta *&msg_sub_meta)
-{
-    DETECTBOX track_box = track.to_tlwh();
-
-    // TODO: Free memory of this pointer later
-    NvDsEventMsgMeta *_msg_sub_meta = (NvDsEventMsgMeta *)g_malloc0(sizeof(NvDsEventMsgMeta));
-
-    // Object information
-    _msg_sub_meta->bbox.top = track_box(0);
-    _msg_sub_meta->bbox.left = track_box(1);
-    _msg_sub_meta->bbox.width = track_box(2);
-    _msg_sub_meta->bbox.height = track_box(3);
-    _msg_sub_meta->trackingId = track.track_id;
-
-    // Object embedding
-    double *embedding_data = (double *)g_malloc0(FEATURE_SIZE * sizeof(double));
-    FEATURE last_feature = track.last_feature;
-    Eigen::Matrix<
-        double, 1, FEATURE_SIZE, Eigen::RowMajor>
-        last_feature_d = last_feature.cast<double>();
-    Eigen::Map<
-        Eigen::Matrix<double, 1, FEATURE_SIZE, Eigen::RowMajor>>(embedding_data, last_feature_d.rows(), last_feature_d.cols()) = last_feature_d;
-    _msg_sub_meta->objSignature.signature = embedding_data;
-    _msg_sub_meta->objSignature.size = FEATURE_SIZE;
-
-    // Frame information
-    _msg_sub_meta->frameId = frame_meta->frame_num;
-    _msg_sub_meta->sensorId = frame_meta->source_id;
-
-    msg_sub_meta = _msg_sub_meta;
-}
-
-
 
 gpointer user_copy_mot_meta(gpointer data, gpointer user_data)
 {
@@ -178,7 +145,7 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
                 Eigen::Matrix<double, 1, FEATURE_SIZE, Eigen::RowMajor>>(embedding_data, last_feature_d.rows(), last_feature_d.cols()) = last_feature_d;
 
             mot_meta_ptr->feature = g_strdup(b64encode((float *)embedding_data, FEATURE_SIZE));
-
+            g_free(embedding_data);
             NvDsUserMeta *user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
             user_meta->user_meta_data = static_cast<void *>(mot_meta_ptr);
             user_meta->base_meta.meta_type = (NvDsMetaType)NVDS_OBJ_USER_META_MOT;

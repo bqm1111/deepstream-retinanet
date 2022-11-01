@@ -275,7 +275,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
     face_msg_sub_meta->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
     face_msg_sub_meta->frameId = frame_meta->frame_num;
     face_msg_sub_meta->sessionId = g_strdup(callback_data->session_id);
-
+    
     for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
     {
         NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);

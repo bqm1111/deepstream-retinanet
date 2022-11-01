@@ -35,6 +35,7 @@ struct user_callback_data
     std::string visual_topic;
     std::string connection_str;
     std::string curl_address;
+    SinkPerfStruct *fakesink_perf;
 
     // full frame encode related settings
     int fullframe_encode_scale_width = 640;

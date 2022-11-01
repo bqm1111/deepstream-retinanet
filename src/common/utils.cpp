@@ -118,10 +118,13 @@ void freeXFaceMOTMsgMeta(XFaceMOTMsgMeta *msg_meta_content)
     {
         if (msg_meta_content->mot_meta_list[i]->embedding)
             g_free(msg_meta_content->mot_meta_list[i]->embedding);
+        g_free(msg_meta_content->mot_meta_list[i]);
     }
+    g_free(msg_meta_content->mot_meta_list);
 
-    free(msg_meta_content);
+    g_free(msg_meta_content);
 }
+
 void freeNvDsFaceMsgData(NvDsFaceMsgData *msg_meta_content)
 {
     if (msg_meta_content->timestamp)
@@ -140,8 +143,9 @@ void freeNvDsFaceMsgData(NvDsFaceMsgData *msg_meta_content)
     if (msg_meta_content->encoded_img)
         g_free(msg_meta_content->encoded_img);
 
-    free(msg_meta_content);
+    g_free(msg_meta_content);
 }
+
 void freeXFaceVisualMsg(XFaceVisualMsg *msg_meta_content)
 {
     if (msg_meta_content->timestamp)
@@ -153,5 +157,5 @@ void freeXFaceVisualMsg(XFaceVisualMsg *msg_meta_content)
     if (msg_meta_content->full_img)
         g_free(msg_meta_content->full_img);
 
-    free(msg_meta_content);
+    g_free(msg_meta_content);
 }

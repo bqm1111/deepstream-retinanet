@@ -1,8 +1,10 @@
 #include "MOTBin.h"
 #include <memory>
 
-NvInferMOTBin::~NvInferMOTBin()
+void NvInferMOTBin::setConfig(std::shared_ptr<NvInferMOTBinConfig> configs)
 {
+    m_configs = configs;
+    m_module_name = "mot";
 }
 
 void NvInferMOTBin::createInferBin()
@@ -79,4 +81,3 @@ void NvInferMOTBin::attachProbe()
                       m_user_callback_data, NULL);
     gst_object_unref(osd_sink_pad);
 }
-

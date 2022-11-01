@@ -716,6 +716,7 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
           tensor_shape[0] * tensor_shape[1] * tensor_shape[2] * tensor_shape[3], 
           file);
       }
+      g_free(file_name);
       fclose (file);
     }
 

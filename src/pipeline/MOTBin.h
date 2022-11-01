@@ -18,12 +18,7 @@ public:
 class NvInferMOTBin : public NvInferBinBase
 {
 public:
-    NvInferMOTBin(std::shared_ptr<NvInferMOTBinConfig> configs)
-    {
-        m_configs = configs;
-        m_module_name = "mot";
-    }
-    ~NvInferMOTBin();
+    void setConfig(std::shared_ptr<NvInferMOTBinConfig> configs);
     void createInferBin() override;
     void attachProbe() override;
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);

@@ -129,7 +129,6 @@ typedef struct NvDsFaceMsgData
     gchar *staff_id;
     gchar *feature;
     gchar *encoded_img;
-
 } NvDsFaceMsgData;
 
 typedef struct NvDsMOTMetaData

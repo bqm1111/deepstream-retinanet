@@ -28,9 +28,7 @@ public:
 class NvInferFaceBin : public NvInferBinBase
 {
 public:
-    NvInferFaceBin(std::shared_ptr<NvInferFaceBinConfig> configs);
-    ~NvInferFaceBin();
-
+    void setConfig(std::shared_ptr<NvInferFaceBinConfig> configs);
     void createInferBin() override;
     void createDetectBin();
     void attachProbe() override;
@@ -43,9 +41,8 @@ public:
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn pgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
-    // static GstPadProbeReturn sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 
-    GstElement *aligner = NULL;
+    GstElement *m_aligner = NULL;
     NvDsObjEncCtxHandle m_obj_ctx_handle;
 };
 

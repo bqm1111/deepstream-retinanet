@@ -51,8 +51,6 @@ public:
     GstElement *m_file_muxer = NULL;
     GstElement *m_sink = NULL;
 
-    GstPad *m_tee_display_pad;
-
     static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
 

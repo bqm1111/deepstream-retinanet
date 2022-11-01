@@ -4,7 +4,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 
 project(experiment LANGUAGES CXX CUDA)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pthread")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fno-omit-frame-pointer -fsanitize=leak -g -pthread")
+
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(PkgConfig REQUIRED)
