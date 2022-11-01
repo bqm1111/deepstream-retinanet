@@ -4,7 +4,6 @@
 #include <curl/curl.h>
 #include "kafka_producer.h"
 #include "tracker.h"
-
 #include "nvds_obj_encode.h"
 
 struct user_callback_data
@@ -43,7 +42,7 @@ struct user_callback_data
     NvDsObjEncCtxHandle fullframe_ctx_handle;
 
     std::vector<float> batch_face_feature;
-    std::vector<NvDsFaceMsgData *> face_meta_list;
+    std::vector<std::shared_ptr<NvDsFaceMsgData>> face_meta_list;
     int frame_since_last_decode_face_name = 0;
 };
 

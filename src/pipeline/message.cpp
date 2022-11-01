@@ -31,7 +31,7 @@ gchar *generate_XFace_visual_message(XFaceVisualMsg *msg_meta_content)
     return message;
 }
 
-gchar *generate_FaceRawMeta_message(NvDsFaceMsgData *msg_meta_content)
+gchar *generate_FaceRawMeta_message(std::shared_ptr<NvDsFaceMsgData> msg_meta_content)
 {
     JsonNode *rootNode;
     JsonObject *rootObj;

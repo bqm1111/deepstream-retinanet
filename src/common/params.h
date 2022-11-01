@@ -11,6 +11,7 @@
 #include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
 #include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
 #include <chrono>
+#include <memory>
 #ifndef NVDS_OBJ_USER_META_MOT
 #define NVDS_OBJ_USER_META_MOT (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_MOT"))
 #endif
@@ -116,8 +117,26 @@ struct NvDsFaceMetaData
     float naming_score;
 };
 
-typedef struct NvDsFaceMsgData
+class NvDsFaceMsgData
 {
+public:
+    ~NvDsFaceMsgData()
+    {
+        if (timestamp)
+            g_free(timestamp);
+        if (sessionId)
+            g_free(sessionId);
+        if (cameraId)
+            g_free(cameraId);
+        if (name)
+            g_free(name);
+        if (staff_id)
+            g_free(staff_id);
+        if (feature)
+            g_free(feature);
+        if (encoded_img)
+            g_free(encoded_img);
+    }
     gchar *timestamp;
     gint frameId;
     gchar *cameraId;
@@ -129,7 +148,7 @@ typedef struct NvDsFaceMsgData
     gchar *staff_id;
     gchar *feature;
     gchar *encoded_img;
-} NvDsFaceMsgData;
+};
 
 typedef struct NvDsMOTMetaData
 {

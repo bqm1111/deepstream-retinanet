@@ -264,7 +264,7 @@ static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void 
 void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta,
                      user_callback_data *callback_data, NvDsInferLayerInfo *output_layer_info)
 {
-    NvDsFaceMsgData *face_msg_sub_meta = (NvDsFaceMsgData *)g_malloc0(sizeof(NvDsFaceMsgData));
+    std::shared_ptr<NvDsFaceMsgData> face_msg_sub_meta = std::make_shared<NvDsFaceMsgData>();
     face_msg_sub_meta->bbox.top = clip(obj_meta->rect_params.top / frame_meta->source_frame_height);
     face_msg_sub_meta->bbox.left = clip(obj_meta->rect_params.left / frame_meta->source_frame_width);
     face_msg_sub_meta->bbox.width = clip(obj_meta->rect_params.width / frame_meta->source_frame_width);
@@ -350,7 +350,6 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
                                                                                       std::string(message).length(),
                                                                                       NULL, 0,
                                                                                       0, NULL, NULL);
-            freeNvDsFaceMsgData(callback_data->face_meta_list[i]);
             callback_data->kafka_producer->counter++;
 
             if (err != RdKafka::ERR_NO_ERROR)
