@@ -4,32 +4,19 @@
 
 FaceApp::FaceApp(int argc, char **argv)
 {
+    m_video_list = std::string(argv[1]);
     gst_init(&argc, &argv);
     m_loop = g_main_loop_new(NULL, FALSE);
-
-    m_video_list = std::string(argv[1]);
     m_pipeline = gst_pipeline_new("face-app");
+
     m_config = new ConfigManager();
     m_user_callback_data = new user_callback_data();
-    m_user_callback_data->session_id = (gchar *)malloc(SESSION_ID_LENGTH);
-    uuid_t uuid;
-    uuid_generate_random(uuid);
-    uuid_unparse_lower(uuid, m_user_callback_data->session_id);
 }
 
 FaceApp::~FaceApp()
 {
     delete m_config;
-    free_curl();
-    free(m_user_callback_data->session_id);
-    free(m_user_callback_data->timestamp);
-    delete m_user_callback_data->kafka_producer;
-    delete m_user_callback_data->fakesink_perf;
-    delete m_user_callback_data;
-    if (!m_user_callback_data->trackers)
-    {
-        free(m_user_callback_data->trackers);
-    }
+    free_user_callback_data();
 }
 
 static gboolean event_thread_func(gpointer arg)
@@ -52,56 +39,56 @@ static gboolean event_thread_func(gpointer arg)
 void FaceApp::freePipeline()
 {
     g_main_loop_unref(m_loop);
-
-    // gst_bin_remove(GST_BIN(m_pipeline), m_stream_muxer);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_tiler);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_video_convert);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_capsfilter);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_tee);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_queue_infer);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_queue_encode);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_fakesink);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_mot_elem);
-    // gst_bin_remove(GST_BIN(m_pipeline), m_face_elem);
-
-    // gst_object_unref(m_stream_muxer);
-    // gst_object_unref(m_tiler);
-    // gst_object_unref(m_video_convert);
-    // gst_object_unref(m_capsfilter);
-    // gst_object_unref(m_tee);
-    // gst_object_unref(m_queue_infer);
-
-    // gst_object_unref(m_queue_encode);
-    // gst_object_unref(m_fakesink);
-    // gst_object_unref(m_mot_elem);
-    // gst_object_unref(m_face_elem);
-
-    // gst_object_unref(m_mot_bin.m_pgie);
-    // gst_object_unref(m_mot_bin.m_sgie);
-    // gst_object_unref(m_face_bin.m_pgie);
-    // gst_object_unref(m_face_bin.m_sgie);
-    // gst_object_unref(m_face_bin.m_aligner);
-
-    // for (int i = 0; i < numVideoSrc(); i++)
-    // {
-    //     gst_bin_remove(GST_BIN(m_pipeline), m_source[i]);
-    //     gst_bin_remove(GST_BIN(m_pipeline), m_demux[i]);
-    //     gst_bin_remove(GST_BIN(m_pipeline), m_parser[i]);
-    //     gst_bin_remove(GST_BIN(m_pipeline), m_decoder[i]);
-    //     gst_object_unref(m_source[i]);
-    //     gst_object_unref(m_demux[i]);
-    //     gst_object_unref(m_parser[i]);
-    //     gst_object_unref(m_decoder[i]);
-    // }
     g_source_remove(m_bus_watch_id);
 
     nvds_obj_enc_destroy_context(m_face_bin.m_obj_ctx_handle);
     nvds_obj_enc_destroy_context(m_user_callback_data->fullframe_ctx_handle);
 }
 
+void FaceApp::init_user_callback_data()
+{
+    init_curl();
+    m_user_callback_data->timestamp = (gchar *)malloc(MAX_TIME_STAMP_LEN);
+    m_user_callback_data->session_id = (gchar *)malloc(SESSION_ID_LENGTH);
+    uuid_t uuid;
+    uuid_generate_random(uuid);
+    uuid_unparse_lower(uuid, m_user_callback_data->session_id);
+    m_user_callback_data->kafka_producer = new KafkaProducer();
+    m_user_callback_data->kafka_producer->init(m_user_callback_data->connection_str);
+    m_user_callback_data->fakesink_perf = new SinkPerfStruct;
+    m_user_callback_data->video_name = m_video_source_name;
+
+    m_user_callback_data->fullframe_ctx_handle = nvds_obj_enc_create_context();
+    if (!m_user_callback_data->fullframe_ctx_handle)
+    {
+        QDTLog::error("%s:%d Unable to create context\n", __FILE__, __LINE__);
+    }
+    // Initialize trackers for MOT
+    int num_tracker = numVideoSrc();
+    m_user_callback_data->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
+    for (size_t i = 0; i < num_tracker; i++)
+        m_user_callback_data->trackers[i] = tracker(
+            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
+}
+
+void FaceApp::free_user_callback_data()
+{
+    free_curl();
+    free(m_user_callback_data->session_id);
+    free(m_user_callback_data->timestamp);
+    delete m_user_callback_data->kafka_producer;
+    delete m_user_callback_data->fakesink_perf;
+    if (!m_user_callback_data->trackers)
+    {
+        free(m_user_callback_data->trackers);
+    }
+    delete m_user_callback_data;
+}
+
 void FaceApp::init()
 {
     loadConfig();
+    init_user_callback_data();
     addVideoSource();
     sequentialDetectAndMOT();
 
@@ -118,6 +105,8 @@ void FaceApp::run()
 
 void FaceApp::loadConfig()
 {
+    parseJson(m_video_list, m_video_source_name, m_video_source_info);
+
     m_config->setContext();
     std::shared_ptr<DSAppConfig> appConf = std::dynamic_pointer_cast<DSAppConfig>(m_config->getConfig(ConfigType::DeepStreamApp));
 
@@ -140,18 +129,6 @@ void FaceApp::loadConfig()
     m_user_callback_data->curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
     m_user_callback_data->face_feature_confidence_threshold = appConf->getProperty(DSAppProperty::FACE_CONFIDENCE_THRESHOLD).toFloat();
     m_user_callback_data->save_crop_img = appConf->getProperty(DSAppProperty::SAVE_CROP_IMG).toBool();
-
-    init_curl();
-    m_user_callback_data->kafka_producer = new KafkaProducer();
-    m_user_callback_data->kafka_producer->init(m_user_callback_data->connection_str);
-    m_user_callback_data->fakesink_perf = new SinkPerfStruct;
-    m_user_callback_data->timestamp = (gchar *)malloc(MAX_TIME_STAMP_LEN);
-
-    m_user_callback_data->fullframe_ctx_handle = nvds_obj_enc_create_context();
-    if (!m_user_callback_data->fullframe_ctx_handle)
-    {
-        QDTLog::error("%s:%d Unable to create context\n", __FILE__, __LINE__);
-    }
 }
 
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
@@ -163,8 +140,6 @@ static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbe
 
 void FaceApp::addVideoSource()
 {
-    parseJson(m_video_list, m_video_source_name, m_video_source_info);
-    m_user_callback_data->video_name = m_video_source_name;
     int cnt = 0;
     for (const auto &info : m_video_source_info)
     {
@@ -294,13 +269,6 @@ void FaceApp::addVideoSource()
         gst_object_unref(decoder_srcpad);
         gst_object_unref(muxer_sinkpad);
     }
-
-    // Initialize trackers for MOT
-    int num_tracker = numVideoSrc();
-    m_user_callback_data->trackers = (tracker *)malloc(sizeof(tracker) * num_tracker);
-    for (size_t i = 0; i < num_tracker; i++)
-        m_user_callback_data->trackers[i] = tracker(
-            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
 }
 
 void FaceApp::init_curl()

@@ -62,6 +62,8 @@ private:
     guint m_bus_watch_id;
     ConfigManager *m_config;
     user_callback_data *m_user_callback_data;
+    void init_user_callback_data();
+    void free_user_callback_data();
     void init_curl();
     void free_curl();
 };
