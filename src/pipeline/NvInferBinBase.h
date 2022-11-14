@@ -3,6 +3,7 @@
 #include <gst/gst.h>
 #include <gst/gstelement.h>
 #include <gst/gstelementfactory.h>
+#include <gst/app/gstappsink.h>
 #include <gst/gstobject.h>
 #include <memory>
 #include <nvdsinfer.h>
@@ -28,6 +29,7 @@ public:
     GstElement *createNonInferPipeline(GstElement *pipeline);
     void createVideoSinkBin();
     void createFileSinkBin(std::string location);
+    void createAppSinkBin();
 
     GstElement *m_pipeline = NULL;
     // Common element in infer bin
@@ -38,21 +40,18 @@ public:
     GstElement *m_tiler = NULL;
     GstElement *m_convert = NULL;
 
-    GstElement *m_tee = NULL;
-    GstElement *m_queue_display = NULL;
-    GstElement *m_queue_metadata_msg = NULL;
-    GstElement *m_queue_visual_msg = NULL;
-
     GstElement *m_osd = NULL;
     GstElement *m_file_convert = NULL;
     GstElement *m_capsfilter = NULL;
     GstElement *m_nvv4l2h265enc = NULL;
     GstElement *m_h265parse = NULL;
     GstElement *m_file_muxer = NULL;
+    GstElement *m_queue = NULL;
     GstElement *m_sink = NULL;
 
-    static GstPadProbeReturn osd_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstPadProbeReturn timer_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
+    static GstFlowReturn newSampleCallback(GstElement *sink, gpointer *user_data);
 
 protected:
     user_callback_data *m_user_callback_data;

@@ -53,8 +53,11 @@ void FaceApp::init_user_callback_data()
     uuid_t uuid;
     uuid_generate_random(uuid);
     uuid_unparse_lower(uuid, m_user_callback_data->session_id);
-    m_user_callback_data->kafka_producer = new KafkaProducer();
-    m_user_callback_data->kafka_producer->init(m_user_callback_data->connection_str);
+    m_user_callback_data->meta_producer = new KafkaProducer();
+    m_user_callback_data->meta_producer->init(m_user_callback_data->connection_str);
+    m_user_callback_data->visual_producer = new KafkaProducer();
+    m_user_callback_data->visual_producer->init(m_user_callback_data->connection_str);
+
     m_user_callback_data->fakesink_perf = new SinkPerfStruct;
     m_user_callback_data->video_name = m_video_source_name;
 
@@ -76,7 +79,8 @@ void FaceApp::free_user_callback_data()
     free_curl();
     free(m_user_callback_data->session_id);
     free(m_user_callback_data->timestamp);
-    delete m_user_callback_data->kafka_producer;
+    delete m_user_callback_data->meta_producer;
+    delete m_user_callback_data->visual_producer;
     delete m_user_callback_data->fakesink_perf;
     if (!m_user_callback_data->trackers)
     {
@@ -411,36 +415,20 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
                 msg_meta_content->num_channel = 3 /*bgr_frame.channels()*/;
 
                 gchar *message = generate_XFace_visual_message(msg_meta_content);
-                RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->visual_topic,
-                                                                                          RdKafka::Topic::PARTITION_UA,
-                                                                                          RdKafka::Producer::RK_MSG_FREE,
-                                                                                          (gchar *)message,
-                                                                                          std::string(message).length(),
-                                                                                          NULL, 0,
-                                                                                          0, NULL, NULL);
+                RdKafka::ErrorCode err = callback_data->visual_producer->producer->produce(callback_data->visual_topic,
+                                                                                           RdKafka::Topic::PARTITION_UA,
+                                                                                           RdKafka::Producer::RK_MSG_FREE,
+                                                                                           (gchar *)message,
+                                                                                           std::string(message).length(),
+                                                                                           NULL, 0,
+                                                                                           0, NULL, NULL);
 
                 freeXFaceVisualMsg(msg_meta_content);
-                callback_data->kafka_producer->counter++;
-                if (err != RdKafka::ERR_NO_ERROR)
+                callback_data->visual_producer->counter++;
+                if (callback_data->visual_producer->counter > POLLING_COUNTER)
                 {
-                    if (err == RdKafka::ERR__QUEUE_FULL)
-                    {
-                        /* If the internal queue is full, wait for
-                         * messages to be delivered and then retry.
-                         * The internal queue represents both
-                         * messages to be sent and messages that have
-                         * been sent or failed, awaiting their
-                         * delivery report callback to be called.
-                         *
-                         * The internal queue is limited by the
-                         * configuration property
-                         * queue.buffering.max.messages */
-                        if (callback_data->kafka_producer->counter > 10)
-                        {
-                            callback_data->kafka_producer->counter = 0;
-                            callback_data->kafka_producer->producer->poll(100);
-                        }
-                    }
+                    callback_data->visual_producer->counter = 0;
+                    callback_data->visual_producer->producer->poll(100);
                 }
             }
         } // obj_meta_list
@@ -506,7 +494,7 @@ void FaceApp::sequentialDetectAndMOT()
     // ========================================================================
     NvInferBinBase bin;
     bin.acquireUserData(m_user_callback_data);
-    m_tiler = bin.createNonInferPipeline(m_pipeline);
+    bin.createNonInferPipeline(m_pipeline);
 
     m_video_convert = gst_element_factory_make("nvvideoconvert", "video-converter");
     g_object_set(G_OBJECT(m_video_convert), "nvbuf-memory-type", 3, NULL);
@@ -521,8 +509,10 @@ void FaceApp::sequentialDetectAndMOT()
     m_queue_encode = gst_element_factory_make("queue", "queue-encode");
 
     m_fakesink = gst_element_factory_make("fakesink", "osd");
+    GstElement *m_queue_mot_to_face = gst_element_factory_make("queue", "queue-face");
+
     gst_bin_add_many(GST_BIN(m_pipeline), m_tee, m_queue_infer, m_queue_encode, m_video_convert, m_capsfilter, m_fakesink, NULL);
-    gst_bin_add_many(GST_BIN(m_pipeline), m_mot_elem, m_face_elem, NULL);
+    gst_bin_add_many(GST_BIN(m_pipeline), m_mot_elem, m_queue_mot_to_face, m_face_elem, NULL);
 
     if (!gst_element_link_many(m_stream_muxer, m_tee, NULL))
     {
@@ -534,7 +524,7 @@ void FaceApp::sequentialDetectAndMOT()
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
 
-    if (!gst_element_link_many(m_queue_infer, m_mot_elem, m_face_elem, bin.m_tiler, NULL))
+    if (!gst_element_link_many(m_queue_infer, m_mot_elem, m_queue_mot_to_face, m_face_elem, bin.m_queue, NULL))
     {
         QDTLog::error("Cannot link mot and face bin {}:{}", __FILE__, __LINE__);
     }
@@ -580,8 +570,8 @@ void FaceApp::sequentialDetectAndMOT()
 
     GstPad *fakesink_pad = gst_element_get_static_pad(m_fakesink, "sink");
     GST_ASSERT(fakesink_pad);
-    gst_pad_add_probe(fakesink_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
-                      m_user_callback_data->fakesink_perf, NULL);
+    // gst_pad_add_probe(fakesink_pad, GST_PAD_PROBE_TYPE_BUFFER, fakesink_pad_buffer_probe,
+    //                   m_user_callback_data->fakesink_perf, NULL);
     g_object_unref(fakesink_pad);
 
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(m_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "test_run");

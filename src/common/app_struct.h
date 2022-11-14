@@ -11,7 +11,8 @@ struct user_callback_data
     CURL *curl;
     gchar *session_id;
     std::vector<std::string> video_name;
-    KafkaProducer *kafka_producer;
+    KafkaProducer *meta_producer;
+    KafkaProducer *visual_producer;
     tracker *trackers = nullptr;
     gchar *timestamp;
     float face_feature_confidence_threshold;

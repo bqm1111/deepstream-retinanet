@@ -65,6 +65,7 @@
 #define POST_TRACK_SCORE 1.0
 #define SESSION_ID_LENGTH 37
 
+#define POLLING_COUNTER 200
 struct alignas(float) Detection
 {
     float bbox[4]; // x1 y1 x2 y2

@@ -255,169 +255,6 @@ GstPadProbeReturn NvInferFaceBin::pgie_src_pad_buffer_probe(GstPad *pad, GstPadP
     return GST_PAD_PROBE_OK;
 }
 
-static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void *userp)
-{
-    ((std::string *)userp)->append((char *)contents, size * nmemb);
-    return size * nmemb;
-}
-
-void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta,
-                     user_callback_data *callback_data, NvDsInferLayerInfo *output_layer_info)
-{
-    std::shared_ptr<NvDsFaceMsgData> face_msg_sub_meta = std::make_shared<NvDsFaceMsgData>();
-    face_msg_sub_meta->bbox.top = clip(obj_meta->rect_params.top / frame_meta->source_frame_height);
-    face_msg_sub_meta->bbox.left = clip(obj_meta->rect_params.left / frame_meta->source_frame_width);
-    face_msg_sub_meta->bbox.width = clip(obj_meta->rect_params.width / frame_meta->source_frame_width);
-    face_msg_sub_meta->bbox.height = clip(obj_meta->rect_params.height / frame_meta->source_frame_height);
-
-    // Generate timestamp
-    face_msg_sub_meta->timestamp = g_strdup(callback_data->timestamp);
-    face_msg_sub_meta->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
-    face_msg_sub_meta->frameId = frame_meta->frame_num;
-    face_msg_sub_meta->sessionId = g_strdup(callback_data->session_id);
-    
-    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
-    {
-        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-        if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
-        {
-            NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
-
-            const int feature_size = output_layer_info->inferDims.numElements;
-            float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
-                                 faceMeta->aligned_index * feature_size;
-            memcpy(faceMeta->feature, cur_feature, feature_size * sizeof(float));
-            face_msg_sub_meta->feature = g_strdup(b64encode(faceMeta->feature, FEATURE_SIZE));
-
-            for (int i = 0; i < FEATURE_SIZE; i++)
-            {
-                callback_data->batch_face_feature.push_back(cur_feature[i]);
-            }
-        }
-        else if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
-        {
-            NvDsObjEncOutParams *enc_jpeg_image =
-                (NvDsObjEncOutParams *)user_meta->user_meta_data;
-            face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
-        }
-    }
-    callback_data->face_meta_list.push_back(face_msg_sub_meta);
-
-    // Wait until a certain amount of faces are received. Batching all of them to call a curl request to get their name
-    if (callback_data->frame_since_last_decode_face_name > 5 || callback_data->face_meta_list.size() == 32)
-    {
-        // Send HTTP request
-        CURL *curl = callback_data->curl;
-        std::string response_string;
-
-        int num_face = callback_data->batch_face_feature.size() / FEATURE_SIZE;
-        const char *data = gen_body(num_face, b64encode(callback_data->batch_face_feature.data(), FEATURE_SIZE * num_face));
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteJsonCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
-
-        // request over HTTP/2, using the same connection!
-        CURLcode res = curl_easy_perform(curl);
-
-        if (res != CURLE_OK)
-        {
-            QDTLog::warn("curl from vector database failed");
-        }
-        else
-        {
-            // QDTLog::info("Response string = {}", response_string);
-            std::vector<std::string> response_list = parseListJson(response_string);
-            for (int i = 0; i < response_list.size(); i++)
-            {
-                Document doc;
-                doc.Parse(response_list[i].c_str());
-                Value &s = doc["score"];
-                callback_data->face_meta_list[i]->confidence_score = s.GetDouble();
-                s = doc["code"];
-                callback_data->face_meta_list[i]->staff_id = g_strdup(s.GetString());
-                s = doc["name"];
-                callback_data->face_meta_list[i]->name = g_strdup(s.GetString());
-            }
-        }
-        // Sending FaceRawMeta message to Kafka server
-        for (int i = 0; i < callback_data->face_meta_list.size(); i++)
-        {
-            gchar *message = generate_FaceRawMeta_message(callback_data->face_meta_list[i]);
-            RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->face_rawmeta_topic,
-                                                                                      RdKafka::Topic::PARTITION_UA,
-                                                                                      RdKafka::Producer::RK_MSG_FREE,
-                                                                                      (gchar *)message,
-                                                                                      std::string(message).length(),
-                                                                                      NULL, 0,
-                                                                                      0, NULL, NULL);
-            callback_data->kafka_producer->counter++;
-
-            if (err != RdKafka::ERR_NO_ERROR)
-            {
-                if (err == RdKafka::ERR__QUEUE_FULL)
-                {
-                    if (callback_data->kafka_producer->counter > 10)
-                    {
-                        callback_data->kafka_producer->counter = 0;
-                        callback_data->kafka_producer->producer->poll(100);
-                    }
-                }
-            }
-        }
-        callback_data->frame_since_last_decode_face_name = 0;
-        callback_data->batch_face_feature.clear();
-        callback_data->face_meta_list.clear();
-    }
-
-    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
-    {
-        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-        FILE *file;
-
-        if (user_meta->base_meta.meta_type == NVDS_CROP_IMAGE_META)
-        {
-            if (face_msg_sub_meta->confidence_score && callback_data->face_feature_confidence_threshold &&
-                std::string(face_msg_sub_meta->name) != std::string("Unknown") &&
-                callback_data->save_crop_img)
-            {
-                NvDsObjEncOutParams *enc_jpeg_image =
-                    (NvDsObjEncOutParams *)user_meta->user_meta_data;
-
-                std::string fileNameString = "crop_img/" + std::to_string(frame_meta->frame_num) + "_" + std::to_string(face_msg_sub_meta->confidence_score) + std::string(face_msg_sub_meta->name) +
-                                             "_" + std::to_string((int)obj_meta->rect_params.width) + "x" + std::to_string((int)obj_meta->rect_params.height) + ".jpg";
-
-                /* Write to File */
-                file = fopen(fileNameString.c_str(), "wb");
-                fwrite(enc_jpeg_image->outBuffer, sizeof(uint8_t),
-                       enc_jpeg_image->outLen, file);
-                fclose(file);
-            }
-        }
-    }
-}
-
-void getMOTMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta, std::vector<NvDsMOTMsgData *> &mot_meta_list)
-{
-    NvDsMOTMsgData *mot_msg_sub_meta = (NvDsMOTMsgData *)g_malloc0(sizeof(NvDsMOTMsgData));
-    mot_msg_sub_meta->bbox.top = clip(obj_meta->rect_params.top / frame_meta->source_frame_height);
-    mot_msg_sub_meta->bbox.left = clip(obj_meta->rect_params.left / frame_meta->source_frame_width);
-    mot_msg_sub_meta->bbox.width = clip(obj_meta->rect_params.width / frame_meta->source_frame_width);
-    mot_msg_sub_meta->bbox.height = clip(obj_meta->rect_params.height / frame_meta->source_frame_height);
-
-    mot_msg_sub_meta->track_id = obj_meta->object_id;
-
-    for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
-    {
-        NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
-        if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_MOT)
-        {
-            NvDsMOTMetaData *motMeta = reinterpret_cast<NvDsMOTMetaData *>(user_meta->user_meta_data);
-            mot_msg_sub_meta->embedding = g_strdup(motMeta->feature);
-        }
-    }
-    mot_meta_list.push_back(mot_msg_sub_meta);
-}
-
 void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                           NvDsInferNetworkInfo *network_info,
                                           NvDsInferLayerInfo *layers_info,
@@ -426,7 +263,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
                                           gpointer user_data)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(user_data);
-    callback_data->frame_since_last_decode_face_name++;
     /* Find the only output layer */
     NvDsInferLayerInfo *output_layer_info;
     NvDsInferLayerInfo *input_layer_info;
@@ -443,17 +279,6 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             // TODO: the info also include input tensor, which is the 3x112x112 input. COuld be use for something.
         }
     }
-    GstMapInfo in_map_info;
-    NvBufSurface *surface = NULL;
-    memset(&in_map_info, 0, sizeof(in_map_info));
-    if (!gst_buffer_map(buf, &in_map_info, GST_MAP_READ))
-    {
-        QDTLog::error("Error: Failed to map gst buffer\n");
-        gst_buffer_unmap(buf, &in_map_info);
-    }
-    surface = (NvBufSurface *)in_map_info.data;
-    NvBufSurfaceMap(surface, -1, -1, NVBUF_MAP_READ_WRITE);
-    NvBufSurfaceSyncForCpu(surface, -1, -1);
 
     /* Assign feature to NvDsFaceMetaData */
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
@@ -469,64 +294,22 @@ void NvInferFaceBin::sgie_output_callback(GstBuffer *buf,
             NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
             if (obj_meta->class_id == FACE_CLASS_ID)
             {
-                getFaceMetaData(frame_meta, batch_meta, obj_meta, callback_data, output_layer_info);
-            }
-            else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON)
-            {
-                getMOTMetaData(frame_meta, batch_meta, obj_meta, mot_sub_meta_list);
-            }
-        }
-
-        // ===================================== XFace MetaData sent to Kafka =====================================
-        XFaceMOTMsgMeta *msg_meta_content = (XFaceMOTMsgMeta *)g_malloc0(sizeof(XFaceMOTMsgMeta));
-        // Get MOT meta
-        msg_meta_content->num_mot_obj = mot_sub_meta_list.size();
-        msg_meta_content->mot_meta_list = (NvDsMOTMsgData **)g_malloc0(mot_sub_meta_list.size() * sizeof(NvDsMOTMsgData *));
-        memcpy(msg_meta_content->mot_meta_list, mot_sub_meta_list.data(), mot_sub_meta_list.size() * sizeof(NvDsMOTMsgData *));
-
-        // Generate timestamp
-        msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
-        msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
-        msg_meta_content->frameId = frame_meta->frame_num;
-        msg_meta_content->sessionId = g_strdup(callback_data->session_id);
-
-
-        gchar *message = generate_MOTRawMeta_message(msg_meta_content);
-        RdKafka::ErrorCode err = callback_data->kafka_producer->producer->produce(callback_data->mot_rawmeta_topic,
-                                                                                  RdKafka::Topic::PARTITION_UA,
-                                                                                  RdKafka::Producer::RK_MSG_FREE,
-                                                                                  (gchar *)message,
-                                                                                  std::string(message).length(),
-                                                                                  NULL, 0,
-                                                                                  0, NULL, NULL);
-        freeXFaceMOTMsgMeta(msg_meta_content);
-        callback_data->kafka_producer->counter++;
-
-        if (err != RdKafka::ERR_NO_ERROR)
-        {
-            if (err == RdKafka::ERR__QUEUE_FULL)
-            {
-                /* If the internal queue is full, wait for
-                 * messages to be delivered and then retry.
-                 * The internal queue represents both
-                 * messages to be sent and messages that have
-                 * been sent or failed, awaiting their
-                 * delivery report callback to be called.
-                 *
-                 * The internal queue is limited by the
-                 * configuration property
-                 * queue.buffering.max.messages */
-                if (callback_data->kafka_producer->counter > 10)
+                for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
                 {
-                    callback_data->kafka_producer->counter = 0;
-                    callback_data->kafka_producer->producer->poll(100);
+                    NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
+                    if (user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
+                    {
+                        NvDsFaceMetaData *faceMeta = reinterpret_cast<NvDsFaceMetaData *>(user_meta->user_meta_data);
+
+                        const int feature_size = output_layer_info->inferDims.numElements;
+                        float *cur_feature = reinterpret_cast<float *>(output_layer_info->buffer) +
+                                             faceMeta->aligned_index * feature_size;
+                        memcpy(faceMeta->feature, cur_feature, feature_size * sizeof(float));
+                    }
                 }
             }
         }
     }
-
-    NvBufSurfaceUnMap(surface, -1, -1);
-    gst_buffer_unmap(buf, &in_map_info);
 }
 
 GstPadProbeReturn NvInferFaceBin::tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)

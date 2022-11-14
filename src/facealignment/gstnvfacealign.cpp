@@ -59,9 +59,9 @@ static gboolean gst_nvfacealign_start(GstBaseTransform *trans);
 static gboolean gst_nvfacealign_stop(GstBaseTransform *trans);
 
 /* my prototypes */
-static GstFlowReturn gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
-                                                            gboolean discont, GstBuffer * inbuf);
-static GstFlowReturn gst_nvdsfacealign_generate_output (GstBaseTransform * btrans, GstBuffer ** outbuf);
+static GstFlowReturn gst_nvdsfacealign_submit_input_buffer(GstBaseTransform *btrans,
+                                                           gboolean discont, GstBuffer *inbuf);
+static GstFlowReturn gst_nvdsfacealign_generate_output(GstBaseTransform *btrans, GstBuffer **outbuf);
 
 enum
 {
@@ -132,31 +132,30 @@ gst_nvfacealign_class_init(GstNvfacealignClass *klass)
   base_transform_class->generate_output = GST_DEBUG_FUNCPTR(gst_nvdsfacealign_generate_output);
 
   /* Install properties */
-  g_object_class_install_property (gobject_class, PROP_UNIQUE_ID,
-      g_param_spec_uint ("unique-id",
-          "Unique ID",
-          "Unique ID for the element. Can be used to identify output of the"
-          " element", 0, G_MAXUINT, DEFAULT_UNIQUE_ID, (GParamFlags)
-          (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-  g_object_class_install_property (gobject_class, PROP_GPU_DEVICE_ID,
-      g_param_spec_uint ("gpu-id",
-          "Set GPU Device ID",
-          "Set GPU Device ID", 0,
-          G_MAXUINT, DEFAULT_GPU_ID,
-          GParamFlags
-          (G_PARAM_READWRITE |
-              G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY)));
-  g_object_class_install_property (gobject_class, PROP_CONFIG_FILE,
-      g_param_spec_string ("config-file-path", "Face Alignment Config File",
-          "Face Alignment Config File",
-          DEFAULT_CONFIG_FILE_PATH,
-          (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-  g_object_class_install_property (gobject_class, PROP_OUTPUT_WRITE_TO_FILE,
-      g_param_spec_boolean ("raw-output-file-write", "Raw Output File Write",
-          "Write raw inference output to file",
-          DEFAULT_OUTPUT_WRITE_TO_FILE,
-          (GParamFlags) (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
-              GST_PARAM_MUTABLE_READY)));
+  g_object_class_install_property(gobject_class, PROP_UNIQUE_ID,
+                                  g_param_spec_uint("unique-id",
+                                                    "Unique ID",
+                                                    "Unique ID for the element. Can be used to identify output of the"
+                                                    " element",
+                                                    0, G_MAXUINT, DEFAULT_UNIQUE_ID, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+  g_object_class_install_property(gobject_class, PROP_GPU_DEVICE_ID,
+                                  g_param_spec_uint("gpu-id",
+                                                    "Set GPU Device ID",
+                                                    "Set GPU Device ID", 0,
+                                                    G_MAXUINT, DEFAULT_GPU_ID,
+                                                    GParamFlags(G_PARAM_READWRITE |
+                                                                G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_READY)));
+  g_object_class_install_property(gobject_class, PROP_CONFIG_FILE,
+                                  g_param_spec_string("config-file-path", "Face Alignment Config File",
+                                                      "Face Alignment Config File",
+                                                      DEFAULT_CONFIG_FILE_PATH,
+                                                      (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+  g_object_class_install_property(gobject_class, PROP_OUTPUT_WRITE_TO_FILE,
+                                  g_param_spec_boolean("raw-output-file-write", "Raw Output File Write",
+                                                       "Write raw inference output to file",
+                                                       DEFAULT_OUTPUT_WRITE_TO_FILE,
+                                                       (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS |
+                                                                     GST_PARAM_MUTABLE_READY)));
 }
 
 static void
@@ -198,26 +197,27 @@ void gst_nvfacealign_set_property(GObject *object, guint property_id,
     // nvfacealign->unique_id = g_value_get_uint (value);
     break;
   case PROP_GPU_DEVICE_ID:
-    nvfacealign->gpu_id = g_value_get_uint (value);
+    nvfacealign->gpu_id = g_value_get_uint(value);
     break;
   case PROP_OUTPUT_WRITE_TO_FILE:
-    nvfacealign->write_raw_buffers_to_file = g_value_get_boolean (value);
+    nvfacealign->write_raw_buffers_to_file = g_value_get_boolean(value);
     break;
   case PROP_CONFIG_FILE:
+  {
+    g_free(nvfacealign->config_file_path);
+    nvfacealign->config_file_path = g_value_dup_string(value);
+    /* Parse the initialization parameters from the config file. This function
+     * gives preference to values set through the set_property function over
+     * the values set in the config file. */
+    nvfacealign->config_file_parse_successful =
+        nvdsfacealign_parse_config_file(nvfacealign,
+                                        nvfacealign->config_file_path);
+    if (nvfacealign->config_file_parse_successful)
     {
-      g_free (nvfacealign->config_file_path);
-      nvfacealign->config_file_path = g_value_dup_string (value);
-      /* Parse the initialization parameters from the config file. This function
-        * gives preference to values set through the set_property function over
-        * the values set in the config file. */
-      nvfacealign->config_file_parse_successful =
-      nvdsfacealign_parse_config_file (nvfacealign,
-                                       nvfacealign->config_file_path);
-      if (nvfacealign->config_file_parse_successful) {
-        GST_DEBUG_OBJECT (nvfacealign, "Successfully Parsed Config file");
-      }
+      GST_DEBUG_OBJECT(nvfacealign, "Successfully Parsed Config file");
     }
-    break;
+  }
+  break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
     break;
@@ -237,13 +237,13 @@ void gst_nvfacealign_get_property(GObject *object, guint property_id,
     // g_value_set_uint (value, nvfacealign->unique_id);
     break;
   case PROP_GPU_DEVICE_ID:
-    g_value_set_uint (value, nvfacealign->gpu_id);
+    g_value_set_uint(value, nvfacealign->gpu_id);
     break;
   case PROP_CONFIG_FILE:
-    g_value_set_string (value, nvfacealign->config_file_path);
+    g_value_set_string(value, nvfacealign->config_file_path);
     break;
   case PROP_OUTPUT_WRITE_TO_FILE:
-    g_value_set_boolean (value, nvfacealign->write_raw_buffers_to_file);
+    g_value_set_boolean(value, nvfacealign->write_raw_buffers_to_file);
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -270,22 +270,24 @@ gst_nvfacealign_start(GstBaseTransform *trans)
 
   GST_DEBUG_OBJECT(nvfacealign, "start");
 
-  if (!nvfacealign->config_file_path || strlen (nvfacealign->config_file_path) == 0) {
-    GST_ELEMENT_ERROR (nvfacealign, LIBRARY, SETTINGS,
-        ("Configuration file not provided"), (nullptr));
+  if (!nvfacealign->config_file_path || strlen(nvfacealign->config_file_path) == 0)
+  {
+    GST_ELEMENT_ERROR(nvfacealign, LIBRARY, SETTINGS,
+                      ("Configuration file not provided"), (nullptr));
     return FALSE;
   }
 
-  if (nvfacealign->config_file_parse_successful == FALSE) {
-    GST_ELEMENT_ERROR (nvfacealign, LIBRARY, SETTINGS,
-        ("Configuration file parsing failed"),
-        ("Config file path: %s", nvfacealign->config_file_path));
+  if (nvfacealign->config_file_parse_successful == FALSE)
+  {
+    GST_ELEMENT_ERROR(nvfacealign, LIBRARY, SETTINGS,
+                      ("Configuration file parsing failed"),
+                      ("Config file path: %s", nvfacealign->config_file_path));
     return FALSE;
   }
 
   /**
    * TODO: allocate buffer pool for aligned faces at start and keeps reusing them
-   * 
+   *
    */
   GstStructure *tensor_pool_config;
   GstAllocator *tensor_pool_allocator;
@@ -295,66 +297,71 @@ gst_nvfacealign_start(GstBaseTransform *trans)
   nvfacealign->tensor_pool = gst_buffer_pool_new();
   tensor_pool_config = gst_buffer_pool_get_config(nvfacealign->tensor_pool);
   gst_buffer_pool_config_set_params(tensor_pool_config, nullptr,
-      sizeof (GstNvDsFaceAlignMemory), nvfacealign->tensor_buf_pool_size,
-      nvfacealign->tensor_buf_pool_size);
+                                    sizeof(GstNvDsFaceAlignMemory), nvfacealign->tensor_buf_pool_size,
+                                    nvfacealign->tensor_buf_pool_size);
 
   nvfacealign->tensor_params.buffer_size = 1;
-  for (auto& p : nvfacealign->tensor_params.network_input_shape) {
+  for (auto &p : nvfacealign->tensor_params.network_input_shape)
+  {
     nvfacealign->tensor_params.buffer_size *= p;
   }
 
-  switch (nvfacealign->tensor_params.data_type) {
-    case NvDsDataType_FP32:
-    case NvDsDataType_UINT32:
-    case NvDsDataType_INT32:
-      nvfacealign->tensor_params.buffer_size *= 4;
+  switch (nvfacealign->tensor_params.data_type)
+  {
+  case NvDsDataType_FP32:
+  case NvDsDataType_UINT32:
+  case NvDsDataType_INT32:
+    nvfacealign->tensor_params.buffer_size *= 4;
     break;
-    case NvDsDataType_UINT8:
-    case NvDsDataType_INT8:
-      nvfacealign->tensor_params.buffer_size *= 1;
+  case NvDsDataType_UINT8:
+  case NvDsDataType_INT8:
+    nvfacealign->tensor_params.buffer_size *= 1;
     break;
-    case NvDsDataType_FP16:
-      nvfacealign->tensor_params.buffer_size *= 2;
+  case NvDsDataType_FP16:
+    nvfacealign->tensor_params.buffer_size *= 2;
     break;
-    default:
-      GST_ELEMENT_ERROR (nvfacealign, LIBRARY, SETTINGS,
-          ("Tensor data type : %d is not Supported\n",
-              (int )nvfacealign->tensor_params.data_type), (nullptr));
-      goto error;
+  default:
+    GST_ELEMENT_ERROR(nvfacealign, LIBRARY, SETTINGS,
+                      ("Tensor data type : %d is not Supported\n",
+                       (int)nvfacealign->tensor_params.data_type),
+                      (nullptr));
+    goto error;
   }
 
-
   /** NOTE: allocate nvfacealign->tensor_params.buffer_size size. It's good! **/
-  tensor_pool_allocator = gst_nvdsfacealign_allocator_new (nvfacealign->tensor_params.buffer_size, nvfacealign->gpu_id);
+  tensor_pool_allocator = gst_nvdsfacealign_allocator_new(nvfacealign->tensor_params.buffer_size, nvfacealign->gpu_id);
   GST_DEBUG_OBJECT(nvfacealign, "Allocating Tensor Buffer Pool with size = %d data-type=%d", nvfacealign->tensor_buf_pool_size,
-          nvfacealign->tensor_params.data_type);
-  memset (&tensor_pool_allocation_params, 0, sizeof (tensor_pool_allocation_params));
-  gst_buffer_pool_config_set_allocator (tensor_pool_config, tensor_pool_allocator,
-      &tensor_pool_allocation_params);
+                   nvfacealign->tensor_params.data_type);
+  memset(&tensor_pool_allocation_params, 0, sizeof(tensor_pool_allocation_params));
+  gst_buffer_pool_config_set_allocator(tensor_pool_config, tensor_pool_allocator,
+                                       &tensor_pool_allocation_params);
 
-  if (!gst_buffer_pool_set_config (nvfacealign->tensor_pool, tensor_pool_config)) {
-    GST_ELEMENT_ERROR (nvfacealign, RESOURCE, FAILED,
-        ("Failed to set config on tensor buffer pool"), (nullptr));
+  if (!gst_buffer_pool_set_config(nvfacealign->tensor_pool, tensor_pool_config))
+  {
+    GST_ELEMENT_ERROR(nvfacealign, RESOURCE, FAILED,
+                      ("Failed to set config on tensor buffer pool"), (nullptr));
     goto error;
   }
 
   /* Start the buffer pool and allocate all internal buffers. */
-  if (!gst_buffer_pool_set_active (nvfacealign->tensor_pool, TRUE)) {
-    GST_ELEMENT_ERROR (nvfacealign, RESOURCE, FAILED,
-        ("Failed to set tensor buffer pool to active"), (nullptr));
+  if (!gst_buffer_pool_set_active(nvfacealign->tensor_pool, TRUE))
+  {
+    GST_ELEMENT_ERROR(nvfacealign, RESOURCE, FAILED,
+                      ("Failed to set tensor buffer pool to active"), (nullptr));
     goto error;
   }
 
-  cudaReturn = cudaSetDevice (nvfacealign->gpu_id);
-  if (cudaReturn != cudaSuccess) {
-    GST_ELEMENT_ERROR (nvfacealign, RESOURCE, FAILED,
-        ("Failed to set cuda device %d", nvfacealign->gpu_id),
-        ("cudaSetDevice failed with error %s", cudaGetErrorName (cudaReturn)));
+  cudaReturn = cudaSetDevice(nvfacealign->gpu_id);
+  if (cudaReturn != cudaSuccess)
+  {
+    GST_ELEMENT_ERROR(nvfacealign, RESOURCE, FAILED,
+                      ("Failed to set cuda device %d", nvfacealign->gpu_id),
+                      ("cudaSetDevice failed with error %s", cudaGetErrorName(cudaReturn)));
     goto error;
   }
 
   /** class for acquiring/releasing buffer from tensor pool */
-  nvfacealign->acquire_impl = std::make_unique <NvDsFaceAlignAcquirerImpl> (nvfacealign->tensor_pool);
+  nvfacealign->acquire_impl = std::make_unique<NvDsFaceAlignAcquirerImpl>(nvfacealign->tensor_pool);
   nvfacealign->tensor_buf = new NvDsFaceAlignCustomBuf;
 
   /** class for actually do the alignment */
@@ -390,14 +397,16 @@ gst_nvfacealign_stop(GstBaseTransform *trans)
 
   nvfacealign->acquire_impl.reset();
 
-  if (nvfacealign->tensor_buf) {
+  if (nvfacealign->tensor_buf)
+  {
     delete nvfacealign->tensor_buf;
     nvfacealign->tensor_buf = NULL;
   }
 
-  gst_object_unref (nvfacealign->tensor_pool);
+  gst_object_unref(nvfacealign->tensor_pool);
 
-  if (nvfacealign->h_tensor) {
+  if (nvfacealign->h_tensor)
+  {
     g_free(nvfacealign->h_tensor);
   }
 
@@ -405,18 +414,20 @@ gst_nvfacealign_stop(GstBaseTransform *trans)
 }
 
 static void
-release_user_meta_at_batch_level (gpointer data, gpointer user_data)
+release_user_meta_at_batch_level(gpointer data, gpointer user_data)
 {
-  NvDsUserMeta *user_meta = (NvDsUserMeta *) data;
-  GstNvDsPreProcessBatchMeta *preprocess_batchmeta = (GstNvDsPreProcessBatchMeta *) user_meta->user_meta_data;
-  if (preprocess_batchmeta->tensor_meta != nullptr) {
-    gst_buffer_unref ((GstBuffer *)preprocess_batchmeta->tensor_meta->private_data); // unref tensor pool buffer
+  NvDsUserMeta *user_meta = (NvDsUserMeta *)data;
+  GstNvDsPreProcessBatchMeta *preprocess_batchmeta = (GstNvDsPreProcessBatchMeta *)user_meta->user_meta_data;
+  if (preprocess_batchmeta->tensor_meta != nullptr)
+  {
+    gst_buffer_unref((GstBuffer *)preprocess_batchmeta->tensor_meta->private_data); // unref tensor pool buffer
     delete preprocess_batchmeta->tensor_meta;
   }
   if (preprocess_batchmeta->private_data != nullptr)
-    gst_buffer_unref ((GstBuffer *)preprocess_batchmeta->private_data); // unref conversion pool buffer
+    gst_buffer_unref((GstBuffer *)preprocess_batchmeta->private_data); // unref conversion pool buffer
 
-  for (auto &roi_meta : preprocess_batchmeta->roi_vector) {
+  for (auto &roi_meta : preprocess_batchmeta->roi_vector)
+  {
     g_list_free(roi_meta.classifier_meta_list);
     g_list_free(roi_meta.roi_user_meta_list);
   }
@@ -424,21 +435,24 @@ release_user_meta_at_batch_level (gpointer data, gpointer user_data)
   delete preprocess_batchmeta;
 }
 
-/* NOTE: nvinfer require all NVDS_PREPROCESS_BATCH_META to have the same shape 
+/* NOTE: nvinfer require all NVDS_PREPROCESS_BATCH_META to have the same shape
  * if all.size() <= batch_size. Return the single batch
- * if all.size() % batch_size == 0: 
+ * if all.size() % batch_size == 0:
  * if all.size() / batch_size != 0: add pad unit
  */
 
 std::vector<std::vector<NvDsFaceAlignUnit>> batch_divide(std::vector<NvDsFaceAlignUnit> all, unsigned int batch_size)
 {
   std::vector<std::vector<NvDsFaceAlignUnit>> ret;
-  for(unsigned int i = 0; i < all.size(); i += batch_size) {
+  for (unsigned int i = 0; i < all.size(); i += batch_size)
+  {
     std::vector<NvDsFaceAlignUnit> aBatch;
-    for(int j = i; j < i + batch_size; j++) {
+    for (int j = i; j < i + batch_size; j++)
+    {
       if (j < all.size())
         aBatch.push_back(all.at(j));
-      else {
+      else
+      {
         /* create fake unit */
         NvDsFaceAlignUnit unit;
         unit.is_pad = true;
@@ -460,69 +474,76 @@ std::vector<std::vector<NvDsFaceAlignUnit>> batch_divide(std::vector<NvDsFaceAli
 /**
  * Called when element recieves an input buffer from upstream element.
  */
-static GstFlowReturn 
-gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
-                                       gboolean discont, GstBuffer * inbuf)
+static GstFlowReturn
+gst_nvdsfacealign_submit_input_buffer(GstBaseTransform *btrans,
+                                      gboolean discont, GstBuffer *inbuf)
 {
   GstNvfacealign *nvfacealign = GST_NVFACEALIGN(btrans);
   GstFlowReturn flow_ret = GST_FLOW_ERROR;
 
-  nvds_set_input_system_timestamp (inbuf, GST_ELEMENT_NAME (nvfacealign));
+  nvds_set_input_system_timestamp(inbuf, GST_ELEMENT_NAME(nvfacealign));
 
-  if (FALSE == nvfacealign->config_file_parse_successful) {
-    GST_ELEMENT_ERROR (nvfacealign, LIBRARY, SETTINGS,
-        ("Configuration file parsing failed\n"),
-        ("Config file path: %s\n", nvfacealign->config_file_path));
+  if (FALSE == nvfacealign->config_file_parse_successful)
+  {
+    GST_ELEMENT_ERROR(nvfacealign, LIBRARY, SETTINGS,
+                      ("Configuration file parsing failed\n"),
+                      ("Config file path: %s\n", nvfacealign->config_file_path));
     return flow_ret;
   }
 
   // TODO: do the alignment here, use inbuf as input
   NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(inbuf);
-  if (batch_meta == nullptr) {
-    GST_ELEMENT_ERROR (nvfacealign, STREAM, FAILED,
-        ("NvDsBatchMeta not found for input buffer."), (NULL));
+  if (batch_meta == nullptr)
+  {
+    GST_ELEMENT_ERROR(nvfacealign, STREAM, FAILED,
+                      ("NvDsBatchMeta not found for input buffer."), (NULL));
     return GST_FLOW_ERROR;
   }
 
   /* Map the buffer contents and get the pointer to NvBufSurface. */
   GstMapInfo in_map_info = GST_MAP_INFO_INIT;
-  if (!gst_buffer_map(inbuf, &in_map_info, GST_MAP_READ)) {
-    GST_ELEMENT_ERROR (nvfacealign, STREAM, FAILED,
-      ("%s:gst buffer map to get pointer to NvBufSurface failed", __func__), (NULL));
+  if (!gst_buffer_map(inbuf, &in_map_info, GST_MAP_READ))
+  {
+    GST_ELEMENT_ERROR(nvfacealign, STREAM, FAILED,
+                      ("%s:gst buffer map to get pointer to NvBufSurface failed", __func__), (NULL));
     return GST_FLOW_ERROR;
   }
   NvBufSurface *in_surf = (NvBufSurface *)in_map_info.data;
-  if (!in_surf) {
-    GST_ELEMENT_ERROR (nvfacealign, STREAM, FAILED,
-      ("%s:in_map_info.data failed", __func__), (NULL));
+  if (!in_surf)
+  {
+    GST_ELEMENT_ERROR(nvfacealign, STREAM, FAILED,
+                      ("%s:in_map_info.data failed", __func__), (NULL));
     return GST_FLOW_ERROR;
   }
-
 
   std::vector<NvDsFaceAlignUnit> units;
   /**
    * NOTE: Access the frame buffer, access the landmark and produce the tensor
    */
-  for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next) {
+  for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
+  {
     NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
-    if (!frame_meta) {
-      GST_ERROR_OBJECT (nvfacealign, "not found NvDsFrameMeta in batch_meta");
+    if (!frame_meta)
+    {
+      GST_ERROR_OBJECT(nvfacealign, "not found NvDsFrameMeta in batch_meta");
       flow_ret = GST_FLOW_ERROR;
-      gst_buffer_unmap (inbuf, &in_map_info);
+      gst_buffer_unmap(inbuf, &in_map_info);
       return flow_ret;
     }
-    gint source_id = frame_meta->source_id;     /* source id of incoming buffer */
-    gint batch_index = frame_meta->batch_id;    /* batch id of incoming buffer */
-    
+    gint source_id = frame_meta->source_id;  /* source id of incoming buffer */
+    gint batch_index = frame_meta->batch_id; /* batch id of incoming buffer */
+
     // NOTE: access width height of frame by
     // in_surf->surfaceList[batch_index].width;
-    std::vector<NvDsObjectMeta*> to_remove;
-    for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next) {
+    std::vector<NvDsObjectMeta *> to_remove;
+    for (NvDsMetaList *l_obj = frame_meta->obj_meta_list; l_obj != NULL; l_obj = l_obj->next)
+    {
       NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
       if (obj_meta->class_id != FACE_CLASS_ID)
         continue;
-      
-      for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next) {
+
+      for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
+      {
         NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
         if (user_meta->base_meta.meta_type != (NvDsMetaType)NVDS_OBJ_USER_META_FACE)
           continue;
@@ -532,11 +553,10 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
         if (face_meta->stage > NvDsFaceMetaStage::ALIGNED)
           continue;
 
-
         if (obj_meta->detector_bbox_info.org_bbox_coords.width >= nvfacealign->min_input_object_width &&
-          obj_meta->detector_bbox_info.org_bbox_coords.width <= nvfacealign->max_input_object_width && 
-          obj_meta->detector_bbox_info.org_bbox_coords.height >= nvfacealign->min_input_object_height &&
-          obj_meta->detector_bbox_info.org_bbox_coords.height <= nvfacealign->max_input_object_height)
+            obj_meta->detector_bbox_info.org_bbox_coords.width <= nvfacealign->max_input_object_width &&
+            obj_meta->detector_bbox_info.org_bbox_coords.height >= nvfacealign->min_input_object_height &&
+            obj_meta->detector_bbox_info.org_bbox_coords.height <= nvfacealign->max_input_object_height)
         {
           /* NOTE: the following attributes of unit are mandatory */
           NvDsFaceAlignUnit unit;
@@ -559,12 +579,15 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
           unit.roi_meta.roi.width = obj_meta->detector_bbox_info.org_bbox_coords.width;
           unit.roi_meta.roi.height = obj_meta->detector_bbox_info.org_bbox_coords.height;
           units.push_back(unit);
-        } else {
+        }
+        else
+        {
           to_remove.push_back(obj_meta);
         }
       }
     }
-    for(NvDsObjectMeta *obj_meta: to_remove) {
+    for (NvDsObjectMeta *obj_meta : to_remove)
+    {
       nvds_remove_obj_meta_from_frame(frame_meta, obj_meta);
     }
   }
@@ -577,19 +600,23 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
     if (units.size() > max_batch_size && units.size() % max_batch_size != 0)
       require_padding = true;
 
-    NvDsFrameMeta* fake_frame_meta;
-    if (require_padding) {
-      fake_frame_meta= nvds_acquire_frame_meta_from_pool(batch_meta);
+    NvDsFrameMeta *fake_frame_meta;
+    if (require_padding)
+    {
+      fake_frame_meta = nvds_acquire_frame_meta_from_pool(batch_meta);
       fake_frame_meta->batch_id = 1000;
       fake_frame_meta->frame_num = 0;
     }
-        
-    for(unsigned int i = 0; i < units.size(); i += max_batch_size) {
+
+    for (unsigned int i = 0; i < units.size(); i += max_batch_size)
+    {
       std::vector<NvDsFaceAlignUnit> aBatch;
-      for(int j = i; j < i + max_batch_size; j++) {
+      for (int j = i; j < i + max_batch_size; j++)
+      {
         if (j < units.size())
           aBatch.push_back(units.at(j));
-        else if (require_padding) {
+        else if (require_padding)
+        {
           /* create fake unit */
           NvDsFaceAlignUnit unit;
           unit.is_pad = true;
@@ -607,9 +634,9 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
     }
   }
 
-  /* NOTE: nvinfer require all NVDS_PREPROCESS_BATCH_META to have the same shape 
+  /* NOTE: nvinfer require all NVDS_PREPROCESS_BATCH_META to have the same shape
    * hence if there are more than one NVDS_PREPROCESS_BATCH_META, we should use the maxium input batch
-   * if not, we should use the real input batch name to get better efficiency 
+   * if not, we should use the real input batch name to get better efficiency
    * */
   std::vector<int> tensor_shape = nvfacealign->tensor_params.network_input_shape;
   guint64 buffer_size = nvfacealign->tensor_params.buffer_size;
@@ -617,44 +644,49 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
   {
     tensor_shape[0] = batched_unit[0].size();
     buffer_size = 1;
-    for (auto& p : tensor_shape) {
+    for (auto &p : tensor_shape)
+    {
       buffer_size *= p;
     }
-    switch (nvfacealign->tensor_params.data_type) {
-      case NvDsDataType_FP32:
-      case NvDsDataType_UINT32:
-      case NvDsDataType_INT32:
-        buffer_size *= 4;
+    switch (nvfacealign->tensor_params.data_type)
+    {
+    case NvDsDataType_FP32:
+    case NvDsDataType_UINT32:
+    case NvDsDataType_INT32:
+      buffer_size *= 4;
       break;
-      case NvDsDataType_UINT8:
-      case NvDsDataType_INT8:
-        buffer_size *= 1;
+    case NvDsDataType_UINT8:
+    case NvDsDataType_INT8:
+      buffer_size *= 1;
       break;
-      case NvDsDataType_FP16:
-        buffer_size *= 2;
+    case NvDsDataType_FP16:
+      buffer_size *= 2;
       break;
-      default:
-        GST_ELEMENT_ERROR (nvfacealign, LIBRARY, SETTINGS,
-            ("Tensor data type : %d is not Supported\n",
-                (int )nvfacealign->tensor_params.data_type), (nullptr));
-        exit(1);
+    default:
+      GST_ELEMENT_ERROR(nvfacealign, LIBRARY, SETTINGS,
+                        ("Tensor data type : %d is not Supported\n",
+                         (int)nvfacealign->tensor_params.data_type),
+                        (nullptr));
+      exit(1);
     }
   }
 
-  if (batched_unit.size() > 1) {
+  if (batched_unit.size() > 1)
+  {
     // g_print("\n\n\n\n %s:%d about to attach more than once NVDS_PREPROCESS_BATCH_META to a batch_meta\n\n\n\n", __FILE__, __LINE__);
   }
 
-  for(auto& abatch : batched_unit) {
+  for (auto &abatch : batched_unit)
+  {
     nvfacealign->tensor_buf = nvfacealign->acquire_impl.get()->acquire();
-    GST_DEBUG_OBJECT (nvfacealign, "acquire a tensor memory from pool at addresss %p", 
-      ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr);
+    GST_DEBUG_OBJECT(nvfacealign, "acquire a tensor memory from pool at addresss %p",
+                     ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr);
 
     if (NVDSFACEALIGN_SUCCESS != nvfacealign->logic->CustomTensorPreparation(abatch, nvfacealign->tensor_buf))
     {
-      GST_ELEMENT_ERROR (nvfacealign, STREAM, FAILED,
-          ("Internal data stream error."),
-          ("CustomTensorPreparation fault"));
+      GST_ELEMENT_ERROR(nvfacealign, STREAM, FAILED,
+                        ("Internal data stream error."),
+                        ("CustomTensorPreparation fault"));
       nvfacealign->acquire_impl.get()->release(nvfacealign->tensor_buf);
       goto error;
     };
@@ -662,11 +694,13 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
     GstNvDsPreProcessBatchMeta *preprocess_batchmeta = new GstNvDsPreProcessBatchMeta();
     preprocess_batchmeta->target_unique_ids = nvfacealign->target_unique_ids;
     /* FIXME: each object must have a roi_vector. With `use_raw_input=true`, it seems that
-    * the roi_vector do nothing. But the size of roi_vector must match the batch of the raw input tensor
-    */
-    for(int i = 0; i < abatch.size(); i++) {
+     * the roi_vector do nothing. But the size of roi_vector must match the batch of the raw input tensor
+     */
+    for (int i = 0; i < abatch.size(); i++)
+    {
       preprocess_batchmeta->roi_vector.push_back(abatch[i].roi_meta);
-      if (abatch[i].is_pad) {
+      if (abatch[i].is_pad)
+      {
         continue;
       }
       abatch[i].face_meta->stage = NvDsFaceMetaStage::ALIGNED;
@@ -675,19 +709,18 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
       abatch[i].face_meta->aligned_tensor = preprocess_batchmeta;
     }
 
-    GST_DEBUG_OBJECT (nvfacealign, "%s:%d preprocess_batchmeta->roi_vector size %d", __FILE__, __LINE__, preprocess_batchmeta->roi_vector.size());
+    GST_DEBUG_OBJECT(nvfacealign, "%s:%d preprocess_batchmeta->roi_vector size %d", __FILE__, __LINE__, preprocess_batchmeta->roi_vector.size());
     preprocess_batchmeta->tensor_meta = new NvDsPreProcessTensorMeta();
     preprocess_batchmeta->tensor_meta->gpu_id = nvfacealign->gpu_id;
     preprocess_batchmeta->private_data = nullptr; // scaling pool
     preprocess_batchmeta->tensor_meta->private_data =
-      ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->gstbuf;
-    preprocess_batchmeta->tensor_meta->raw_tensor_buffer = 
-      ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr; 
+        ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->gstbuf;
+    preprocess_batchmeta->tensor_meta->raw_tensor_buffer =
+        ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr;
     preprocess_batchmeta->tensor_meta->buffer_size = buffer_size; // size of the tensor
     preprocess_batchmeta->tensor_meta->tensor_shape = tensor_shape;
     preprocess_batchmeta->tensor_meta->data_type = nvfacealign->tensor_params.data_type;
     preprocess_batchmeta->tensor_meta->tensor_name = nvfacealign->tensor_params.tensor_name;
-
 
     NvDsUserMeta *batch_user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
     batch_user_meta->user_meta_data = preprocess_batchmeta;
@@ -697,58 +730,64 @@ gst_nvdsfacealign_submit_input_buffer (GstBaseTransform * btrans,
     batch_user_meta->base_meta.batch_meta = batch_meta;
 
     if (nvfacealign->write_raw_buffers_to_file)
-    {     
+    {
       g_assert(cudaSuccess == cudaMemcpy(nvfacealign->h_tensor, preprocess_batchmeta->tensor_meta->raw_tensor_buffer, buffer_size, cudaMemcpyDeviceToHost));
 
       // frame-number_stream-number_object-number_object-type_widthxheight.jpg
       // gstnvfacealign_batchtensor_object-number%p.bin
       const int MAX_STR_LEN = 1024;
-      char* file_name = (char *)g_malloc0(MAX_STR_LEN);
+      char *file_name = (char *)g_malloc0(MAX_STR_LEN);
       g_snprintf(file_name, MAX_STR_LEN - 1, "gstnvfacealign_batchtensor_%ld_%p.bin", std::time(0), preprocess_batchmeta->tensor_meta->raw_tensor_buffer);
 
-      FILE *file = fopen (file_name, "w");
-      if (!file) {
-        g_printerr ("Could not open file '%s' for writing:%s\n",
-            file_name, strerror (errno));
-      } else {
-        fwrite (nvfacealign->h_tensor, 
-          sizeof(float), 
-          tensor_shape[0] * tensor_shape[1] * tensor_shape[2] * tensor_shape[3], 
-          file);
+      FILE *file = fopen(file_name, "w");
+      if (!file)
+      {
+        g_printerr("Could not open file '%s' for writing:%s\n",
+                   file_name, strerror(errno));
+      }
+      else
+      {
+        fwrite(nvfacealign->h_tensor,
+               sizeof(float),
+               tensor_shape[0] * tensor_shape[1] * tensor_shape[2] * tensor_shape[3],
+               file);
       }
       g_free(file_name);
-      fclose (file);
+      fclose(file);
     }
 
     nvds_add_user_meta_to_batch(batch_meta, batch_user_meta);
-    GST_DEBUG_OBJECT (nvfacealign, "attached preprocessed tensor with shape (%d, %d, %d, %d) at %p to batch_meta=%p",
-      preprocess_batchmeta->tensor_meta->tensor_shape[0], preprocess_batchmeta->tensor_meta->tensor_shape[1],
-      preprocess_batchmeta->tensor_meta->tensor_shape[2], preprocess_batchmeta->tensor_meta->tensor_shape[3],
-      ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr, batch_meta);
+    GST_DEBUG_OBJECT(nvfacealign, "attached preprocessed tensor with shape (%d, %d, %d, %d) at %p to batch_meta=%p",
+                     preprocess_batchmeta->tensor_meta->tensor_shape[0], preprocess_batchmeta->tensor_meta->tensor_shape[1],
+                     preprocess_batchmeta->tensor_meta->tensor_shape[2], preprocess_batchmeta->tensor_meta->tensor_shape[3],
+                     ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr, batch_meta);
   }
-  
+
   /**
    * NOTE: Push no matter how many tensor attached
    */
-  nvds_set_output_system_timestamp (inbuf, GST_ELEMENT_NAME (nvfacealign));
-  flow_ret = gst_pad_push (GST_BASE_TRANSFORM_SRC_PAD (nvfacealign), inbuf);
-  if (flow_ret < GST_FLOW_OK) {
+  nvds_set_output_system_timestamp(inbuf, GST_ELEMENT_NAME(nvfacealign));
+  flow_ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(nvfacealign), inbuf);
+  if (flow_ret < GST_FLOW_OK)
+  {
     // Signal the application for pad push errors by posting a error message on the pipeline bus.
-    GST_ELEMENT_ERROR (nvfacealign, STREAM, FAILED,
-          ("Internal data stream error."),
-          ("streaming stopped, reason %s (%d)",
-              gst_flow_get_name (flow_ret), flow_ret));
+    GST_ELEMENT_ERROR(nvfacealign, STREAM, FAILED,
+                      ("Internal data stream error."),
+                      ("streaming stopped, reason %s (%d)",
+                       gst_flow_get_name(flow_ret), flow_ret));
     goto error;
-  } else {
-      GST_DEBUG_OBJECT (nvfacealign, "pushed to downstream");
   }
-  if (nvfacealign->last_flow_ret != flow_ret) 
+  else
+  {
+    GST_DEBUG_OBJECT(nvfacealign, "pushed to downstream");
+  }
+  if (nvfacealign->last_flow_ret != flow_ret)
     nvfacealign->last_flow_ret = flow_ret;
 
   return GST_FLOW_OK;
 
 error:
-  gst_buffer_unmap (inbuf, &in_map_info);
+  gst_buffer_unmap(inbuf, &in_map_info);
   return flow_ret;
 }
 
@@ -759,7 +798,7 @@ error:
  * be caught by the application.
  */
 static GstFlowReturn
-gst_nvdsfacealign_generate_output (GstBaseTransform * btrans, GstBuffer ** outbuf)
+gst_nvdsfacealign_generate_output(GstBaseTransform *btrans, GstBuffer **outbuf)
 {
   GstNvfacealign *nvfacealign = GST_NVFACEALIGN(btrans);
   return nvfacealign->last_flow_ret;
@@ -770,33 +809,35 @@ NvDsFaceAlignAcquirerImpl::NvDsFaceAlignAcquirerImpl(GstBufferPool *pool)
   m_gstpool = pool;
 }
 
-NvDsFaceAlignCustomBuf* NvDsFaceAlignAcquirerImpl::acquire()
+NvDsFaceAlignCustomBuf *NvDsFaceAlignAcquirerImpl::acquire()
 {
   GstBuffer *gstbuf;
   GstNvDsFaceAlignMemory *memory;
   GstFlowReturn flow_ret;
 
-  flow_ret = gst_buffer_pool_acquire_buffer (m_gstpool, &gstbuf, nullptr);
-  if (flow_ret != GST_FLOW_OK) {
-    GST_ERROR ("error while acquiring buffer from tensor pool\n");
+  flow_ret = gst_buffer_pool_acquire_buffer(m_gstpool, &gstbuf, nullptr);
+  if (flow_ret != GST_FLOW_OK)
+  {
+    GST_ERROR("error while acquiring buffer from tensor pool\n");
     return nullptr;
   }
 
-  memory = gst_nvdsfacealign_buffer_get_memory (gstbuf);
-  if (!memory) {
-    GST_ERROR ("error while getting memory from tensor pool\n");
+  memory = gst_nvdsfacealign_buffer_get_memory(gstbuf);
+  if (!memory)
+  {
+    GST_ERROR("error while getting memory from tensor pool\n");
     return nullptr;
   }
 
   // NOTE: Ep kieu (NvDsFaceAlignCustomBuf) NvDsFaceAlignCustomBufImpl
   // memory->dev_memory_ptr and memory is actually the same
   // call gstbuf = nullptr after use the memory. the NvDsFaceAlignAcquirerImpl::release function did it correctly
-  return new NvDsFaceAlignCustomBufImpl {{memory->dev_memory_ptr}, gstbuf, memory};
+  return new NvDsFaceAlignCustomBufImpl{{memory->dev_memory_ptr}, gstbuf, memory};
 }
 
 gboolean NvDsFaceAlignAcquirerImpl::release(NvDsFaceAlignCustomBuf *buf)
 {
-  NvDsFaceAlignCustomBufImpl *implBuf = (NvDsFaceAlignCustomBufImpl*)(buf);
+  NvDsFaceAlignCustomBufImpl *implBuf = (NvDsFaceAlignCustomBufImpl *)(buf);
   gst_buffer_unref(implBuf->gstbuf);
   delete implBuf;
   return TRUE;

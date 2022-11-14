@@ -39,7 +39,7 @@ public:
     std::vector<GstElement *> m_demux;
     std::vector<GstElement *> m_parser;
     std::vector<GstElement *> m_decoder;
-
+    GstElement *m_osd;
     GstElement *m_tiler;
     GstElement *m_video_convert;
     GstElement *m_capsfilter;

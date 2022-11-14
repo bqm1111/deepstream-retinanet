@@ -22,9 +22,10 @@ GstElement *NvInferBinBase::createNonInferPipeline(GstElement *pipeline)
 {
     m_pipeline = pipeline;
     // createVideoSinkBin();
-    createFileSinkBin("out.mkv");
+    // createFileSinkBin("out.mkv");
+    createAppSinkBin();
     attachProbe();
-    return m_tiler;
+    return m_osd;
 }
 
 void NvInferBinBase::createVideoSinkBin()
@@ -43,10 +44,31 @@ void NvInferBinBase::createVideoSinkBin()
 
     m_sink = gst_element_factory_make("nveglglessink", std::string("nv-sink" + m_module_name).c_str());
     GST_ASSERT(m_sink);
-    g_object_set(G_OBJECT(m_sink), "sync", TRUE, NULL);
+
     gst_bin_add_many(GST_BIN(m_pipeline), m_tiler, m_convert, m_osd, m_sink, NULL);
 
     if (!gst_element_link_many(m_tiler, m_convert, m_osd, m_sink, NULL))
+    {
+        gst_printerr("Could not link tiler, osd and sink\n");
+    }
+}
+
+void NvInferBinBase::createAppSinkBin()
+{
+    m_queue = gst_element_factory_make("queue", std::string("sink-queue" + m_module_name).c_str());
+    GST_ASSERT(m_queue);
+
+    m_sink = gst_element_factory_make("appsink", std::string("appsink" + m_module_name).c_str());
+    GST_ASSERT(m_sink);
+    gst_app_sink_set_drop((GstAppSink *)m_sink, true);
+    g_object_set(m_sink, "emit-signals", TRUE, "async", TRUE, "sync", FALSE, "blocksize", 4096000, NULL);
+
+    /* Callback to access buffer and object info. */
+    g_signal_connect(m_sink, "new-sample", G_CALLBACK(newSampleCallback), m_user_callback_data);
+
+    gst_bin_add_many(GST_BIN(m_pipeline), m_queue, m_sink, NULL);
+
+    if (!gst_element_link_many(m_queue, m_sink, NULL))
     {
         gst_printerr("Could not link tiler, osd and sink\n");
     }
@@ -120,16 +142,10 @@ void NvInferBinBase::createFileSinkBin(std::string location)
 
 void NvInferBinBase::attachProbe()
 {
-    SinkPerfStruct *sink_perf = new SinkPerfStruct;
-    GstPad *tiler_sink_pad = gst_element_get_static_pad(m_tiler, "sink");
-    GST_ASSERT(tiler_sink_pad);
-    gst_pad_add_probe(tiler_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, tiler_sink_pad_buffer_probe,
-                      m_user_callback_data, NULL);
-    g_object_unref(tiler_sink_pad);
+    GstPad *sink_pad = gst_element_get_static_pad(m_queue, "sink");
+    GST_ASSERT(sink_pad);
+    gst_pad_add_probe(sink_pad, GST_PAD_PROBE_TYPE_BUFFER, timer_sink_pad_buffer_probe,
+                      m_user_callback_data->fakesink_perf, NULL);
 
-    GstPad *osd_sink_pad = gst_element_get_static_pad(m_osd, "sink");
-    GST_ASSERT(osd_sink_pad);
-    gst_pad_add_probe(osd_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, osd_sink_pad_buffer_probe,
-                      reinterpret_cast<gpointer>(sink_perf), NULL);
-    gst_object_unref(osd_sink_pad);
+    gst_object_unref(sink_pad);
 }

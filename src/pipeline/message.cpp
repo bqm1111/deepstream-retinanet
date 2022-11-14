@@ -62,12 +62,12 @@ gchar *generate_FaceRawMeta_message(std::shared_ptr<NvDsFaceMsgData> msg_meta_co
     json_object_set_object_member(faceObj, "bbox", jbboxObj);
 
     // confidence_score
-    json_object_set_double_member(faceObj, "score", msg_meta_content->confidence_score);
+    json_object_set_null_member(faceObj, "score");
 
     // name
-    json_object_set_string_member(faceObj, "name", g_strdup(msg_meta_content->name));
+    json_object_set_null_member(faceObj, "name");
     // staff_id
-    json_object_set_string_member(faceObj, "staff_id", g_strdup(msg_meta_content->staff_id));
+    json_object_set_null_member(faceObj, "staff_id");
 
     // feature
     json_object_set_string_member(faceObj, "feature", g_strdup(msg_meta_content->feature));

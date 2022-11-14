@@ -36,3 +36,14 @@ Enable LATENCY mesurement
 ```bash
 export NVDS_ENABLE_COMPONENT_LATENCY_MEASUREMENT=1
 ```
+
+# Check memory with LeakSanitizer
+Add the following flag option to enable LeakSanitizer tool
+```bash
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fno-omit-frame-pointer -fsanitize=leak -g -pthread")
+```
+Before running the program to check memory leak, remember to add the following enviroment variable
+
+```bash
+export LD_PRELOAD=<path-to-libgstnvfacealign.so>
+```
