@@ -52,10 +52,10 @@ public:
     GstElement *m_face_elem;
     NvInferMOTBin m_mot_bin;
     NvInferFaceBin m_face_bin;
-
+    
     void freePipeline();
     GMainLoop *getMainloop() { return m_loop; }
-
+    
 private:
     GMainLoop *m_loop = NULL;
     GstBus *m_bus = NULL;

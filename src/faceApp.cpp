@@ -109,30 +109,31 @@ void FaceApp::run()
 
 void FaceApp::loadConfig()
 {
-    parseJson(m_video_list, m_video_source_name, m_video_source_info);
+    parse_rtsp_src_info(m_video_list, m_video_source_name, m_video_source_info);
+	std::ifstream ifs{"../configs/app_conf.json"};
+	if (!ifs.is_open())
+	{
+		std::cerr << "Could not open file for reading!\n";
+	}
+	IStreamWrapper isw{ifs};
 
-    m_config->setContext();
-    std::shared_ptr<DSAppConfig> appConf = std::dynamic_pointer_cast<DSAppConfig>(m_config->getConfig(ConfigType::DeepStreamApp));
+	Document doc{};
+	doc.ParseStream(isw);
 
-    m_user_callback_data->muxer_output_height = appConf->getProperty(DSAppProperty::STREAMMUX_OUTPUT_HEIGHT).toInt();
-    m_user_callback_data->muxer_output_width = appConf->getProperty(DSAppProperty::STREAMMUX_OUTPUT_WIDTH).toInt();
-    m_user_callback_data->muxer_batch_size = appConf->getProperty(DSAppProperty::STREAMMUX_BATCH_SIZE).toInt();
-    m_user_callback_data->muxer_buffer_pool_size = appConf->getProperty(DSAppProperty::STREAMMUX_BUFFER_POOL_SIZE).toInt();
-    m_user_callback_data->muxer_nvbuf_memory_type = appConf->getProperty(DSAppProperty::STREAMMUX_NVBUF_MEMORY_TYPE).toInt();
-    m_user_callback_data->muxer_live_source = appConf->getProperty(DSAppProperty::STREAMMUX_LIVE_SOURCE).toBool();
-    m_user_callback_data->tiler_cols = appConf->getProperty(DSAppProperty::TILER_COLS).toInt();
+	const Value &content = doc["config"];
 
-    m_user_callback_data->tiler_rows = appConf->getProperty(DSAppProperty::TILER_ROWS).toInt();
-    m_user_callback_data->tiler_width = appConf->getProperty(DSAppProperty::TILER_WIDTH).toInt();
-    m_user_callback_data->tiler_height = appConf->getProperty(DSAppProperty::TILER_HEIGHT).toInt();
-    m_user_callback_data->mot_rawmeta_topic = appConf->getProperty(DSAppProperty::KAFKA_MOT_RAWMETA_TOPIC).toString();
-    m_user_callback_data->face_rawmeta_topic = appConf->getProperty(DSAppProperty::KAFKA_FACE_RAWMETA_TOPIC).toString();
+    m_user_callback_data->muxer_output_height = content["streammux_output_height"].GetInt();
+    m_user_callback_data->muxer_output_width = content["streammux_output_width"].GetInt();
+    m_user_callback_data->muxer_batch_size = content["streammux_batch_size"].GetInt();
+    m_user_callback_data->muxer_buffer_pool_size = content["streammux_buffer_pool"].GetInt();
+    m_user_callback_data->muxer_nvbuf_memory_type = content["streammux_nvbuf_memory_type"].GetInt();
+    m_user_callback_data->muxer_live_source = true;
+    m_user_callback_data->mot_rawmeta_topic = content["mot_raw_meta_topic"].GetString();
+    m_user_callback_data->face_rawmeta_topic = content["face_raw_meta_topic"].GetString();
 
-    m_user_callback_data->visual_topic = appConf->getProperty(DSAppProperty::KAFKA_VISUAL_TOPIC).toString();
-    m_user_callback_data->connection_str = appConf->getProperty(DSAppProperty::KAFKA_CONNECTION_STR).toString();
-    m_user_callback_data->curl_address = appConf->getProperty(DSAppProperty::FACE_FEATURE_CURL_ADDRESS).toString();
-    m_user_callback_data->face_feature_confidence_threshold = appConf->getProperty(DSAppProperty::FACE_CONFIDENCE_THRESHOLD).toFloat();
-    m_user_callback_data->save_crop_img = appConf->getProperty(DSAppProperty::SAVE_CROP_IMG).toBool();
+    m_user_callback_data->visual_topic = content["visual_topic"].GetString();
+    m_user_callback_data->connection_str = content["kafka_connection_str"].GetString();
+    m_user_callback_data->face_feature_confidence_threshold = content["face_confidence_threshold"].GetFloat();
 }
 
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)

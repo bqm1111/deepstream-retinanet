@@ -13,6 +13,7 @@
 #include "app_struct.h"
 #include "utils.h"
 #include "QDTLog.h"
+
 class NvInferBinBase
 {
 public:
