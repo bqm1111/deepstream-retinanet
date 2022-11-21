@@ -99,7 +99,7 @@ void user_release_mot_meta(gpointer data, gpointer user_data)
 GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
     user_callback_data * callback_data = (user_callback_data *)user_data;
-    tracker *trackers = callback_data->trackers;
+    std::vector<std::shared_ptr<tracker>> trackers = callback_data->trackers;
     GstBuffer *gst_buffer = gst_pad_probe_info_get_buffer(info);
     NvDsMetaList *l_obj = NULL;
 
@@ -116,15 +116,14 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)l_frame->data;
 
-        tracker *_tracker = trackers + frame_meta->source_id;
         // Track with DeepSORT
         DETECTIONS detections;
         parse_detections_from_frame_meta(detections, frame_meta);
-        _tracker->predict();
-        _tracker->update(detections);
+        trackers[frame_meta->source_id]->predict();
+        trackers[frame_meta->source_id]->update(detections);
 
         nvds_clear_obj_meta_list(frame_meta, frame_meta->obj_meta_list);
-        for (Track &track : _tracker->tracks)
+        for (Track &track : trackers[frame_meta->source_id]->tracks)
         {
             if (!track.is_confirmed() || track.time_since_update > 1)
                 continue;

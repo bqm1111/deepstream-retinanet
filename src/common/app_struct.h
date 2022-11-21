@@ -1,19 +1,17 @@
 #ifndef APP_STRUCT_H
 #define APP_STRUCT_H
 #include "params.h"
-#include <curl/curl.h>
 #include "kafka_producer.h"
 #include "tracker.h"
 #include "nvds_obj_encode.h"
 
 struct user_callback_data
 {
-    CURL *curl;
     gchar *session_id;
     std::vector<std::string> video_name;
     KafkaProducer *meta_producer;
     KafkaProducer *visual_producer;
-    tracker *trackers = nullptr;
+    std::vector<std::shared_ptr<tracker>> trackers;
     gchar *timestamp;
     float face_feature_confidence_threshold;
     bool save_crop_img;
@@ -34,7 +32,6 @@ struct user_callback_data
     std::string face_rawmeta_topic;
     std::string visual_topic;
     std::string connection_str;
-    std::string curl_address;
     SinkPerfStruct *fakesink_perf;
 
     // full frame encode related settings

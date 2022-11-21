@@ -47,7 +47,6 @@ void FaceApp::freePipeline()
 
 void FaceApp::init_user_callback_data()
 {
-    init_curl();
     m_user_callback_data->timestamp = (gchar *)malloc(MAX_TIME_STAMP_LEN);
     m_user_callback_data->session_id = (gchar *)malloc(SESSION_ID_LENGTH);
     uuid_t uuid;
@@ -68,24 +67,18 @@ void FaceApp::init_user_callback_data()
     }
     // Initialize trackers for MOT
     int num_tracker = numVideoSrc();
-    m_user_callback_data->trackers = (tracker *)g_malloc0(sizeof(tracker) * num_tracker);
     for (size_t i = 0; i < num_tracker; i++)
-        m_user_callback_data->trackers[i] = tracker(
-            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.);
+        m_user_callback_data->trackers.push_back(std::shared_ptr<tracker>(new tracker(
+            0.1363697015033318, 91, 0.7510890862625559, 18, 2, 1.)));
 }
 
 void FaceApp::free_user_callback_data()
 {
-    free_curl();
     free(m_user_callback_data->session_id);
     free(m_user_callback_data->timestamp);
     delete m_user_callback_data->meta_producer;
     delete m_user_callback_data->visual_producer;
     delete m_user_callback_data->fakesink_perf;
-    if (!m_user_callback_data->trackers)
-    {
-        free(m_user_callback_data->trackers);
-    }
     delete m_user_callback_data;
 }
 
@@ -276,38 +269,6 @@ void FaceApp::addVideoSource()
     }
 }
 
-void FaceApp::init_curl()
-{
-    m_user_callback_data->curl = curl_easy_init();
-    CURL *m_curl = m_user_callback_data->curl;
-    assert(m_curl);
-
-    /* copy from postman */
-    curl_easy_setopt(m_curl, CURLOPT_CUSTOMREQUEST, "POST");
-    curl_easy_setopt(m_curl, CURLOPT_URL, m_user_callback_data->curl_address.c_str());
-
-    // curl_easy_setopt(m_curl, CURLOPT_VERBOSE, 11);
-
-    /* HTTP/2 */
-    curl_easy_setopt(m_curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
-
-    /* No SSL */
-    curl_easy_setopt(m_curl, CURLOPT_SSL_VERIFYPEER, 0);
-
-    /* wait for pipe connection to confirm*/
-    curl_easy_setopt(m_curl, CURLOPT_PIPEWAIT, 1L);
-
-    curl_easy_setopt(m_curl, CURLOPT_TIMEOUT_MS, 200);
-
-    struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "Content-Type: application/json");
-    curl_easy_setopt(m_curl, CURLOPT_HTTPHEADER, headers);
-}
-
-void FaceApp::free_curl()
-{
-    curl_easy_cleanup(m_user_callback_data->curl);
-}
 
 GstElement *FaceApp::getPipeline()
 {

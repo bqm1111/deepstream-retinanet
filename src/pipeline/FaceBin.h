@@ -4,7 +4,6 @@
 #include "NvInferBinConfigBase.h"
 #include "params.h"
 #include "app_struct.h"
-#include <curl/curl.h>
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"

@@ -4,7 +4,6 @@
 #include <string>
 #include "FaceBin.h"
 #include "MOTBin.h"
-#include <curl/curl.h>
 #include "utils.h"
 #include "ConfigManager.h"
 #include "DeepStreamAppConfig.h"
@@ -64,7 +63,5 @@ private:
     user_callback_data *m_user_callback_data;
     void init_user_callback_data();
     void free_user_callback_data();
-    void init_curl();
-    void free_curl();
 };
 #endif
