@@ -110,17 +110,17 @@ void FaceApp::run()
 void FaceApp::loadConfig()
 {
     parse_rtsp_src_info(m_video_list, m_video_source_name, m_video_source_info);
-	std::ifstream ifs{"../configs/app_conf.json"};
-	if (!ifs.is_open())
-	{
-		std::cerr << "Could not open file for reading!\n";
-	}
-	IStreamWrapper isw{ifs};
+    std::ifstream ifs{"../configs/app_conf.json"};
+    if (!ifs.is_open())
+    {
+        std::cerr << "Could not open file for reading!\n";
+    }
+    IStreamWrapper isw{ifs};
 
-	Document doc{};
-	doc.ParseStream(isw);
+    Document doc{};
+    doc.ParseStream(isw);
 
-	const Value &content = doc["config"];
+    const Value &content = doc;
 
     m_user_callback_data->muxer_output_height = content["streammux_output_height"].GetInt();
     m_user_callback_data->muxer_output_width = content["streammux_output_width"].GetInt();
