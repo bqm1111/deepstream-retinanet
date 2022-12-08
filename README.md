@@ -47,3 +47,11 @@ Before running the program to check memory leak, remember to add the following e
 ```bash
 export LD_PRELOAD=<path-to-libgstnvfacealign.so>
 ```
+
+# Run with docker
+
+```bash
+docker build . --tag deepstream-app
+docker run -ti --rm --name deepstream-app deepstream-app
+```
+

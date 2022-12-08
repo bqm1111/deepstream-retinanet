@@ -762,7 +762,7 @@ gst_nvdsfacealign_submit_input_buffer(GstBaseTransform *btrans,
                      preprocess_batchmeta->tensor_meta->tensor_shape[2], preprocess_batchmeta->tensor_meta->tensor_shape[3],
                      ((NvDsFaceAlignCustomBufImpl *)nvfacealign->tensor_buf)->memory->dev_memory_ptr, batch_meta);
   }
-
+  
   /**
    * NOTE: Push no matter how many tensor attached
    */

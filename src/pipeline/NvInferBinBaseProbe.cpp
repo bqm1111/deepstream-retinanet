@@ -80,7 +80,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
         }
     }
     callback_data->face_meta_list.push_back(face_msg_sub_meta);
-
+    
     // Wait until a certain amount of faces are received. Batching all of them to call a curl request to get their name
     if (callback_data->frame_since_last_decode_face_name > 5 || callback_data->face_meta_list.size() == 32)
     {
@@ -96,7 +96,7 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
                                                                                      NULL, 0,
                                                                                      0, NULL, NULL);
             callback_data->meta_producer->counter++;
-
+             
             if (err != RdKafka::ERR_NO_ERROR)
             {
                 if (err == RdKafka::ERR__QUEUE_FULL)

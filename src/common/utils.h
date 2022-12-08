@@ -15,7 +15,7 @@
 #include <iostream>
 #include "params.h"
 using namespace rapidjson;
-//
+
 gchar *b64encode(float *vec, int size);
 gchar *b64encode(uint8_t *vec, int size);
 void floatArr2Str(std::string &str, float *arr, int length);
