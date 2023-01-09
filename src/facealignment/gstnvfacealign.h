@@ -26,10 +26,7 @@
 #include "nvbufsurftransform.h"
 #include "gstnvdsfacealign_allocator.h"
 #include "alignment_logic.h"
-
-#ifndef FACE_CLASS_ID
-#define FACE_CLASS_ID 1000
-#endif
+#include "params.h"
 
 #ifndef WANTED_SIZE
 #define WANTED_SIZE 112
@@ -129,6 +126,12 @@ struct _GstNvfacealign
 
   /** Parameters for tensor preparation */
   NvDsFaceAlignTensorParams tensor_params;
+
+  /** Boolean indicating if the bound buffer contents should be written to file. */
+  gboolean write_raw_buffers_to_file;
+  
+  /** Host memory to copy output tensor */
+  gpointer h_tensor;
 
   /** Internal buffer pool for memory required for tensor preparation */
   GstBufferPool *tensor_pool;

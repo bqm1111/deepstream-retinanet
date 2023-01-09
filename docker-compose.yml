@@ -1,0 +1,15 @@
+version: '3.9'
+
+volumes:
+    deepstream:
+        external: True
+
+services:
+    deepstream-app:
+        build: .
+        image: deepstream-app:latest
+        user: root
+        container_name: deepstream-app
+        volumes: 
+            - deepstream:/workspace
+

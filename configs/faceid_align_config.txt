@@ -1,0 +1,12 @@
+[property]
+enable=1
+target-unique-ids=4 # match the gie-unique-id of the faceid sgie
+network-input-shape=32;3;112;112
+tensor-data-type=0 # 0=FP32 1=UINT8 2=INT8 3=UINT32 4=INT32 5=FP16
+# fixed
+tensor-name=conv1
+tensor-buf-pool-size=10 # preallocate 10*network-input-shape*tensor-data-type
+input-object-min-width=50
+input-object-max-width=3840
+input-object-min-height=50
+input-object-max-height=2160

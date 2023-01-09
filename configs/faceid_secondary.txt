@@ -1,0 +1,12 @@
+[property]
+gpu-id=0
+gie-unique-id=4
+model-engine-file=../data/models/trt/glint360k_r50.trt
+network-mode=2 # 0: FP32 1: INT8 2: FP16
+infer-dims=3;112;112
+output-tensor-meta=1
+cluster-mode=4 # 1: DBSCAN 2: NMS 3: DBSCAN + NMS 4: None
+batch-size=32
+
+custom-lib-path=../build/src/facefeature/libnvds_parsenone.so
+parse-bbox-func-name=NvDsInferParseNone

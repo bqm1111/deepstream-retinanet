@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.15 FATAL_ERROR)
 set (TARGET_DETECTION nvds_facedetection)
 project(${TARGET_DETECTION} LANGUAGES CXX CUDA)
+set(CMAKE_CUDA_ARCHITECTURES 52 60 61 75 CACHE STRING "CUDA architectures")
+file(GLOB SOURCES ${CMAKE_CURRENT_LIST_DIR}/nvds_retinaface.cpp
+                ${CMAKE_CURRENT_LIST_DIR}/decode_plugin_kernel.cu)
 
-add_library(${TARGET_DETECTION} SHARED
-    ${CMAKE_CURRENT_LIST_DIR}/nvds_retinaface.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/decode_plugin_kernel.cu
-)
+add_library(${TARGET_DETECTION} SHARED ${SOURCES})
+target_include_directories(${TARGET_DETECTION} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/plugin)
 
 # cuda
 target_compile_features(${TARGET_DETECTION} PUBLIC cxx_std_17)
-set_target_properties(${TARGET_DETECTION} PROPERTIES CUDA_ARCHITECTURES 61)
+# set_target_properties(${TARGET_DETECTION} PROPERTIES CUDA_ARCHITECTURES 75)
 set_target_properties(${TARGET_DETECTION} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 set_target_properties(${TARGET_DETECTION} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

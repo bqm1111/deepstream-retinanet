@@ -4,19 +4,8 @@
 #include <vector>
 #include <string>
 
-#include "params.h"
 #include "nvbufsurface.h"
-#include "gstnvdsmeta.h"
-#include "nvdspreprocess_meta.h" // must bellow gstnvdsmeta.h
-#include "gstnvdsinfer.h"        // must bellow gstnvdsmeta.h
-
-#ifndef NVDS_OBJ_USER_META_FACE
-#define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
-#endif
-
-#ifndef NUM_FACEMARK
-#define NUM_FACEMARK 5
-#endif
+#include "params.h"
 
 typedef enum
 {

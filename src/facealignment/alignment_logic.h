@@ -105,7 +105,6 @@ private:
         cv::Point2f(41.5493, 92.3655),
         cv::Point2f(70.7299, 92.2041),
     };
-    
     const cv::videostab::RansacParams ransacParams =
         // cv::videostab::RansacParams(4, 2.0f, 0.5f, 0.99f);
         cv::videostab::RansacParams(3, 2.0f, 0.5f, 0.99f);

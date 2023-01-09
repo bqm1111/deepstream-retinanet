@@ -1,0 +1,28 @@
+{
+    "stream": [
+        {
+            "camera_id": "3",
+            "address": "rtsp://admin:123456a%40@172.21.111.101/main",
+            "encode_type": "h265",
+            "type": "rtsp"
+        },
+        {
+            "camera_id": "1",
+            "address": "rtsp://admin:123456a%40@172.21.111.104/main",
+            "encode_type": "h265",
+            "type": "rtsp"
+        },
+        {
+            "camera_id": "2",
+            "address": "rtsp://admin:123456a%40@172.21.111.111/main",
+            "encode_type": "h265",
+            "type": "rtsp"
+        },
+        {
+            "camera_id": "4",
+            "address": "rtsp://admin:123456a%40@172.21.104.112/main",
+            "encode_type": "h265",
+            "type": "rtsp"
+        }
+    ]
+}

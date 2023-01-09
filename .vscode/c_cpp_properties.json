@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/gstreamer-1.0",
+                "/usr/include/glib-2.0",
+                "/usr/include/linux",
+                "${workspaceFolder}/include",
+                "/usr/include/gstreamer-1.0",
+                "/usr/include/glib-2.0",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "/opt/nvidia/deepstream/deepstream-6.0/sources/includes",
+                "/usr/include/gstreamer-1.0",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "/usr/local/cuda-11.5/targets/x86_64-linux/include",
+                "${workspaceFolder}/src/deepsort",
+                "${workspaceFolder}/src/probe"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
