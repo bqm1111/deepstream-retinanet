@@ -45,21 +45,21 @@
 #define PGIE_CLASS_ID_PERSON 0
 
 #ifndef FACEID_PGIE_CONFIG_PATH
-#define FACEID_PGIE_CONFIG_PATH "../configs/faceid/faceid_primary.txt"
+#define FACEID_PGIE_CONFIG_PATH "../configs/faceid_primary.txt"
 #endif
 #ifndef FACEID_ALIGN_CONFIG_PATH
-#define FACEID_ALIGN_CONFIG_PATH "../configs/faceid/faceid_align_config.txt"
+#define FACEID_ALIGN_CONFIG_PATH "../configs/faceid_align_config.txt"
 #endif
 #ifndef FACEID_SGIE_CONFIG_PATH
-#define FACEID_SGIE_CONFIG_PATH "../configs/faceid/faceid_secondary.txt"
+#define FACEID_SGIE_CONFIG_PATH "../configs/faceid_secondary.txt"
 #endif
 
 #ifndef MOT_PGIE_CONFIG_PATH
-#define MOT_PGIE_CONFIG_PATH "../configs/faceid/mot_primary.txt"
+#define MOT_PGIE_CONFIG_PATH "../configs/mot_primary.txt"
 #endif
 
 #ifndef MOT_SGIE_CONFIG_PATH
-#define MOT_SGIE_CONFIG_PATH "../configs/faceid/mot_sgie.txt"
+#define MOT_SGIE_CONFIG_PATH "../configs/mot_sgie.txt"
 #endif
 
 #define POST_TRACK_SCORE 1.0

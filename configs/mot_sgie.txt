@@ -60,7 +60,7 @@
 [property]
 gpu-id=0
 net-scale-factor=0.0039215697906911373
-model-engine-file=../../data/models/trt/deepsort_extractor.trt
+model-engine-file=../data/models/trt/deepsort_extractor.trt
 offsets=0.0;0.0;0.0
 force-implicit-batch-dim=1
 batch-size=12

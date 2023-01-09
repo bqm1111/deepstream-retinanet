@@ -89,31 +89,35 @@ RUN rm /usr/local/lib/pkgconfig/rdkafka++.pc && \
     apt-get install -y rapidjson-dev libjson-glib-dev libeigen3-dev libspdlog-dev spdlog librdkafka++1 librdkafka-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Create user
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
-    && apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && chown $USERNAME -R /home/$USERNAME \
-    && rm -rf /var/lib/apt/lists/*
+# # Create user
+# ARG USERNAME=vscode
+# ARG USER_UID=1000
+# ARG USER_GID=$USER_UID
+# RUN groupadd --gid $USER_GID $USERNAME \
+#     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+#     # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+#     && apt-get update \
+#     && apt-get install -y sudo \
+#     && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+#     && chmod 0440 /etc/sudoers.d/$USERNAME \
+#     && chown $USERNAME -R /home/$USERNAME \
+#     && rm -rf /var/lib/apt/lists/*
 
-# avoid-extension-reinstalls
-RUN mkdir -p /home/$USERNAME/.vscode-server/extensions && \
-    mkdir -p /home/$USERNAME/.vscode-server/extensionsCache && \
-    chown -R $USERNAME /home/$USERNAME/.vscode-server
+# # avoid-extension-reinstalls
+# RUN mkdir -p /home/$USERNAME/.vscode-server/extensions && \
+#     mkdir -p /home/$USERNAME/.vscode-server/extensionsCache && \
+#     chown -R $USERNAME /home/$USERNAME/.vscode-server
 
-USER $USERNAME
+# USER $USERNAME
 WORKDIR /workspace
-COPY . .
 
-RUN cd build/ && sudo rm CMakeCache.txt && sudo cmake .. && sudo make -j
+COPY data /workspace/data
+COPY tools /workspace/tools
+RUN cd tools/ && sh convert_trt.sh
+
+COPY . .
+RUN rm -rf build/ && mkdir build && cd build/ && cmake .. && make -j
 
 WORKDIR /workspace/build
 
-CMD ["sudo", "./experiment", "../configs/video_list.json" ]
+CMD ["./FaceDeepStream", "../configs/video_list.json" ]

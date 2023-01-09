@@ -52,6 +52,7 @@ export LD_PRELOAD=<path-to-libgstnvfacealign.so>
 
 ```bash
 docker build . --tag deepstream-app
-docker run -ti --rm --name deepstream-app deepstream-app
+docker run -ti --rm -v deepstream:/workspace/ --name deepstream-app deepstream-app
+docker exec -it deepstream-app bash
 ```
 
