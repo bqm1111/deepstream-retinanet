@@ -3,7 +3,7 @@
     "face_raw_meta_topic": "RawFaceMeta",
     "mot_raw_meta_topic": "RawMotMeta",
     "visual_topic": "RawImage",
-    "kafka_connection_str": "172.21.100.167:9092",
+    "kafka_connection_str": "172.21.100.242:9092",
     "streammux_output_width": 3840,
     "streammux_output_height": 2160,
     "streammux_batch_size": 4,

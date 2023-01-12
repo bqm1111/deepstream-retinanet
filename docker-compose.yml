@@ -6,8 +6,14 @@ volumes:
 
 services:
     deepstream-app:
-        build: .
-        image: deepstream-app:latest
+        build:
+            context: .
+            dockerfile: Dockerfile
+            args:
+                USER_UID=$(id -u)
+                USER_GID=$(getent group docker | cut -d: -f3)
+        # image: deepstream-app:latest
+
         user: root
         container_name: deepstream-app
         volumes: 

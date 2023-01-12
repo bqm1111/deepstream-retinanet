@@ -51,8 +51,8 @@ export LD_PRELOAD=<path-to-libgstnvfacealign.so>
 # Run with docker
 
 ```bash
-docker build . --tag deepstream-app
-docker run -ti --rm -v deepstream:/workspace/ --name deepstream-app deepstream-app
+docker build --build-arg USER_UID=1003,USER_GID=999 . --tag deepstream-app
+docker run -ti --rm -v deepstream-engine:/workspace/build --name deepstream-app deepstream-app
 docker exec -it deepstream-app bash
 ```
 

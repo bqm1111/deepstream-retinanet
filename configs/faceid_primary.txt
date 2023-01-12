@@ -4,9 +4,9 @@ gpu-id=0
 offsets=104.0;117.0;123.0
 model-color-format=1 # 0: RGB 1: BGR 2: GRAY
 # a must
-maintain-aspect-ratio=0
+maintain-aspect-ratio=1
 # a must
-symmetric-padding=0
+symmetric-padding=1
 infer-dims=3;736;1280
 model-engine-file=../build/model_b12_gpu0_fp16.engine
 # force rebuild model everytime
