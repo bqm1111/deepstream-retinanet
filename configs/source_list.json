@@ -1,5 +1,5 @@
 {
-    "stream": [
+    "sources": [
         {
             "camera_id": "3",
             "address": "rtsp://admin:123456a%40@172.21.111.101/main",

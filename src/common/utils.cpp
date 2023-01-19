@@ -76,7 +76,7 @@ bool parse_rtsp_src_info(std::string filename, std::vector<std::string> &name, s
 	Document doc{};
 	doc.ParseStream(isw);
 
-	const Value &content = doc["stream"];
+	const Value &content = doc["sources"];
 
 	for (int i = 0; i < content.Size(); i++)
 	{
