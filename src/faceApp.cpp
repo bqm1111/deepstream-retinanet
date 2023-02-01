@@ -47,7 +47,7 @@ gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _u
     switch (GST_MESSAGE_TYPE(_msg))
     {
     case GST_MESSAGE_EOS:
-        printf("GST_MESSAGE_EOS\r\n");
+        QDTLog::warn("EOS has been reached\n");
         terminate(_uData);
         break;
     case GST_MESSAGE_WARNING:
@@ -55,7 +55,7 @@ gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _u
         gchar *debug;
         GError *error;
         gst_message_parse_warning(_msg, &error, &debug);
-        g_print("Warning: %s: %s\n", error->message, debug);
+        QDTLog::warn("Warning: %s: %s\n", error->message, debug);
         g_free(debug);
         g_error_free(error);
         break;
@@ -65,7 +65,7 @@ gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _u
         gchar *debug;
         GError *error;
         gst_message_parse_error(_msg, &error, &debug);
-        g_printerr("Error: %s: %s\n", error->message, debug);
+        QDTLog::error("Error: %s: %s\n", error->message, debug);
         g_free(debug);
         g_error_free(error);
         terminate(_uData);

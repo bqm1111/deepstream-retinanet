@@ -137,12 +137,6 @@ void getMOTMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsOb
     mot_meta_list.push_back(mot_msg_sub_meta);
 }
 
-GstFlowReturn NvInferBinBase::eosCallback(GstElement *sink, gpointer *user_data)
-{
-    gst_element_set_state(reinterpret_cast<NvInferBinBase*>(user_data)->m_pipeline, GST_STATE_NULL);
-    printf("Jump here. EOS reach");
-}
-
 GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user_data)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(user_data);
@@ -154,7 +148,7 @@ GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user
     sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
     if (gst_app_sink_is_eos(GST_APP_SINK(sink)))
     {
-        g_print("EOS received in Appsink********\n");
+        QDTLog::info("EOS received in Appsink********\n");
     }
 
     if (sample)
