@@ -36,6 +36,49 @@ static gboolean event_thread_func(gpointer arg)
     }
 }
 
+static void terminate(gpointer _uData)
+{
+    gst_element_set_state(static_cast<FaceApp *>(_uData)->m_pipeline, GST_STATE_NULL);
+    g_main_loop_quit(static_cast<FaceApp *>(_uData)->getMainloop());
+    static_cast<FaceApp *>(_uData)->freePipeline();
+}
+gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _uData)
+{
+    switch (GST_MESSAGE_TYPE(_msg))
+    {
+    case GST_MESSAGE_EOS:
+        printf("GST_MESSAGE_EOS\r\n");
+        terminate(_uData);
+        break;
+    case GST_MESSAGE_WARNING:
+    {
+        gchar *debug;
+        GError *error;
+        gst_message_parse_warning(_msg, &error, &debug);
+        g_print("Warning: %s: %s\n", error->message, debug);
+        g_free(debug);
+        g_error_free(error);
+        break;
+    }
+    case GST_MESSAGE_ERROR:
+    {
+        gchar *debug;
+        GError *error;
+        gst_message_parse_error(_msg, &error, &debug);
+        g_printerr("Error: %s: %s\n", error->message, debug);
+        g_free(debug);
+        g_error_free(error);
+        terminate(_uData);
+        break;
+    }
+    default:
+        printf(".");
+        fflush(stdout);
+        break;
+    }
+    return TRUE;
+}
+
 void FaceApp::freePipeline()
 {
     g_main_loop_unref(m_loop);
@@ -90,8 +133,8 @@ void FaceApp::init()
     sequentialDetectAndMOT();
 
     m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
-    m_bus_watch_id = gst_bus_add_watch(m_bus, bus_watch_callback, nullptr);
-    g_timeout_add(40, event_thread_func, this);
+    m_bus_watch_id = gst_bus_add_watch(m_bus, bus_watch_callback, this);
+    // g_timeout_add(40, event_thread_func, this);
 }
 
 void FaceApp::run()
@@ -268,7 +311,6 @@ void FaceApp::addVideoSource()
         gst_object_unref(muxer_sinkpad);
     }
 }
-
 
 GstElement *FaceApp::getPipeline()
 {

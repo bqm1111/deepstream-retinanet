@@ -137,6 +137,12 @@ void getMOTMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsOb
     mot_meta_list.push_back(mot_msg_sub_meta);
 }
 
+GstFlowReturn NvInferBinBase::eosCallback(GstElement *sink, gpointer *user_data)
+{
+    gst_element_set_state(reinterpret_cast<NvInferBinBase*>(user_data)->m_pipeline, GST_STATE_NULL);
+    printf("Jump here. EOS reach");
+}
+
 GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user_data)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(user_data);

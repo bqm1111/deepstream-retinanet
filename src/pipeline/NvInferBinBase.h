@@ -53,6 +53,8 @@ public:
     static GstPadProbeReturn timer_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstPadProbeReturn tiler_sink_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata);
     static GstFlowReturn newSampleCallback(GstElement *sink, gpointer *user_data);
+    static GstFlowReturn eosCallback(GstElement *sink, gpointer *user_data);
+
 
 protected:
     user_callback_data *m_user_callback_data;

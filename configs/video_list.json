@@ -1,0 +1,10 @@
+{
+    "sources": [
+        {
+            "camera_id": "333",
+            "address": "rtsp://admin:123456a%40@172.21.100.136/main",
+            "encode_type": "h265",
+            "type": "rtsp"
+        }
+    ]
+}

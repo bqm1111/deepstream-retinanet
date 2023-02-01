@@ -65,6 +65,7 @@ void NvInferBinBase::createAppSinkBin()
 
     /* Callback to access buffer and object info. */
     g_signal_connect(m_sink, "new-sample", G_CALLBACK(newSampleCallback), m_user_callback_data);
+    g_signal_connect(m_sink, "eos", G_CALLBACK(eosCallback), this);
 
     gst_bin_add_many(GST_BIN(m_pipeline), m_queue, m_sink, NULL);
 
