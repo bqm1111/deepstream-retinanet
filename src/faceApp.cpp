@@ -68,7 +68,7 @@ gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _u
         QDTLog::error("Error: {}: {}\n", error->message, debug);
         g_free(debug);
         g_error_free(error);
-        // terminate(_uData);
+        terminate(_uData);
         break;
     }
     default:
