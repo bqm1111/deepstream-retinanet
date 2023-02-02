@@ -55,7 +55,7 @@ gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _u
         gchar *debug;
         GError *error;
         gst_message_parse_warning(_msg, &error, &debug);
-        QDTLog::warn("Warning: %s: %s\n", error->message, debug);
+        QDTLog::warn("Warning: {}: {}\n", error->message, debug);
         g_free(debug);
         g_error_free(error);
         break;
@@ -65,10 +65,10 @@ gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _u
         gchar *debug;
         GError *error;
         gst_message_parse_error(_msg, &error, &debug);
-        QDTLog::error("Error: %s: %s\n", error->message, debug);
+        QDTLog::error("Error: {}: {}\n", error->message, debug);
         g_free(debug);
         g_error_free(error);
-        terminate(_uData);
+        // terminate(_uData);
         break;
     }
     default:
@@ -170,6 +170,8 @@ void FaceApp::loadConfig()
     m_user_callback_data->visual_topic = content["visual_topic"].GetString();
     m_user_callback_data->connection_str = content["kafka_connection_str"].GetString();
     m_user_callback_data->face_feature_confidence_threshold = content["face_confidence_threshold"].GetFloat();
+    m_user_callback_data->mot_confidence_threshold = content["mot_confidence_threshold"].GetFloat();
+
 }
 
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)

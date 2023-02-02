@@ -14,6 +14,7 @@ struct user_callback_data
     std::vector<std::shared_ptr<tracker>> trackers;
     gchar *timestamp;
     float face_feature_confidence_threshold;
+    float mot_confidence_threshold;
     bool save_crop_img;
 
     int muxer_output_width;
