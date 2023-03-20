@@ -6,7 +6,7 @@
     "kafka_connection_str": "172.21.100.242:9092",
     "streammux_output_width": 3840,
     "streammux_output_height": 2160,
-    "streammux_batch_size": 2,
+    "streammux_batch_size": 4,
     "streammux_buffer_pool": 40,
     "streammux_nvbuf_memory_type": 3,
     "face_confidence_threshold": 0.45,

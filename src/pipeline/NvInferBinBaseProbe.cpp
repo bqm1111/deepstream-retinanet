@@ -50,7 +50,7 @@ static size_t WriteJsonCallback(char *contents, size_t size, size_t nmemb, void 
 }
 
 void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsObjectMeta *obj_meta,
-                     user_callback_data *callback_data)
+                     user_callback_data *callback_data, gchar *timestamp)
 {
     std::shared_ptr<NvDsFaceMsgData> face_msg_sub_meta = std::make_shared<NvDsFaceMsgData>();
     face_msg_sub_meta->bbox.top = clip(obj_meta->rect_params.top / frame_meta->source_frame_height);
@@ -59,7 +59,9 @@ void getFaceMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsO
     face_msg_sub_meta->bbox.height = clip(obj_meta->rect_params.height / frame_meta->source_frame_height);
 
     // Generate timestamp
-    face_msg_sub_meta->timestamp = g_strdup(callback_data->timestamp);
+    // face_msg_sub_meta->timestamp = g_strdup(callback_data->timestamp);
+    face_msg_sub_meta->timestamp = g_strdup(timestamp);
+
     face_msg_sub_meta->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
     face_msg_sub_meta->frameId = frame_meta->frame_num;
     face_msg_sub_meta->sessionId = g_strdup(callback_data->session_id);
@@ -136,7 +138,6 @@ void getMOTMetaData(NvDsFrameMeta *frame_meta, NvDsBatchMeta *batch_meta, NvDsOb
     }
     mot_meta_list.push_back(mot_msg_sub_meta);
 }
-
 GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user_data)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(user_data);
@@ -157,6 +158,30 @@ GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user
         buf = gst_sample_get_buffer(sample);
         NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
 
+        /* Get timestamp data*/
+        NvDsUserMetaList *batch_user_meta_lst = batch_meta->batch_user_meta_list;
+        gchar *timestamp = NULL;
+        if (batch_user_meta_lst == NULL)
+            std::cout << "batch user meta list disappear!" << std::endl;
+
+        while (batch_user_meta_lst) {
+            NvDsUserMeta *batch_user_meta =(NvDsUserMeta *) batch_user_meta_lst->data;
+
+            if (batch_user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_BATCH_USER_META_TIMESTAMP){
+                gchar *tmp = reinterpret_cast<gchar*>(batch_user_meta->user_meta_data);
+                timestamp = g_strdup(tmp);
+                // std::cout << "Entering batch_user_meta_lst in MOT: timestamp get:" << tmp << "_" << std::endl;
+            }
+            batch_user_meta_lst = batch_user_meta_lst->next;
+
+        }
+        // std::cout <<"       - End timestamp!: " <<timestamp << std::endl;
+        if (timestamp == NULL)
+            std::cout << "Something wrong in adding timestamp to batchmeta when push mot/face" << std::endl;
+        
+        // std::cout << "In newsamplecallback: " << timestamp << std::endl;
+        /*********************/
+
         for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
         {
             NvDsFrameMeta *frame_meta = reinterpret_cast<NvDsFrameMeta *>(l_frame->data);
@@ -168,14 +193,14 @@ GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user
                 NvDsObjectMeta *obj_meta = reinterpret_cast<NvDsObjectMeta *>(l_obj->data);
                 if (obj_meta->class_id == FACE_CLASS_ID)
                 {
-                    getFaceMetaData(frame_meta, batch_meta, obj_meta, callback_data);
+                    getFaceMetaData(frame_meta, batch_meta, obj_meta, callback_data, g_strdup(timestamp));
                 }
                 else if (obj_meta->class_id == PGIE_CLASS_ID_PERSON)
                 {
                     getMOTMetaData(frame_meta, batch_meta, obj_meta, mot_sub_meta_list);
                 }
             }
-
+            // std::cout << "Output timestamp after getMOT and getFace: " << timestamp << std::endl;
             // ===================================== XFace MetaData sent to Kafka =====================================
             XFaceMOTMsgMeta *msg_meta_content = (XFaceMOTMsgMeta *)g_malloc0(sizeof(XFaceMOTMsgMeta));
             // Get MOT meta
@@ -184,7 +209,8 @@ GstFlowReturn NvInferBinBase::newSampleCallback(GstElement *sink, gpointer *user
             memcpy(msg_meta_content->mot_meta_list, mot_sub_meta_list.data(), mot_sub_meta_list.size() * sizeof(NvDsMOTMsgData *));
 
             // Generate timestamp
-            msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
+            // std::cout << "Output timestamp MOT: " << timestamp << std::endl;
+            msg_meta_content->timestamp = g_strdup(timestamp);
             msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
             msg_meta_content->frameId = frame_meta->frame_num;
             msg_meta_content->sessionId = g_strdup(callback_data->session_id);

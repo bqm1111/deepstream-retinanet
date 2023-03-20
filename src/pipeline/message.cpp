@@ -122,7 +122,7 @@ gchar *generate_MOTRawMeta_message(XFaceMOTMsgMeta *msg_meta_content)
         json_object_set_double_member(jbboxObj, "h", msg_meta_content->mot_meta_list[i]->bbox.height);
 
         json_object_set_object_member(motObj, "bbox", jbboxObj);
-
+        // printf("message: x1 y1 x2 y2 = %f - %f - %f - %f\n", msg_meta_content->mot_meta_list[i]->bbox.left, msg_meta_content->mot_meta_list[i]->bbox.top, msg_meta_content->mot_meta_list[i]->bbox.left+msg_meta_content->mot_meta_list[i]->bbox.width, msg_meta_content->mot_meta_list[i]->bbox.top+msg_meta_content->mot_meta_list[i]->bbox.height);
         // track_id
         json_object_set_int_member(motObj, "object_id", msg_meta_content->mot_meta_list[i]->track_id);
 
