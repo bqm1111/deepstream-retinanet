@@ -468,7 +468,6 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
                 }
 
                 NvDsObjEncOutParams *enc_jpeg_image = (NvDsObjEncOutParams *)user_meta->user_meta_data;
-                // face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
 
                 XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
                 msg_meta_content->timestamp = g_strdup(timestamp);
@@ -492,10 +491,16 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
 
                 freeXFaceVisualMsg(msg_meta_content);
                 callback_data->visual_producer->counter++;
-                if (callback_data->visual_producer->counter > POLLING_COUNTER)
+                if (err != RdKafka::ERR_NO_ERROR)
                 {
-                    callback_data->visual_producer->counter = 0;
-                    callback_data->visual_producer->producer->poll(100);
+                    if (err == RdKafka::ERR__QUEUE_FULL)
+                    {
+                        if (callback_data->visual_producer->counter > POLLING_COUNTER)
+                        {
+                            callback_data->visual_producer->counter = 0;
+                            callback_data->visual_producer->producer->poll(100);
+                        }
+                    }
                 }
             }
         } // obj_meta_list

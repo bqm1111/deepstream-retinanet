@@ -3,6 +3,11 @@ https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#import_
 """
 from os import path as osp
 import tensorrt as trt
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--max_batch_size", type=int, help="Max batch size")
+args = parser.parse_args()
 
 # logger to capture errors, warnings, and other information during the build and inference phases
 TRT_LOGGER = trt.Logger(trt.Logger.Severity.WARNING)
@@ -26,7 +31,7 @@ print('Completed parsing of ONNX file')
 config = builder.create_builder_config()
 profile = builder.create_optimization_profile()
 profile.set_shape(
-    "conv1", min=(1, 3, 112, 112), opt=(16, 3, 112, 112), max=(32, 3, 112, 112)
+    "conv1", min=(1, 3, 112, 112), opt=(args.max_batch_size//2, 3, 112, 112), max=(args.max_batch_size, 3, 112, 112)
 )
 config.add_optimization_profile(profile)
 config.max_workspace_size = 1 << 30

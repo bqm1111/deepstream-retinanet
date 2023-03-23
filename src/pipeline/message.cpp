@@ -10,13 +10,13 @@ gchar *generate_XFace_visual_message(XFaceVisualMsg *msg_meta_content)
     propObj = json_object_new();
 
     // add frame info
-    json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "srctime", g_strdup(msg_meta_content->timestamp));
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
-    json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);
+    json_object_set_string_member(rootObj, "session_id", g_strdup(msg_meta_content->sessionId));
     json_object_set_int_member(rootObj, "frame_w", msg_meta_content->width);
     json_object_set_int_member(rootObj, "frame_h", msg_meta_content->height);
-    json_object_set_string_member(rootObj, "frame", msg_meta_content->full_img);
+    // json_object_set_string_member(rootObj, "frame", g_strdup(msg_meta_content->full_img));
 
     // create root node
     rootNode = json_node_new(JSON_NODE_OBJECT);
@@ -42,10 +42,10 @@ gchar *generate_FaceRawMeta_message(std::shared_ptr<NvDsFaceMsgData> msg_meta_co
     propObj = json_object_new();
 
     // add frame info
-    json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "srctime", g_strdup(msg_meta_content->timestamp));
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
-    json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);
+    json_object_set_string_member(rootObj, "session_id", g_strdup(msg_meta_content->sessionId));
 
     // FACE
     JsonObject *faceObj = json_object_new();
@@ -100,10 +100,10 @@ gchar *generate_MOTRawMeta_message(XFaceMOTMsgMeta *msg_meta_content)
     propObj = json_object_new();
 
     // add frame info
-    json_object_set_string_member(rootObj, "srctime", msg_meta_content->timestamp);
+    json_object_set_string_member(rootObj, "srctime", g_strdup(msg_meta_content->timestamp));
     json_object_set_string_member(rootObj, "camera_id", g_strdup(msg_meta_content->cameraId));
     json_object_set_int_member(rootObj, "frame_id", msg_meta_content->frameId);
-    json_object_set_string_member(rootObj, "session_id", msg_meta_content->sessionId);
+    json_object_set_string_member(rootObj, "session_id", g_strdup(msg_meta_content->sessionId));
 
     // MOT
     JsonObject *motArrObj = json_object_new();
