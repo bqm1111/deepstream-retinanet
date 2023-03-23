@@ -16,7 +16,7 @@ gchar *generate_XFace_visual_message(XFaceVisualMsg *msg_meta_content)
     json_object_set_string_member(rootObj, "session_id", g_strdup(msg_meta_content->sessionId));
     json_object_set_int_member(rootObj, "frame_w", msg_meta_content->width);
     json_object_set_int_member(rootObj, "frame_h", msg_meta_content->height);
-    // json_object_set_string_member(rootObj, "frame", g_strdup(msg_meta_content->full_img));
+    json_object_set_string_member(rootObj, "frame", g_strdup(msg_meta_content->full_img));
 
     // create root node
     rootNode = json_node_new(JSON_NODE_OBJECT);

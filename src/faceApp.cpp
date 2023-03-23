@@ -145,7 +145,7 @@ void FaceApp::run()
 
 void FaceApp::loadConfig()
 {
-    parse_rtsp_src_info(m_video_list, m_video_source_name, m_video_source_info);
+    parse_rtsp_src_info(m_video_list, m_video_source_name, m_video_source_info, m_user_callback_data->is_video_encode_and_stream);
     std::ifstream ifs{"../configs/app_conf.json"};
     if (!ifs.is_open())
     {
@@ -173,13 +173,6 @@ void FaceApp::loadConfig()
     m_user_callback_data->mot_confidence_threshold = content["mot_confidence_threshold"].GetFloat();
 
 }
-
-// static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
-// {
-//     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
-//     generate_ts_rfc3339(callback_data->timestamp, MAX_TIME_STAMP_LEN);
-//     return GST_PAD_PROBE_OK;
-// }
 
 gpointer user_copy_timestamp_meta(gpointer data, gpointer user_data){
     NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *> (data);
@@ -406,7 +399,8 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
-
+        if(!callback_data->is_video_encode_and_stream[frame_meta->source_id])
+            continue;
         // attack a mfake object whose class id is MFAKE_CLASS_ID
         NvDsObjectMeta *mfake_meta = nvds_acquire_obj_meta_from_pool(batch_meta);
         mfake_meta->unique_component_id = 1;
