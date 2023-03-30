@@ -61,6 +61,7 @@ private:
     guint m_bus_watch_id;
     ConfigManager *m_config;
     user_callback_data *m_user_callback_data;
+    static gboolean bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _uData);
     void init_user_callback_data();
     void free_user_callback_data();
 };

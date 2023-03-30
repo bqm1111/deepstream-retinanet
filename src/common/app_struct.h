@@ -14,6 +14,7 @@ struct user_callback_data
     std::vector<std::shared_ptr<tracker>> trackers;
     gchar *timestamp;
     float face_feature_confidence_threshold;
+    float mot_confidence_threshold;
     bool save_crop_img;
 
     int muxer_output_width;
@@ -38,7 +39,7 @@ struct user_callback_data
     int fullframe_encode_scale_width = 640;
     int fullframe_encode_scale_height = 480;
     NvDsObjEncCtxHandle fullframe_ctx_handle;
-
+    std::vector<bool> is_video_encode_and_stream;
     std::vector<float> batch_face_feature;
     std::vector<std::shared_ptr<NvDsFaceMsgData>> face_meta_list;
     int frame_since_last_decode_face_name = 0;

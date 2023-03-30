@@ -20,6 +20,10 @@
 #define NVDS_OBJ_USER_META_FACE (nvds_get_user_meta_type("NVIDIA.NVINFER.OBJ_USER_META_FACE"))
 #endif
 
+#ifndef NVDS_BATCH_USER_META_TIMESTAMP
+#define NVDS_BATCH_USER_META_TIMESTAMP (nvds_get_user_meta_type("NVIDIA.NVSTREAMMUX.BATCH_USER_META_TIMESTAMP"))
+#endif
+
 #ifndef NUM_FACEMARK
 #define NUM_FACEMARK 5
 #endif

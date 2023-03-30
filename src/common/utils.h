@@ -23,7 +23,7 @@ gchar *gen_body(int num_vec, gchar *vec);
 bool parseJson(std::string filename, std::vector<std::string> &name,
                std::vector<std::vector<std::string>> &info);
 bool parse_rtsp_src_info(std::string filename, std::vector<std::string> &name,
-               std::vector<std::vector<std::string>> &info);
+               std::vector<std::vector<std::string>> &info, std::vector<bool>&stream);
 
 void generate_ts_rfc3339(char *buf, int buf_size);
 std::vector<std::string> parseListJson(std::string response_json);

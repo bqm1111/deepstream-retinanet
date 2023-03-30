@@ -6,8 +6,11 @@ volumes:
 
 services:
     deepstream-app:
-        build: .
+        build:
+            context: .
+            dockerfile: Dockerfile
         image: deepstream-app:latest
+
         user: root
         container_name: deepstream-app
         volumes: 

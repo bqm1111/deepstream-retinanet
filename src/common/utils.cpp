@@ -63,7 +63,7 @@ bool parseJson(std::string filename, std::vector<std::string> &name, std::vector
     return EXIT_SUCCESS;
 }
 
-bool parse_rtsp_src_info(std::string filename, std::vector<std::string> &name, std::vector<std::vector<std::string>> &info)
+bool parse_rtsp_src_info(std::string filename, std::vector<std::string> &name, std::vector<std::vector<std::string>> &info, std::vector<bool>&stream)
 {
 	std::ifstream ifs{filename};
 	if (!ifs.is_open())
@@ -76,7 +76,7 @@ bool parse_rtsp_src_info(std::string filename, std::vector<std::string> &name, s
 	Document doc{};
 	doc.ParseStream(isw);
 
-	const Value &content = doc["stream"];
+	const Value &content = doc["sources"];
 
 	for (int i = 0; i < content.Size(); i++)
 	{
@@ -86,6 +86,7 @@ bool parse_rtsp_src_info(std::string filename, std::vector<std::string> &name, s
 		value.push_back(content[i]["encode_type"].GetString());
 		value.push_back(content[i]["type"].GetString());
 		info.push_back(value);
+        stream.push_back(content[i]["stream"].GetBool());
 	}
 	return EXIT_SUCCESS;
 }

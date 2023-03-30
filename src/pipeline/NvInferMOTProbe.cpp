@@ -10,7 +10,7 @@ void parse_embedding_from_user_meta_data(
     embedding_data_f = (float *)tensor_meta->out_buf_ptrs_host[0];
 }
 
-static void parse_detections_from_frame_meta(DETECTIONS &detections, NvDsFrameMeta *frame_meta)
+static void parse_detections_from_frame_meta(DETECTIONS &detections, NvDsFrameMeta *frame_meta, float mot_confidence_threshold)
 {
     NvDsObjectMetaList *l_object = frame_meta->obj_meta_list;
     while (l_object)
@@ -29,6 +29,11 @@ static void parse_detections_from_frame_meta(DETECTIONS &detections, NvDsFrameMe
                 DETECTION_ROW row;
                 row.class_num = 0;
                 row.confidence = obj_meta->confidence;
+
+                if (row.confidence < mot_confidence_threshold)
+                {
+                    break;
+                }
                 row.tlwh = DETECTBOX(
                     obj_meta->rect_params.top, obj_meta->rect_params.left,
                     obj_meta->rect_params.width, obj_meta->rect_params.height);
@@ -118,7 +123,7 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
 
         // Track with DeepSORT
         DETECTIONS detections;
-        parse_detections_from_frame_meta(detections, frame_meta);
+        parse_detections_from_frame_meta(detections, frame_meta, callback_data->mot_confidence_threshold);
         trackers[frame_meta->source_id]->predict();
         trackers[frame_meta->source_id]->update(detections);
 
@@ -135,13 +140,13 @@ GstPadProbeReturn NvInferMOTBin::sgie_src_pad_buffer_probe(GstPad *pad, GstPadPr
             // Extract object embedding and add to user_meta_data of the obj_meta
             NvDsMOTMetaData *mot_meta_ptr = new NvDsMOTMetaData();
 
-            double *embedding_data = (double *)g_malloc0(FEATURE_SIZE * sizeof(double));
+            float *embedding_data = (float *)g_malloc0(FEATURE_SIZE * sizeof(float));
             FEATURE last_feature = track.last_feature;
-            Eigen::Matrix<
-                double, 1, FEATURE_SIZE, Eigen::RowMajor>
-                last_feature_d = last_feature.cast<double>();
+            // Eigen::Matrix<
+            //     float, 1, FEATURE_SIZE, Eigen::RowMajor>
+            //     last_feature_d = last_feature.cast<float>();
             Eigen::Map<
-                Eigen::Matrix<double, 1, FEATURE_SIZE, Eigen::RowMajor>>(embedding_data, last_feature_d.rows(), last_feature_d.cols()) = last_feature_d;
+                Eigen::Matrix<float, 1, FEATURE_SIZE, Eigen::RowMajor>>(embedding_data, last_feature.rows(), last_feature.cols()) = last_feature;
 
             mot_meta_ptr->feature = g_strdup(b64encode((float *)embedding_data, FEATURE_SIZE));
             g_free(embedding_data);

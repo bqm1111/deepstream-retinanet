@@ -1,31 +1,32 @@
-FROM nvidia/deepstream:6.0.1-devel as build_env
+FROM nvidia/deepstream:6.1.1-devel as build_env
 
 # Use cached repos
 ENV TZ Asia/Ho_Chi_Minh
 RUN curl "http://172.21.100.253:3000/qdt/Network/raw/branch/master/apt-interal.public.gpg.key" | apt-key add - && \
     echo "deb [arch=amd64] http://172.21.100.15:8081/repository/apt-internal bionic main # also provide hosted packages" > /etc/apt/sources.list && \
-    echo "deb [arch=amd64] http://172.21.100.15:8081/repository/apt-proxy bionic main restricted universe multiverse" >> /etc/apt/sources.list && \
-    echo "deb [arch=amd64] http://172.21.100.15:8081/repository/apt-proxy bionic-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] http://172.21.100.15:8081/repository/apt-proxy focal main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb [arch=amd64] http://172.21.100.15:8081/repository/apt-proxy focal-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
     wget http://172.21.100.253:3000/qdt/Network/raw/branch/master/nvidia/cuda-ubuntu1804.pin && \
     mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
     apt-key adv --fetch-keys http://172.21.100.253:3000/qdt/Network/raw/branch/master/nvidia/3bf863cc.pub && \
-    echo "deb http://172.21.100.15:8081/repository/apt-proxy-nvidia/ /" > /etc/apt/sources.list.d/cuda.list
+    echo "deb http://172.21.100.15:8081/repository/apt-proxy-nvidia/ /" > /etc/apt/sources.list.d/cuda.list && \
+	rm /etc/apt/sources.list.d/cuda-ubuntu2004-x86_64.list  
 
-# update nvidia
-RUN apt-get update && \
-    apt-get install -y  libnvinfer-dev=8.4.1-1+cuda11.6 \
-    libnvinfer-plugin8=8.4.1-1+cuda11.6 \
-    libnvinfer-plugin-dev=8.4.1-1+cuda11.6 \
-    libnvinfer-samples=8.4.1-1+cuda11.6 \
-    libnvinfer8=8.4.1-1+cuda11.6 \
-    libnvonnxparsers-dev=8.4.1-1+cuda11.6 \
-    libnvonnxparsers8=8.4.1-1+cuda11.6 \
-    libnvparsers-dev=8.4.1-1+cuda11.6 \
-    libnvparsers8=8.4.1-1+cuda11.6 \
-    python3-libnvinfer=8.4.1-1+cuda11.6 && \
-    apt-get install -y libcudnn8=8.4.1.50-1+cuda11.6 libcudnn8-dev=8.4.1.50-1+cuda11.6 && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+# # update nvidia
+# RUN apt-get update && \
+#     apt-get install -y  libnvinfer-dev=8.4.1-1+cuda11.6 \
+#     libnvinfer-plugin8=8.4.1-1+cuda11.6 \
+#     libnvinfer-plugin-dev=8.4.1-1+cuda11.6 \
+#     libnvinfer-samples=8.4.1-1+cuda11.6 \
+#     libnvinfer8=8.4.1-1+cuda11.6 \
+#     libnvonnxparsers-dev=8.4.1-1+cuda11.6 \
+#     libnvonnxparsers8=8.4.1-1+cuda11.6 \
+#     libnvparsers-dev=8.4.1-1+cuda11.6 \
+#     libnvparsers8=8.4.1-1+cuda11.6 \
+#     python3-libnvinfer=8.4.1-1+cuda11.6 && \
+#     apt-get install -y libcudnn8=8.4.1.50-1+cuda11.6 libcudnn8-dev=8.4.1.50-1+cuda11.6 && \
+#     apt-get autoremove -y && \
+#     rm -rf /var/lib/apt/lists/*
 
 # remove old cmake
 RUN apt-get update && \
@@ -106,12 +107,12 @@ COPY --from=convert_stage /workspace/data/ /workspace/data/
 COPY --from=build_stage /workspace /workspace
 
 # Create user
-ARG USERNAME
-ARG USER_UID
-ARG USER_GID
-RUN groupadd --gid $USER_GID $USERNAME && \
-    useradd --uid $USER_UID --gid $USER_GID -m $USERNAME && \
-    chown -R ${USER_UID}:${USER_GID} .
+# ARG USERNAME
+# ARG USER_UID
+# ARG USER_GID
+# RUN groupadd --gid $USER_GID $USERNAME && \
+#     useradd --uid $USER_UID --gid $USER_GID -m $USERNAME && \
+#     chown -R ${USER_UID}:${USER_GID} .
 
 USER $USERNAME
 

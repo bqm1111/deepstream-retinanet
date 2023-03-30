@@ -36,6 +36,49 @@ static gboolean event_thread_func(gpointer arg)
     }
 }
 
+static void terminate(gpointer _uData)
+{
+    gst_element_set_state(static_cast<FaceApp *>(_uData)->m_pipeline, GST_STATE_NULL);
+    g_main_loop_quit(static_cast<FaceApp *>(_uData)->getMainloop());
+    static_cast<FaceApp *>(_uData)->freePipeline();
+}
+gboolean FaceApp::bus_watch_callback(GstBus *_bus, GstMessage *_msg, gpointer _uData)
+{
+    switch (GST_MESSAGE_TYPE(_msg))
+    {
+    case GST_MESSAGE_EOS:
+        QDTLog::warn("EOS has been reached\n");
+        terminate(_uData);
+        break;
+    case GST_MESSAGE_WARNING:
+    {
+        gchar *debug;
+        GError *error;
+        gst_message_parse_warning(_msg, &error, &debug);
+        QDTLog::warn("Warning: {}: {}\n", error->message, debug);
+        g_free(debug);
+        g_error_free(error);
+        break;
+    }
+    case GST_MESSAGE_ERROR:
+    {
+        gchar *debug;
+        GError *error;
+        gst_message_parse_error(_msg, &error, &debug);
+        QDTLog::error("Error: {}: {}\n", error->message, debug);
+        g_free(debug);
+        g_error_free(error);
+        terminate(_uData);
+        break;
+    }
+    default:
+        printf(".");
+        fflush(stdout);
+        break;
+    }
+    return TRUE;
+}
+
 void FaceApp::freePipeline()
 {
     g_main_loop_unref(m_loop);
@@ -90,8 +133,8 @@ void FaceApp::init()
     sequentialDetectAndMOT();
 
     m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
-    m_bus_watch_id = gst_bus_add_watch(m_bus, bus_watch_callback, nullptr);
-    g_timeout_add(40, event_thread_func, this);
+    m_bus_watch_id = gst_bus_add_watch(m_bus, bus_watch_callback, this);
+    // g_timeout_add(40, event_thread_func, this);
 }
 
 void FaceApp::run()
@@ -102,7 +145,7 @@ void FaceApp::run()
 
 void FaceApp::loadConfig()
 {
-    parse_rtsp_src_info(m_video_list, m_video_source_name, m_video_source_info);
+    parse_rtsp_src_info(m_video_list, m_video_source_name, m_video_source_info, m_user_callback_data->is_video_encode_and_stream);
     std::ifstream ifs{"../configs/app_conf.json"};
     if (!ifs.is_open())
     {
@@ -127,12 +170,45 @@ void FaceApp::loadConfig()
     m_user_callback_data->visual_topic = content["visual_topic"].GetString();
     m_user_callback_data->connection_str = content["kafka_connection_str"].GetString();
     m_user_callback_data->face_feature_confidence_threshold = content["face_confidence_threshold"].GetFloat();
+    m_user_callback_data->mot_confidence_threshold = content["mot_confidence_threshold"].GetFloat();
+
+}
+
+gpointer user_copy_timestamp_meta(gpointer data, gpointer user_data){
+    NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *> (data);
+    gchar *timestamp = reinterpret_cast<gchar *>(user_meta->user_meta_data);
+    gchar *new_timestamp = reinterpret_cast<gchar *>(g_strdup(timestamp));
+    return reinterpret_cast<gpointer>(new_timestamp);
+}
+
+void user_release_timestamp_meta(gpointer data, gpointer user_data)
+{
+    NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(data);
+    gchar *time_stamp = reinterpret_cast<char *>(user_meta->user_meta_data);
+    if (time_stamp == NULL)
+        std::cout << "Release timestamp error!" << std::endl;
+    delete time_stamp;
 }
 
 static GstPadProbeReturn streammux_src_pad_buffer_probe(GstPad *pad, GstPadProbeInfo *info, gpointer _udata)
 {
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
     generate_ts_rfc3339(callback_data->timestamp, MAX_TIME_STAMP_LEN);
+
+    // Attach timestamp to batchmetadata:
+    // gchar *timestamp = (gchar *)malloc(MAX_TIME_STAMP_LEN);
+    // generate_ts_rfc3339(timestamp, MAX_TIME_STAMP_LEN);
+    // std::cout << "Streammux src pad: ";
+    GstBuffer *buf = gst_pad_probe_info_get_buffer(info);
+    NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    NvDsUserMeta *user_meta = nvds_acquire_user_meta_from_pool(batch_meta);
+    user_meta->user_meta_data = g_strdup(callback_data->timestamp);
+    NvDsMetaType user_meta_type = (NvDsMetaType)NVDS_BATCH_USER_META_TIMESTAMP;
+    user_meta->base_meta.meta_type = user_meta_type;
+    user_meta->base_meta.copy_func = (NvDsMetaCopyFunc)user_copy_timestamp_meta;
+    user_meta->base_meta.release_func = (NvDsMetaReleaseFunc)user_release_timestamp_meta;
+    nvds_add_user_meta_to_batch(batch_meta, user_meta);
+
     return GST_PAD_PROBE_OK;
 }
 
@@ -269,7 +345,6 @@ void FaceApp::addVideoSource()
     }
 }
 
-
 GstElement *FaceApp::getPipeline()
 {
     return m_pipeline;
@@ -300,11 +375,32 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
     user_callback_data *callback_data = reinterpret_cast<user_callback_data *>(_udata);
 
     NvDsBatchMeta *batch_meta = gst_buffer_get_nvds_batch_meta(buf);
+    /************ Get timestamp data *******/
+    NvDsUserMetaList *batch_user_meta_lst = batch_meta->batch_user_meta_list;
+    gchar *timestamp = NULL;
+    while (batch_user_meta_lst) {
+        NvDsUserMeta *batch_user_meta =(NvDsUserMeta *) batch_user_meta_lst->data;
 
+        if (batch_user_meta->base_meta.meta_type == (NvDsMetaType)NVDS_BATCH_USER_META_TIMESTAMP){
+            gchar *tmp = reinterpret_cast<gchar*>(batch_user_meta->user_meta_data);
+            timestamp = g_strdup(tmp);
+            // std::cout << "Entering batch_user_meta_lst in MOT: timestamp get:" << tmp << "_" << std::endl;
+        }
+        batch_user_meta_lst = batch_user_meta_lst->next;
+    }
+    /***************************************/
+
+    // std::cout <<"       - End timestamp!: " <<timestamp << std::endl;
+    if (timestamp == NULL){
+        std::cout << "Something wrong in adding timestamp to batchmeta when push raw image" << std::endl;
+    }
+    /*********************/
+    
     for (NvDsMetaList *l_frame = batch_meta->frame_meta_list; l_frame != NULL; l_frame = l_frame->next)
     {
         NvDsFrameMeta *frame_meta = (NvDsFrameMeta *)(l_frame->data);
-
+        if(!callback_data->is_video_encode_and_stream[frame_meta->source_id])
+            continue;
         // attack a mfake object whose class id is MFAKE_CLASS_ID
         NvDsObjectMeta *mfake_meta = nvds_acquire_obj_meta_from_pool(batch_meta);
         mfake_meta->unique_component_id = 1;
@@ -323,6 +419,8 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
         mfake_meta->rect_params.left = 0.0f;
         mfake_meta->rect_params.width = float(frame_meta->source_frame_width);
         mfake_meta->rect_params.height = float(frame_meta->source_frame_height);
+        // mfake_meta->rect_params.width = float(callback_data->muxer_output_width);
+        // mfake_meta->rect_params.height = float(callback_data->muxer_output_height);
 
         // QDTLog::debug("frame_meta width {} height {}", frame_meta->source_frame_width, frame_meta->source_frame_height);
 
@@ -353,6 +451,7 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
             {
                 continue;
             }
+
             for (NvDsMetaList *l_user = obj_meta->obj_user_meta_list; l_user != NULL; l_user = l_user->next)
             {
                 NvDsUserMeta *user_meta = reinterpret_cast<NvDsUserMeta *>(l_user->data);
@@ -363,10 +462,9 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
                 }
 
                 NvDsObjEncOutParams *enc_jpeg_image = (NvDsObjEncOutParams *)user_meta->user_meta_data;
-                // face_msg_sub_meta->encoded_img = g_strdup(b64encode(enc_jpeg_image->outBuffer, enc_jpeg_image->outLen));
 
                 XFaceVisualMsg *msg_meta_content = (XFaceVisualMsg *)g_malloc0(sizeof(XFaceVisualMsg));
-                msg_meta_content->timestamp = g_strdup(callback_data->timestamp);
+                msg_meta_content->timestamp = g_strdup(timestamp);
                 msg_meta_content->cameraId = g_strdup(std::string(callback_data->video_name[frame_meta->source_id]).c_str());
                 msg_meta_content->frameId = frame_meta->frame_num;
                 msg_meta_content->sessionId = g_strdup(callback_data->session_id);
@@ -387,10 +485,16 @@ static GstPadProbeReturn encode_and_send(GstPad *pad, GstPadProbeInfo *info, gpo
 
                 freeXFaceVisualMsg(msg_meta_content);
                 callback_data->visual_producer->counter++;
-                if (callback_data->visual_producer->counter > POLLING_COUNTER)
+                if (err != RdKafka::ERR_NO_ERROR)
                 {
-                    callback_data->visual_producer->counter = 0;
-                    callback_data->visual_producer->producer->poll(100);
+                    if (err == RdKafka::ERR__QUEUE_FULL)
+                    {
+                        if (callback_data->visual_producer->counter > POLLING_COUNTER)
+                        {
+                            callback_data->visual_producer->counter = 0;
+                            callback_data->visual_producer->producer->poll(100);
+                        }
+                    }
                 }
             }
         } // obj_meta_list
